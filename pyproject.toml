@@ -1,0 +1,48 @@
+[project]
+name = "pvt-phase-simulator"
+version = "0.1.0"
+description = "Development foundation for a PVT phase simulator."
+readme = "README.md"
+authors = [
+    { name = "Magmoud Shanaa", email = "mahmoudshanaa79@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.5.1",
+    "pandas>=3.0.5",
+    "plotly>=5.24.0",
+    "pydantic>=2.10.0",
+    "scipy>=1.18.0",
+    "streamlit>=1.60.0",
+]
+
+[project.scripts]
+pvt-phase-simulator = "pvt_phase_simulator:main"
+
+[build-system]
+requires = ["uv_build>=0.11.33,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src"]
