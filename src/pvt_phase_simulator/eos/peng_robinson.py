@@ -1,7 +1,9 @@
 """Peng–Robinson equation-of-state calculations."""
 
 from dataclasses import dataclass
-from math import sqrt
+from math import isclose, sqrt
+
+import numpy as np
 
 from pvt_phase_simulator.physical_constants import UNIVERSAL_GAS_CONSTANT
 
@@ -17,6 +19,16 @@ class PengRobinsonParameters:
     b: float
     A: float
     B: float
+
+
+@dataclass(frozen=True, slots=True)
+class PengRobinsonCubicCoefficients:
+    """Coefficients of the Peng–Robinson cubic in Z."""
+
+    z3: float
+    z2: float
+    z1: float
+    z0: float
 
 
 def _require_positive(value: float, name: str) -> None:
@@ -181,3 +193,92 @@ def calculate_peng_robinson_parameters(
         A=dimensionless_a,
         B=dimensionless_b,
     )
+
+
+def calculate_cubic_coefficients(
+    A: float,
+    B: float,
+) -> PengRobinsonCubicCoefficients:
+    """Calculate coefficients of the Peng–Robinson cubic in Z."""
+
+    _require_non_negative(A, "A")
+    _require_non_negative(B, "B")
+    if B >= 1.0:
+        raise ValueError("B must be less than 1.")
+
+    return PengRobinsonCubicCoefficients(
+        z3=1.0,
+        z2=B - 1.0,
+        z1=A - 3.0 * B**2 - 2.0 * B,
+        z0=-(A * B - B**2 - B**3),
+    )
+
+
+def _deduplicate_sorted_roots(roots: list[float]) -> tuple[float, ...]:
+    """Remove numerically duplicated roots without rounding."""
+
+    unique_roots: list[float] = []
+    for root in roots:
+        if not unique_roots or not isclose(
+            root,
+            unique_roots[-1],
+            rel_tol=1e-9,
+            abs_tol=1e-12,
+        ):
+            unique_roots.append(root)
+
+    return tuple(unique_roots)
+
+
+def solve_compressibility_roots(
+    coefficients: PengRobinsonCubicCoefficients,
+    imaginary_tolerance: float = 1e-10,
+) -> tuple[float, ...]:
+    """Solve the cubic and return sorted, unique real roots."""
+
+    _require_positive(imaginary_tolerance, "imaginary_tolerance")
+
+    calculated_roots = np.roots(
+        (
+            coefficients.z3,
+            coefficients.z2,
+            coefficients.z1,
+            coefficients.z0,
+        )
+    )
+    real_roots = sorted(
+        float(root.real)
+        for root in calculated_roots
+        if abs(float(root.imag)) <= imaginary_tolerance
+    )
+
+    return _deduplicate_sorted_roots(real_roots)
+
+
+def filter_physical_compressibility_roots(
+    roots: tuple[float, ...],
+    B: float,
+    tolerance: float = 1e-10,
+) -> tuple[float, ...]:
+    """Return roots satisfying the Peng–Robinson condition Z > B."""
+
+    _require_non_negative(B, "B")
+    _require_positive(tolerance, "tolerance")
+
+    physical_roots = tuple(root for root in roots if root > B + tolerance)
+    if not physical_roots:
+        raise ValueError("No physical compressibility roots satisfy Z > B.")
+
+    return physical_roots
+
+
+def calculate_compressibility_roots(
+    A: float,
+    B: float,
+) -> tuple[float, ...]:
+    """Calculate physically usable Peng–Robinson compressibility roots."""
+
+    coefficients = calculate_cubic_coefficients(A, B)
+    all_real_roots = solve_compressibility_roots(coefficients)
+
+    return filter_physical_compressibility_roots(all_real_roots, B)
