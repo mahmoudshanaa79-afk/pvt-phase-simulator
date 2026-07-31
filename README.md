@@ -1,9 +1,11 @@
 # PVT Phase Simulator
 
-Development foundation for a Python 3.12 PVT phase simulator.
+Python 3.12 foundation for a PVT phase simulator.
 
-Milestone 0 covers only the development environment and project setup. Petroleum
-property and equation-of-state calculations are intentionally not implemented yet.
+The current implementation covers pure-methane Peng–Robinson parameters,
+compressibility roots, fugacity coefficients, and stable-root selection. Mixtures,
+flash calculations, phase envelopes, depletion, and the user interface remain
+future work.
 
 ## Requirements
 
