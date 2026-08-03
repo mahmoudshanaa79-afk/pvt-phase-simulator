@@ -1,4 +1,5 @@
-"""Engineering unit conversion helpers for pressure, temperature,
-volume, and related quantities."""
+"""Reserved module for engineering unit conversions.
 
-# Placeholder for future unit conversion functions.
+No conversion API is implemented yet. Current EOS APIs require the SI units
+documented by each function and result model.
+"""

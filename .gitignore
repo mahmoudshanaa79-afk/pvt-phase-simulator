@@ -20,3 +20,13 @@ wheels/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+
+# Coverage, editor, and temporary artifacts
+.coverage
+htmlcov/
+*.tmp
+*.temp
+~$*
+
+# Private planning document kept outside the source release
+/future plan.docx

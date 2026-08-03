@@ -1,3 +1,1 @@
-"""Placeholder module for the future Streamlit application interface."""
-
-# Streamlit imports will be added later.
+"""Reserved Streamlit entry-point module; no user interface is implemented."""

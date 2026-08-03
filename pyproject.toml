@@ -1,7 +1,7 @@
 [project]
 name = "pvt-phase-simulator"
 version = "0.1.0"
-description = "Development foundation for a PVT phase simulator."
+description = "Validated Peng-Robinson pure-fluid and fixed-mixture calculation library."
 readme = "README.md"
 authors = [
     { name = "Magmoud Shanaa", email = "mahmoudshanaa79@gmail.com" }

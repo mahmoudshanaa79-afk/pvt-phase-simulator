@@ -5,9 +5,16 @@ from math import exp
 import pytest
 
 from pvt_phase_simulator.eos.peng_robinson import (
+    PENG_ROBINSON_OMEGA_A,
+    PENG_ROBINSON_OMEGA_B,
     FugacityRootResult,
+    MechanicalStabilityClassification,
     PengRobinsonCubicCoefficients,
     StableRootResult,
+    _deduplicate_sorted_roots,
+    _exponentiate_fugacity_coefficient,
+    _is_numerically_real_root,
+    _root_uncertainty_tolerance,
     calculate_A_parameter,
     calculate_a_parameter,
     calculate_alpha,
@@ -15,6 +22,8 @@ from pvt_phase_simulator.eos.peng_robinson import (
     calculate_b_parameter,
     calculate_compressibility_roots,
     calculate_cubic_coefficients,
+    calculate_cubic_discriminant,
+    calculate_cubic_residual,
     calculate_fugacity_coefficient,
     calculate_fugacity_pa,
     calculate_kappa,
@@ -22,6 +31,7 @@ from pvt_phase_simulator.eos.peng_robinson import (
     calculate_peng_robinson_parameters,
     calculate_reduced_temperature,
     calculate_stable_compressibility_result,
+    classify_mechanical_stability,
     evaluate_fugacity_roots,
     filter_mechanically_stable_compressibility_roots,
     filter_physical_compressibility_roots,
@@ -858,3 +868,385 @@ def test_calculate_stable_compressibility_result_orchestration() -> None:
     expected = select_stable_root(candidates)
 
     assert calculate_stable_compressibility_result(A, B, pressure_pa) == expected
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_pure_parameter_functions_reject_non_finite_inputs(value: float) -> None:
+    """Pure-component parameter APIs must reject every non-finite input."""
+
+    calls = (
+        lambda: calculate_kappa(value),
+        lambda: calculate_reduced_temperature(value, CRITICAL_TEMPERATURE_K),
+        lambda: calculate_reduced_temperature(TEMPERATURE_K, value),
+        lambda: calculate_alpha(value, CRITICAL_TEMPERATURE_K, ACENTRIC_FACTOR),
+        lambda: calculate_alpha(TEMPERATURE_K, value, ACENTRIC_FACTOR),
+        lambda: calculate_alpha(TEMPERATURE_K, CRITICAL_TEMPERATURE_K, value),
+        lambda: calculate_a_parameter(value, CRITICAL_PRESSURE_PA),
+        lambda: calculate_a_parameter(CRITICAL_TEMPERATURE_K, value),
+        lambda: calculate_b_parameter(value, CRITICAL_PRESSURE_PA),
+        lambda: calculate_b_parameter(CRITICAL_TEMPERATURE_K, value),
+        lambda: calculate_A_parameter(value, TEMPERATURE_K, 1.0, 1.0),
+        lambda: calculate_A_parameter(PRESSURE_PA, value, 1.0, 1.0),
+        lambda: calculate_A_parameter(PRESSURE_PA, TEMPERATURE_K, value, 1.0),
+        lambda: calculate_A_parameter(PRESSURE_PA, TEMPERATURE_K, 1.0, value),
+        lambda: calculate_B_parameter(value, TEMPERATURE_K, 1.0),
+        lambda: calculate_B_parameter(PRESSURE_PA, value, 1.0),
+        lambda: calculate_B_parameter(PRESSURE_PA, TEMPERATURE_K, value),
+    )
+    for call in calls:
+        with pytest.raises(ValueError):
+            call()
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_cubic_apis_reject_non_finite_inputs(value: float) -> None:
+    """Cubic construction, evaluation, and solving require finite values."""
+
+    with pytest.raises(ValueError):
+        calculate_cubic_coefficients(value, 0.1)
+    with pytest.raises(ValueError):
+        calculate_cubic_coefficients(0.1, value)
+
+    valid = calculate_cubic_coefficients(0.1, 0.01)
+    with pytest.raises(ValueError):
+        calculate_cubic_residual(value, valid)
+
+    invalid = PengRobinsonCubicCoefficients(1.0, -1.0, value, 0.0)
+    with pytest.raises(ValueError):
+        solve_compressibility_roots(invalid)
+
+
+def test_cubic_residual_matches_independent_polynomial_evaluation() -> None:
+    """The shared residual helper evaluates the documented cubic."""
+
+    coefficients = calculate_cubic_coefficients(0.05, 0.005)
+    root = solve_compressibility_roots(coefficients)[-1]
+    assert calculate_cubic_residual(root, coefficients) == pytest.approx(
+        0.0,
+        abs=1e-12,
+    )
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_root_filters_reject_non_finite_roots(value: float) -> None:
+    """Invalid root values must not be silently filtered or retained."""
+
+    with pytest.raises(ValueError, match="root"):
+        filter_physical_compressibility_roots((value,), B=0.01)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_pure_fugacity_apis_reject_non_finite_inputs(value: float) -> None:
+    """Pure fugacity paths reject non-finite thermodynamic inputs."""
+
+    calls = (
+        lambda: calculate_log_fugacity_coefficient(value, 0.1, 0.01),
+        lambda: calculate_log_fugacity_coefficient(1.0, value, 0.01),
+        lambda: calculate_log_fugacity_coefficient(1.0, 0.1, value),
+        lambda: calculate_fugacity_pa(value, 1.0),
+        lambda: calculate_fugacity_pa(1.0, value),
+    )
+    for call in calls:
+        with pytest.raises(ValueError):
+            call()
+
+
+def test_fugacity_coefficient_converts_exponential_overflow_to_value_error() -> None:
+    """An overflowing exponential must produce a controlled domain error."""
+
+    with pytest.raises(ValueError, match="fugacity coefficient"):
+        _exponentiate_fugacity_coefficient(1_000.0)
+
+
+def test_fugacity_coefficient_rejects_exponential_underflow_to_zero() -> None:
+    """A numerically underflowed fugacity coefficient is not strictly positive."""
+
+    with pytest.raises(ValueError, match="fugacity coefficient"):
+        _exponentiate_fugacity_coefficient(-1_000.0)
+
+
+def test_fugacity_rejects_non_finite_product() -> None:
+    """Finite inputs must not be allowed to produce infinite fugacity."""
+
+    with pytest.raises(ValueError, match="fugacity_pa"):
+        calculate_fugacity_pa(1e308, 1e308)
+
+
+@pytest.mark.parametrize("field", range(4))
+def test_stable_root_selection_rejects_non_finite_candidate_fields(field: int) -> None:
+    """Externally constructed result records are validated before selection."""
+
+    values = [1.0, 0.0, 1.0, 1.0]
+    values[field] = float("nan")
+    candidate = FugacityRootResult(*values)
+    with pytest.raises(ValueError):
+        select_stable_root((candidate,))
+
+
+def test_repository_constants_at_nominal_methane_critical_state() -> None:
+    """Rounded PR constants give one real root at the nominal methane Tc/Pc."""
+
+    parameters = calculate_peng_robinson_parameters(
+        CRITICAL_TEMPERATURE_K,
+        CRITICAL_PRESSURE_PA,
+        CRITICAL_TEMPERATURE_K,
+        CRITICAL_PRESSURE_PA,
+        ACENTRIC_FACTOR,
+    )
+    coefficients = calculate_cubic_coefficients(parameters.A, parameters.B)
+    roots = solve_compressibility_roots(coefficients)
+
+    assert parameters.A == PENG_ROBINSON_OMEGA_A == 0.45724
+    assert PENG_ROBINSON_OMEGA_B == 0.07780
+    assert parameters.B == pytest.approx(PENG_ROBINSON_OMEGA_B, abs=2e-17)
+    assert coefficients == PengRobinsonCubicCoefficients(
+        z3=1.0,
+        z2=-0.9222,
+        z1=0.28348147999999995,
+        z0=-0.029049521048,
+    )
+    assert calculate_cubic_discriminant(coefficients) == pytest.approx(
+        -1.9574436516123228e-10,
+        abs=1e-20,
+    )
+    assert roots == pytest.approx((0.32137902517361217,), abs=1e-14)
+    assert calculate_fugacity_coefficient(
+        roots[0], parameters.A, parameters.B
+    ) == pytest.approx(0.6426442137959292, abs=1e-14)
+    diagnostic = classify_mechanical_stability(roots[0], parameters.A, parameters.B)
+    assert diagnostic.derivative == pytest.approx(-0.01626804444617136, abs=1e-14)
+    assert diagnostic.classification is MechanicalStabilityClassification.STABLE
+
+
+@pytest.mark.parametrize(
+    ("temperature_ratio", "expected_A", "expected_B", "expected_root", "expected_phi"),
+    [
+        (
+            1.0 - 1e-4,
+            0.457349370170706,
+            0.07780778077807782,
+            0.28395267336888547,
+            0.6424853634675094,
+        ),
+        (
+            1.0 + 1e-4,
+            0.4571306656711461,
+            0.07779222077792221,
+            0.3359298370107594,
+            0.6427900502577396,
+        ),
+    ],
+)
+def test_independent_methane_references_around_critical_temperature(
+    temperature_ratio: float,
+    expected_A: float,
+    expected_B: float,
+    expected_root: float,
+    expected_phi: float,
+) -> None:
+    """Near-critical values match 50-digit Decimal equation evaluation."""
+
+    parameters = calculate_peng_robinson_parameters(
+        temperature_ratio * CRITICAL_TEMPERATURE_K,
+        CRITICAL_PRESSURE_PA,
+        CRITICAL_TEMPERATURE_K,
+        CRITICAL_PRESSURE_PA,
+        ACENTRIC_FACTOR,
+    )
+    coefficients = calculate_cubic_coefficients(parameters.A, parameters.B)
+    roots = solve_compressibility_roots(coefficients)
+    assert parameters.A == pytest.approx(expected_A, abs=2e-15)
+    assert parameters.B == pytest.approx(expected_B, abs=2e-16)
+    assert roots == pytest.approx((expected_root,), abs=2e-14)
+    assert calculate_fugacity_coefficient(
+        roots[0], parameters.A, parameters.B
+    ) == pytest.approx(expected_phi, abs=2e-14)
+
+
+def test_higher_precision_critical_constants_resolve_one_triple_root() -> None:
+    """Constants derived from triple-root constraints recover Zc in float64."""
+
+    exact_A = 0.4572355289213822
+    exact_B = 0.07779607390388846
+    exact_Z = 0.30740130869870386
+    coefficients = calculate_cubic_coefficients(exact_A, exact_B)
+
+    assert coefficients.z2 == pytest.approx(-3.0 * exact_Z, abs=2e-15)
+    assert coefficients.z1 == pytest.approx(3.0 * exact_Z**2, abs=2e-15)
+    assert coefficients.z0 == pytest.approx(-(exact_Z**3), abs=2e-15)
+    assert abs(calculate_cubic_discriminant(coefficients)) <= 1e-16
+    assert solve_compressibility_roots(coefficients) == pytest.approx(
+        (exact_Z,),
+        abs=2e-14,
+    )
+    diagnostic = classify_mechanical_stability(exact_Z, exact_A, exact_B)
+    assert abs(diagnostic.derivative) <= diagnostic.derivative_tolerance
+    assert diagnostic.classification is MechanicalStabilityClassification.MARGINAL
+
+
+def test_near_spinodal_root_is_marginal_and_not_returned_as_stable() -> None:
+    """A repeated spinodal root is retained diagnostically but not as stable."""
+
+    A = 0.43714718366683
+    B = 0.07334914941044646
+    coefficients = calculate_cubic_coefficients(A, B)
+    roots = solve_compressibility_roots(coefficients)
+    assert roots == pytest.approx(
+        (0.24585273921521483, 0.4349453721591239),
+        abs=2e-13,
+    )
+    marginal = classify_mechanical_stability(roots[0], A, B)
+    stable = classify_mechanical_stability(roots[1], A, B)
+    assert marginal.derivative == pytest.approx(-2.913225216616411e-13, abs=1e-15)
+    assert marginal.derivative_tolerance == pytest.approx(
+        9.55111162511968e-13,
+        rel=1e-13,
+    )
+    assert marginal.classification is MechanicalStabilityClassification.MARGINAL
+    assert stable.classification is MechanicalStabilityClassification.STABLE
+    assert filter_mechanically_stable_compressibility_roots(roots, A, B) == (roots[1],)
+
+
+def test_only_marginal_critical_root_is_rejected_by_stable_filter() -> None:
+    """The stable-only compatibility API must not relabel a marginal root."""
+
+    A = 0.4572355289213822
+    B = 0.07779607390388846
+    roots = solve_compressibility_roots(calculate_cubic_coefficients(A, B))
+    with pytest.raises(ValueError, match="mechanically stable"):
+        filter_mechanically_stable_compressibility_roots(roots, A, B)
+
+
+def test_genuinely_distinct_near_coalescing_roots_are_preserved() -> None:
+    """Positive-discriminant roots remain separate just inside a spinodal."""
+
+    A = 0.43714722474533796
+    B = 0.07334915630303031
+    coefficients = calculate_cubic_coefficients(A, B)
+    assert calculate_cubic_discriminant(coefficients) == pytest.approx(
+        3.995092104358555e-11,
+        abs=1e-20,
+    )
+    assert solve_compressibility_roots(coefficients) == pytest.approx(
+        (0.24576444657132412, 0.24594121939288996, 0.434945177732756),
+        abs=2e-13,
+    )
+
+
+def test_root_deduplication_boundary_uses_conditioning_scale() -> None:
+    """Synthetic candidates inside the uncertainty overlap merge; outside do not."""
+
+    coefficients = PengRobinsonCubicCoefficients(1.0, -4.0, 5.0, -2.0)
+    uncertainty = _root_uncertainty_tolerance(1.0, coefficients)
+    inside = [1.0 - 0.25 * uncertainty, 1.0 + 0.25 * uncertainty, 2.0]
+    outside = [1.0 - uncertainty, 1.0 + uncertainty, 2.0]
+    assert _deduplicate_sorted_roots(inside, coefficients) == pytest.approx(
+        (1.0, 2.0),
+        abs=1e-15,
+    )
+    assert len(_deduplicate_sorted_roots(outside, coefficients)) == 3
+
+
+def test_small_imaginary_classification_boundary_is_scale_aware() -> None:
+    """Near-real conversion follows local root uncertainty and residual evidence."""
+
+    coefficients = PengRobinsonCubicCoefficients(1.0, -4.0, 5.0, -2.0)
+    uncertainty = _root_uncertainty_tolerance(1.0, coefficients)
+    assert _is_numerically_real_root(
+        1.0,
+        0.99 * uncertainty,
+        coefficients,
+        imaginary_tolerance=1e-10,
+    )
+    assert not _is_numerically_real_root(
+        1.0,
+        1.01 * uncertainty,
+        coefficients,
+        imaginary_tolerance=1e-10,
+    )
+    assert not _is_numerically_real_root(
+        1.1,
+        1e-12,
+        coefficients,
+        imaginary_tolerance=1e-10,
+    )
+
+
+@pytest.mark.parametrize("coefficient_scale", [1e-12, 1e12])
+def test_near_real_policy_is_invariant_to_polynomial_scaling(
+    coefficient_scale: float,
+) -> None:
+    """Multiplying every coefficient does not change root classification."""
+
+    base = PengRobinsonCubicCoefficients(1.0, -4.0, 5.0, -2.0)
+    scaled = PengRobinsonCubicCoefficients(
+        *(coefficient_scale * value for value in (1.0, -4.0, 5.0, -2.0))
+    )
+    base_uncertainty = _root_uncertainty_tolerance(1.0, base)
+    assert _root_uncertainty_tolerance(1.0, scaled) == pytest.approx(
+        base_uncertainty,
+        rel=1e-12,
+    )
+    assert _is_numerically_real_root(
+        1.0,
+        0.5 * base_uncertainty,
+        scaled,
+        imaginary_tolerance=1e-10,
+    )
+
+
+def test_pure_fugacity_accepts_calculated_and_rounded_roots() -> None:
+    """A genuine root and a harmless decimal rounding are both admissible."""
+
+    A = 0.32510214571729645
+    B = 0.10745033918942425
+    root = calculate_compressibility_roots(A, B)[0]
+    expected = -0.19491872844246484
+    assert calculate_log_fugacity_coefficient(root, A, B) == pytest.approx(
+        expected,
+        abs=1e-14,
+    )
+    assert calculate_log_fugacity_coefficient(round(root, 10), A, B) == pytest.approx(
+        expected,
+        abs=2e-11,
+    )
+
+
+def test_pure_fugacity_rejects_arbitrary_non_root() -> None:
+    """A finite value in the logarithm domain is not necessarily a cubic root."""
+
+    with pytest.raises(ValueError, match="does not satisfy"):
+        calculate_log_fugacity_coefficient(0.5, A=0.32510214571729645, B=0.1)
+
+
+def test_pure_fugacity_ideal_limit_accepts_only_Z_one() -> None:
+    """The exact ideal cubic retains Z=1 rather than arbitrary positive Z."""
+
+    assert calculate_log_fugacity_coefficient(1.0, A=0.0, B=0.0) == 0.0
+    assert calculate_fugacity_coefficient(1.0, A=0.0, B=0.0) == 1.0
+    with pytest.raises(ValueError, match="does not satisfy"):
+        calculate_log_fugacity_coefficient(2.0, A=0.0, B=0.0)
+
+
+def test_pure_fugacity_accepts_every_genuine_three_root_candidate() -> None:
+    """The low-level evaluator does not impose mechanical or global stability."""
+
+    A = 0.05
+    B = 0.005
+    roots = calculate_compressibility_roots(A, B)
+    assert len(roots) == 3
+    assert all(calculate_fugacity_coefficient(root, A, B) > 0.0 for root in roots)
+
+
+def test_pure_fugacity_rejects_non_root_near_repeated_ideal_root() -> None:
+    """A small residual near excluded Z=0 cannot bypass root distance."""
+
+    with pytest.raises(ValueError, match="distance tolerance"):
+        calculate_log_fugacity_coefficient(1e-6, A=0.0, B=0.0)
+
+
+def test_evaluate_fugacity_roots_rejects_user_supplied_non_root() -> None:
+    """Multi-root orchestration applies the same supplied-root contract."""
+
+    with pytest.raises(ValueError, match="does not satisfy"):
+        evaluate_fugacity_roots((0.5,), A=0.05, B=0.005, pressure_pa=1e6)

@@ -6,10 +6,20 @@ import numpy
 import pandas
 import plotly
 import pydantic
+import pytest
 import scipy
 import streamlit
 
 import pvt_phase_simulator
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _assert_required_folders_exist(project_root: Path) -> None:
+    expected_names = ("app", "data", "docs", "notebooks", "src", "tests")
+    for name in expected_names:
+        directory = project_root / name
+        assert directory.exists(), f"Missing expected directory: {directory}"
 
 
 def test_package_imports_and_required_folders_exist() -> None:
@@ -23,14 +33,13 @@ def test_package_imports_and_required_folders_exist() -> None:
     assert scipy.__name__
     assert streamlit.__name__
 
-    expected_dirs = [
-        Path("app"),
-        Path("data"),
-        Path("docs"),
-        Path("notebooks"),
-        Path("src"),
-        Path("tests"),
-    ]
+    _assert_required_folders_exist(PROJECT_ROOT)
 
-    for directory in expected_dirs:
-        assert directory.exists(), f"Missing expected directory: {directory}"
+
+def test_required_folder_check_is_independent_of_working_directory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Folder checks should resolve from this test file, not the process CWD."""
+
+    monkeypatch.chdir(PROJECT_ROOT.parent)
+    _assert_required_folders_exist(PROJECT_ROOT)
