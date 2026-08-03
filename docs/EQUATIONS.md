@@ -309,3 +309,137 @@ The right-hand side is the mixture residual Gibbs-energy departure divided by
 identity. It is a thermodynamic consistency invariant for the implemented
 fixed-composition equations; by itself it does not prove experimental accuracy
 or global phase stability.
+
+## Module 6: mixture phase-stability foundation
+
+This section describes the two Michelsen-style tangent-plane-distance trials
+implemented by `phase_stability.py`. The result detects a thermodynamic
+tendency to form a distinct trial phase. It does not calculate phase fractions,
+final equilibrium compositions, or a flash solution.
+
+### Wilson initial estimates
+
+\[
+K_i^{Wilson}=\frac{P_{c,i}}{P}
+\exp\left[5.373(1+\omega_i)\left(1-\frac{T_{c,i}}T\right)\right]
+\]
+
+`calculate_wilson_k_values` returns finite positive dimensionless estimates in
+component order. `T`, `P`, `T_c`, and `P_c` use SI units. The implementation
+forms `ln(K_i)` first and rejects float64 exponential overflow or underflow.
+Wilson values initialize trials only and are not equilibrium results.
+
+### Trial-composition initialization
+
+For vapor-like and liquid-like trials respectively:
+
+\[
+\widetilde w_i^V=z_iK_i,\qquad
+\widetilde w_i^L=\frac{z_i}{K_i}
+\]
+
+\[
+w_i=\frac{\widetilde w_i}{\sum_j\widetilde w_j}
+\]
+
+`initialize_trial_composition` evaluates these relations in log space using a
+log-sum-exp normalization. This normalization is an explicit solver operation;
+the immutable feed composition is not altered. Zero feed fractions remain zero.
+
+Wilson starts are primary. If one Wilson character is inconclusive, bounded
+deterministic fallback starts are evaluated only for that character: the feed,
+a uniform composition over active components, and component-rich compositions
+with `epsilon = 10^-3`. In a component-rich start, `w_i = 1 - epsilon` and the
+remainder is distributed over other active components in proportion to their
+feed fractions. Equivalent starts are deduplicated within `10^-12`, zero-feed
+support is preserved, and no more than 10 starts are used.
+
+### Tangent-plane distance
+
+For the selected homogeneous feed reference:
+
+\[
+d_i=\ln z_i+\ln\phi_i(z)
+\]
+
+and for a normalized trial composition:
+
+\[
+TPD(w)=\sum_iw_i
+\left[\ln w_i+\ln\phi_i(w)-d_i\right]
+\]
+
+`calculate_tangent_plane_distance` uses compensated `fsum` accumulation and
+returns a finite dimensionless result. A component with `z_i=0` must also have
+`w_i=0`; its limiting zero contribution is omitted, so `log(0)` is never
+evaluated. A positive trial fraction outside the feed support is rejected.
+
+### Successive-substitution update
+
+The trial stores unnormalized weights in log space:
+
+\[
+\ln W_i^{new}=\ln z_i+\ln\phi_i(z)-\ln\phi_i(w)
+\]
+
+The new weights are normalized before the next EOS evaluation. Every iteration
+rebuilds the trial mixture parameters, solves the shared PR cubic, classifies
+all roots, and recalculates Module 5 component fugacity coefficients. A
+vapor-like trial selects the largest mechanically stable root; a liquid-like
+trial selects the smallest. Unstable roots are excluded, and marginal roots
+are retained diagnostically rather than used.
+
+### Convergence and trivial solutions
+
+The updated weights are normalized to `w_new`. The primary stationary-
+composition residual is:
+
+\[
+r_s=\max_i\left|\ln w_i^{new}-\ln w_i^{old}\right|
+\]
+
+Normalizing before evaluating this residual makes it invariant to an arbitrary
+common scaling of the unnormalized `W_i`. The implementation also tracks
+maximum normalized-composition change and TPD change. Default convergence
+tolerances are `1e-10`, `1e-10`, and `1e-12` respectively. Iteration history
+and failures are immutable. Maximum-iteration,
+two-cycle, numerical, provenance, or root-selection failure produces an
+inconclusive trial rather than a stable result.
+
+All root candidates and mechanical classifications remain in every iteration.
+The largest/smallest-root policy is reapplied rather than enforcing persistent
+continuity. A discontinuous selected-root change is recorded diagnostically
+using nearest-current-root and scale-aware jump observations; the diagnostic
+does not change the chosen root or classify the trial by itself.
+
+A converged solution is marked trivial when:
+
+\[
+\max_i|w_i-z_i|\le 10^{-8}
+\]
+
+Returning to the feed is recorded separately from finding a distinct trial
+composition.
+
+### Stability interpretation
+
+With dimensionless `TPD_STABILITY_TOLERANCE = 1e-8`:
+
+- `UNSTABLE`: at least one distinct converged trial has `TPD < -1e-8`.
+- `STABLE`: both required characters have a reliable converged result and
+  neither finds a distinct negative TPD below the tolerance.
+- `INCONCLUSIVE`: either required character cannot establish a reliable result.
+
+For a character whose Wilson attempt is inconclusive, selection first considers
+distinct converged trials with `TPD < -1e-8` and chooses the lowest TPD. If no
+such point exists, it chooses the lowest reliable converged result at or above
+the negative tolerance. If no reliable attempt exists, the character remains
+inconclusive. All failed and successful attempts remain available in immutable
+result records.
+
+The feed reference is the mechanically stable homogeneous root minimizing
+`sum(z_i ln(phi_i))`; all candidate roots remain visible. This homogeneous-root
+comparison and the trial root-size policies do not independently prove global
+mixture stability. Bounded deterministic multi-start reduces dependence on two
+Wilson starts but does not certify exhaustive global minimization, and none of
+these equations supplies a vapor fraction or final phase composition.

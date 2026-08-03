@@ -22,6 +22,9 @@ regression cases.
 - Non-blocking numerical-conditioning, model-applicability, and data-quality
   diagnostics.
 - A shifted `w = Z - 1` formulation for accurate low-pressure fugacity.
+- A Michelsen-style, two-trial tangent-plane-distance stability-analysis
+  foundation with Wilson initialization, conditional deterministic fallback,
+  and explicit inconclusive outcomes.
 
 The equations and their implementation mapping are documented in
 [`docs/EQUATIONS.md`](docs/EQUATIONS.md).
@@ -37,7 +40,8 @@ src/pvt_phase_simulator/
     ├── peng_robinson.py         # Pure-fluid parameters, roots, and fugacity
     ├── mixing_rules.py          # Fixed-composition classical mixing rules
     ├── mixture_fugacity.py      # Component fugacity at a supplied mixture root
-    └── diagnostics.py           # Advisory, non-blocking EOS diagnostics
+    ├── diagnostics.py           # Advisory, non-blocking EOS diagnostics
+    └── phase_stability.py       # TPD trials and conditional fallback starts
 tests/                           # Independent references and validation tests
 docs/                            # Scientific documentation
 data/                            # Future property-database scaffold
@@ -57,6 +61,10 @@ The package includes a `py.typed` marker and exposes inline type information.
 6. Optionally classify local mechanical stability.
 7. Evaluate component fugacity coefficients at a validated cubic root.
 8. Evaluate advisory diagnostics separately; diagnostics never modify results.
+9. For phase-stability analysis, run distinct vapor-like and liquid-like TPD
+   Wilson trials, using bounded deterministic starts only for an inconclusive
+   character. This does not calculate phase fractions or equilibrium
+   compositions.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.
@@ -132,7 +140,7 @@ uv run mypy src
 uv run python -m compileall src
 ```
 
-The current suite contains 284 tests covering ordinary, critical,
+The test suite covers ordinary, critical,
 near-critical, three-root, spinodal/marginal, zero-pressure, and very-low-
 pressure states; pure-component reduction; binary and ternary independent
 references; Euler/Gibbs–Duhem invariants; provenance forgery; interaction
@@ -142,9 +150,10 @@ policies; and diagnostic non-interference.
 
 The project does **not** yet implement:
 
-- flash calculations, Wilson K-values, or Rachford–Rice
+- flash calculations or Rachford–Rice
 - phase fractions or phase compositions
-- mixture global phase-stability analysis
+- exhaustive/global phase-stability certification beyond the bounded
+  Wilson-plus-fallback Michelsen-style trials
 - bubble point, dew point, or phase envelopes
 - reservoir depletion
 - Péneloux volume translation or another EOS
