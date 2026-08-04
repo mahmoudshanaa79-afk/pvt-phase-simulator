@@ -2,8 +2,9 @@
 
 `pvt-phase-simulator` is a Python 3.12 educational and portfolio project for
 building auditable petroleum-fluid thermodynamics calculations. The current
-release implements the Peng–Robinson equation of state for pure fluids and
-fixed-composition mixtures. It emphasizes explicit units, immutable inputs,
+work implements the Peng–Robinson equation of state for pure fluids,
+fixed-composition mixtures, phase-stability trials, and a stability-gated
+two-phase flash foundation. It emphasizes explicit units, immutable inputs,
 traceable assumptions, numerical conditioning, and independently specified
 regression cases.
 
@@ -25,6 +26,9 @@ regression cases.
 - A Michelsen-style, two-trial tangent-plane-distance stability-analysis
   foundation with Wilson initialization, conditional deterministic fallback,
   and explicit inconclusive outcomes.
+- A stability-gated isothermal-isobaric two-phase flash with bracketed
+  Rachford–Rice solution, PR fugacity-ratio updates, material-balance checks,
+  and immutable iteration history.
 
 The equations and their implementation mapping are documented in
 [`docs/EQUATIONS.md`](docs/EQUATIONS.md).
@@ -41,7 +45,8 @@ src/pvt_phase_simulator/
     ├── mixing_rules.py          # Fixed-composition classical mixing rules
     ├── mixture_fugacity.py      # Component fugacity at a supplied mixture root
     ├── diagnostics.py           # Advisory, non-blocking EOS diagnostics
-    └── phase_stability.py       # TPD trials and conditional fallback starts
+    ├── phase_stability.py       # TPD trials and conditional fallback starts
+    └── flash.py                 # Stability-gated two-phase flash foundation
 tests/                           # Independent references and validation tests
 docs/                            # Scientific documentation
 data/                            # Future property-database scaffold
@@ -65,6 +70,9 @@ The package includes a `py.typed` marker and exposes inline type information.
    Wilson trials, using bounded deterministic starts only for an inconclusive
    character. This does not calculate phase fractions or equilibrium
    compositions.
+10. Only for a conclusively unstable feed, solve the two-phase material balance
+    and iterate liquid/vapor PR fugacity equality. Stable and inconclusive feeds
+    do not enter the two-phase iteration.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.
@@ -150,8 +158,8 @@ policies; and diagnostic non-interference.
 
 The project does **not** yet implement:
 
-- flash calculations or Rachford–Rice
-- phase fractions or phase compositions
+- three-phase or multiphase flash calculations
+- accelerated, damped, or globally convergent flash algorithms
 - exhaustive/global phase-stability certification beyond the bounded
   Wilson-plus-fallback Michelsen-style trials
 - bubble point, dew point, or phase envelopes
@@ -161,9 +169,9 @@ The project does **not** yet implement:
 - engineering unit conversion functions
 - a Streamlit user interface
 
-The current mixture calculations apply to a fixed overall composition and a
-specified state/root. Pure-fluid stable-root selection must not be generalized
-to multicomponent global phase stability.
+The current flash is an undamped successive-substitution foundation at specified
+temperature and pressure. Pure-fluid stable-root selection must not be
+generalized to multicomponent global phase stability.
 
 Passing tests demonstrates consistency with the documented equations and
 regression cases; it does not replace experimental validation, calibrated

@@ -443,3 +443,92 @@ comparison and the trial root-size policies do not independently prove global
 mixture stability. Bounded deterministic multi-start reduces dependence on two
 Wilson starts but does not certify exhaustive global minimization, and none of
 these equations supplies a vapor fraction or final phase composition.
+
+## Module 7: stability-gated two-phase flash foundation
+
+`flash.py` calls Module 6 first. A stable feed returns a single-phase result,
+an inconclusive stability result remains inconclusive, and only a conclusively
+unstable feed enters the two-phase iteration. Rachford–Rice is not treated as
+proof of phase splitting.
+
+### Equilibrium ratios and Rachford–Rice
+
+For vapor composition `y`, liquid composition `x`, and vapor fraction `beta`:
+
+\[
+K_i=\frac{y_i}{x_i}
+\]
+
+\[
+F(\beta)=\sum_i
+\frac{z_i(K_i-1)}{1+\beta(K_i-1)}=0
+\]
+
+Every denominator is evaluated in the algebraically identical, cancellation-free
+form `(1 - beta) + beta*K_i`, which adds two non-negative terms for
+`0 <= beta <= 1` and `K_i > 0`. Evaluating the literal `1 + beta*(K_i - 1)`
+loses the entire denominator when `K_i` falls below the float64 spacing of one:
+at `beta = 1` it returns exactly zero for every `K_i` below about `5.6e-17`,
+even though the exact denominator is `K_i`.
+
+The implementation requires positive finite denominators and solves a strict
+interior root on `0 < beta < 1` with bracketed `brentq`. It retains:
+
+\[
+F(0)=\sum_i z_i(K_i-1)
+\]
+
+\[
+F(1)=\sum_i\frac{z_i(K_i-1)}{K_i}
+\]
+
+and uses their signs to distinguish a two-phase root, all-liquid tendency,
+all-vapor tendency, and the degenerate `K_i`-near-unity case.
+
+### Phase compositions and balance
+
+\[
+x_i=\frac{z_i}{1+\beta(K_i-1)},\qquad y_i=K_ix_i
+\]
+
+\[
+r_i^{MB}=z_i-[(1-\beta)x_i+\beta y_i]
+\]
+
+Raw liquid and vapor sums are checked before normalization. Only discrepancies
+within `1e-10` may be normalized, and that action is recorded. Component
+material-balance residuals must be within `1e-10` for convergence.
+
+### Fugacity update and residual
+
+At equal phase pressure:
+
+\[
+x_i\phi_i^L P=y_i\phi_i^V P
+\]
+
+so the undamped log-space update is:
+
+\[
+\ln K_i^{new}=\ln\phi_i^L-\ln\phi_i^V
+\]
+
+The implemented signed equilibrium residual is:
+
+\[
+r_i^{eq}=\ln K_i-[\ln\phi_i^L-\ln\phi_i^V]
+=\ln f_i^V-\ln f_i^L
+\]
+
+Liquid phases use the smallest mechanically stable PR root and vapor phases use
+the largest. All candidates and classifications remain recorded. Marginal and
+unstable roots are not used, and root switching is diagnostic rather than
+enforced continuation.
+
+A two-phase result converges only when the Rachford–Rice residual is within
+`1e-12`, maximum log-K and fugacity-equilibrium residuals are within `1e-8`,
+composition-sum and material-balance residuals are within `1e-10`, beta is
+strictly physical, and both phase roots are mechanically stable. Beta change
+or composition change alone cannot establish convergence. This undamped
+successive-substitution implementation is not a bubble-point, dew-point,
+phase-envelope, or global multiphase solver.
