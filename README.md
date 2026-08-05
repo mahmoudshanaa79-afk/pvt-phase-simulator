@@ -3,9 +3,10 @@
 `pvt-phase-simulator` is a Python 3.12 educational and portfolio project for
 building auditable petroleum-fluid thermodynamics calculations. The current
 work implements the Peng–Robinson equation of state for pure fluids,
-fixed-composition mixtures, phase-stability trials, and a stability-gated
-two-phase flash foundation. It emphasizes explicit units, immutable inputs,
-traceable assumptions, numerical conditioning, and independently specified
+fixed-composition mixtures, phase-stability trials, a stability-gated
+two-phase flash foundation, and fixed-temperature saturation pressures. It
+emphasizes explicit units, immutable inputs, traceable assumptions, numerical
+conditioning, and independently specified
 regression cases.
 
 ## Implemented functionality
@@ -29,6 +30,9 @@ regression cases.
 - A stability-gated isothermal-isobaric two-phase flash with bracketed
   Rachford–Rice solution, PR fugacity-ratio updates, material-balance checks,
   and immutable iteration history.
+- Fixed-temperature bubble- and dew-pressure solvers with Wilson search
+  estimates, self-consistent incipient compositions, logarithmic pressure
+  bracketing, explicit PR root policies, and immutable failure evidence.
 
 The equations and their implementation mapping are documented in
 [`docs/EQUATIONS.md`](docs/EQUATIONS.md).
@@ -46,7 +50,8 @@ src/pvt_phase_simulator/
     ├── mixture_fugacity.py      # Component fugacity at a supplied mixture root
     ├── diagnostics.py           # Advisory, non-blocking EOS diagnostics
     ├── phase_stability.py       # TPD trials and conditional fallback starts
-    └── flash.py                 # Stability-gated two-phase flash foundation
+    ├── flash.py                 # Stability-gated two-phase flash foundation
+    └── saturation_pressure.py   # Fixed-temperature bubble/dew pressure
 tests/                           # Independent references and validation tests
 docs/                            # Scientific documentation
 data/                            # Future property-database scaffold
@@ -73,6 +78,10 @@ The package includes a `py.typed` marker and exposes inline type information.
 10. Only for a conclusively unstable feed, solve the two-phase material balance
     and iterate liquid/vapor PR fugacity equality. Stable and inconclusive feeds
     do not enter the two-phase iteration.
+11. At fixed temperature, independently solve a bubble- or dew-pressure
+    boundary by coupling an incipient-composition iteration to a bracketed
+    pressure root solve. This is a single boundary calculation, not envelope
+    tracing.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.
@@ -162,15 +171,17 @@ The project does **not** yet implement:
 - accelerated, damped, or globally convergent flash algorithms
 - exhaustive/global phase-stability certification beyond the bounded
   Wilson-plus-fallback Michelsen-style trials
-- bubble point, dew point, or phase envelopes
+- phase-envelope or critical-point tracing, including retrograde topology
 - reservoir depletion
 - Péneloux volume translation or another EOS
 - an authoritative versioned property database
 - engineering unit conversion functions
 - a Streamlit user interface
 
-The current flash is an undamped successive-substitution foundation at specified
-temperature and pressure. Pure-fluid stable-root selection must not be
+The current flash and saturation inner solves use undamped successive
+substitution. Saturation calculations search only the requested finite pressure
+interval and can return `NOT_FOUND` or `INCONCLUSIVE`; they do not establish a
+globally complete phase diagram. Pure-fluid stable-root selection must not be
 generalized to multicomponent global phase stability.
 
 Passing tests demonstrates consistency with the documented equations and

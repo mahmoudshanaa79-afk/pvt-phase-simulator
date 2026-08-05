@@ -147,6 +147,16 @@ class FlashPhaseResult:
 
 
 @dataclass(frozen=True, slots=True)
+class PhaseInteractionProvenance:
+    """Immutable interaction assumptions required by a phase evaluation."""
+
+    binary_interaction_policy: BinaryInteractionPolicy
+    binary_interactions: CanonicalBinaryInteractions
+    supplied_binary_interaction_pairs: CanonicalBinaryInteractionPairs
+    defaulted_binary_interaction_pairs: CanonicalBinaryInteractionPairs
+
+
+@dataclass(frozen=True, slots=True)
 class FlashIteration:
     """Immutable record of one successive-substitution flash iteration."""
 
@@ -511,13 +521,28 @@ def _interaction_provenance_matches(
     parameters_interactions: CanonicalBinaryInteractions,
     parameters_supplied: CanonicalBinaryInteractionPairs,
     parameters_defaulted: CanonicalBinaryInteractionPairs,
-    stability: MixturePhaseStabilityResult,
+    expected: PhaseInteractionProvenance,
 ) -> bool:
     return (
-        parameters_policy is stability.binary_interaction_policy
-        and parameters_interactions == stability.binary_interactions
-        and parameters_supplied == stability.supplied_binary_interaction_pairs
-        and parameters_defaulted == stability.defaulted_binary_interaction_pairs
+        parameters_policy is expected.binary_interaction_policy
+        and parameters_interactions == expected.binary_interactions
+        and parameters_supplied == expected.supplied_binary_interaction_pairs
+        and parameters_defaulted == expected.defaulted_binary_interaction_pairs
+    )
+
+
+def phase_interaction_provenance_from_stability(
+    stability: MixturePhaseStabilityResult,
+) -> PhaseInteractionProvenance:
+    """Extract the compact phase-evaluation provenance from Module 6 output."""
+
+    return PhaseInteractionProvenance(
+        binary_interaction_policy=stability.binary_interaction_policy,
+        binary_interactions=stability.binary_interactions,
+        supplied_binary_interaction_pairs=stability.supplied_binary_interaction_pairs,
+        defaulted_binary_interaction_pairs=(
+            stability.defaulted_binary_interaction_pairs
+        ),
     )
 
 
@@ -527,13 +552,33 @@ def evaluate_flash_phase(
     temperature_k: float,
     pressure_pa: float,
     trial_kind: PhaseTrialKind,
-    phase_stability: MixturePhaseStabilityResult,
+    phase_stability: MixturePhaseStabilityResult | None = None,
     binary_interactions: BinaryInteractionMapping | None = None,
     binary_interaction_policy: BinaryInteractionPolicy = (
         BinaryInteractionPolicy.DEFAULT_ZERO
     ),
+    *,
+    interaction_provenance: PhaseInteractionProvenance | None = None,
 ) -> FlashPhaseResult:
-    """Evaluate one flash phase using the documented mechanical root policy."""
+    """Evaluate a phase using direct provenance or a legacy stability result.
+
+    ``phase_stability`` remains accepted for Module 7 compatibility. New
+    callers can provide the smaller ``interaction_provenance`` record instead.
+    Supplying both or neither is rejected.
+    """
+
+    if (phase_stability is None) == (interaction_provenance is None):
+        raise ValueError(
+            "provide exactly one interaction provenance source: "
+            "phase_stability or interaction_provenance."
+        )
+    expected_provenance = (
+        phase_interaction_provenance_from_stability(phase_stability)
+        if phase_stability is not None
+        else interaction_provenance
+    )
+    if expected_provenance is None:
+        raise ValueError("interaction provenance is required.")
 
     phase_mixture = _mixture_with_composition(feed_mixture, composition)
     parameters = calculate_peng_robinson_mixture_parameters(
@@ -548,7 +593,7 @@ def evaluate_flash_phase(
         parameters.binary_interactions,
         parameters.supplied_binary_interaction_pairs,
         parameters.defaulted_binary_interaction_pairs,
-        phase_stability,
+        expected_provenance,
     ):
         raise ValueError(
             "flash phase binary-interaction provenance does not match stability."

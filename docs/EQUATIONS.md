@@ -532,3 +532,102 @@ strictly physical, and both phase roots are mechanically stable. Beta change
 or composition change alone cannot establish convergence. This undamped
 successive-substitution implementation is not a bubble-point, dew-point,
 phase-envelope, or global multiphase solver.
+
+## Module 8: fixed-temperature saturation pressure
+
+`saturation_pressure.py` calculates one bubble- or dew-pressure boundary at a
+specified temperature. It does not trace a phase envelope. Wilson correlations
+initialize the deterministic search but are not EOS-equilibrium answers.
+
+### Wilson pressure estimates
+
+Define a component pressure factor:
+
+\[
+Q_i=P_{c,i}\exp\left[
+5.373(1+\omega_i)\left(1-\frac{T_{c,i}}{T}\right)
+\right]
+\]
+
+The initial estimates are:
+
+\[
+P_{bubble}^{Wilson}=\sum_i z_iQ_i,
+\qquad
+\frac{1}{P_{dew}^{Wilson}}=\sum_i\frac{z_i}{Q_i}
+\]
+
+These finite positive values only center the logarithmic pressure search.
+
+### Bubble pressure
+
+At the bubble point the parent liquid remains `x = z`, and an infinitesimal
+vapor phase appears. Fugacity equality gives:
+
+\[
+z_i\phi_i^L P=y_i\phi_i^V P,
+\qquad
+K_i=\frac{y_i}{z_i}=\frac{\phi_i^L}{\phi_i^V}
+\]
+
+The inner iteration normalizes `y_i` proportional to `z_i K_i`, evaluates the
+largest mechanically stable vapor root, and updates
+`ln(K_i) = ln(phi_i^L) - ln(phi_i^V)`. The outer objective is:
+
+\[
+F_b(P)=\sum_i z_iK_i(P)-1
+\]
+
+The parent liquid always uses the smallest mechanically stable root.
+
+### Dew pressure
+
+At the dew point the parent vapor remains `y = z`, and an infinitesimal liquid
+phase appears:
+
+\[
+x_i\phi_i^L P=z_i\phi_i^V P,
+\qquad
+K_i=\frac{z_i}{x_i}=\frac{\phi_i^L}{\phi_i^V}
+\]
+
+The inner iteration normalizes `x_i` proportional to `z_i / K_i`, evaluates
+the smallest mechanically stable liquid root, and applies the same
+fugacity-ratio log-K update. The outer objective is:
+
+\[
+F_d(P)=\sum_i\frac{z_i}{K_i(P)}-1
+\]
+
+The parent vapor always uses the largest mechanically stable root.
+
+### Pressure solve and convergence
+
+Only fully converged inner evaluations may supply an outer objective. The
+solver samples a deterministic logarithmic pressure grid, preserves a genuine
+sign-changing bracket, and applies `scipy.optimize.brentq` in log pressure. It
+then reconstructs the complete state at the final pressure.
+
+Both objectives vanish identically when every `K_i` equals one, because the
+incipient phase is then the parent phase and `sum(z_i K_i^{\pm1}) = sum(z_i)`.
+That trivial fixed point exists at single-phase pressures, so a converged
+multicomponent inner state with every active `|ln(K_i)| <= 1e-8` is rejected
+before it can supply an objective value. A pure component is exempt: `K = 1` is
+its genuine coexistence condition, and there the requirement of two distinct
+mechanically stable roots plays the same role.
+
+A result is `CONVERGED` only when the objective is within `1e-8`, the maximum
+log-K residual and incipient-composition change are each within `1e-10`, the
+incipient sum residual is within `1e-10`, the maximum log-fugacity equilibrium
+residual is within `1e-8`, both selected roots are mechanically stable, and
+the pressure is finite and positive. Exact pure-component coexistence also
+requires distinct liquid and vapor roots. Failure to find one trustworthy
+bracket returns `NOT_FOUND`; ambiguous roots or numerical failures remain
+`INCONCLUSIVE` or `FAILED` evidence rather than being converted to a boundary.
+
+Bubble and dew conditions correspond respectively to the Rachford--Rice limits
+`beta -> 0` and `beta -> 1`. The pressure is not obtained by forcing those
+endpoint values: pressure, incipient composition, PR roots, and component
+fugacities must be self-consistent together. Root size is a local branch policy,
+not proof of global thermodynamic stability. The implementation does not trace
+critical or retrograde regions and makes no global-convergence claim.
