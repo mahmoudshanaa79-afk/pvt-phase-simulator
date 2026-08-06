@@ -631,3 +631,74 @@ endpoint values: pressure, incipient composition, PR roots, and component
 fugacities must be self-consistent together. Root size is a local branch policy,
 not proof of global thermodynamic stability. The implementation does not trace
 critical or retrograde regions and makes no global-convergence claim.
+
+## Module 9: natural-temperature phase-envelope continuation
+
+`phase_envelope.py` traces ordered bubble and dew saturation states for one
+fixed feed. Each corrected point remains a complete Module 8 equilibrium state;
+Module 9 changes initialization and pressure-search locality, not the PR
+equations or convergence gates.
+
+For a first step, the previous state predicts the next pressure and K-values.
+After two points, the finite secant predictor is:
+
+\[
+\ln P_{pred}=\ln P_n+(T_{pred}-T_n)
+\frac{\ln P_n-\ln P_{n-1}}{T_n-T_{n-1}}
+\]
+
+\[
+\ln K_{i,pred}=\ln K_{i,n}+(T_{pred}-T_n)
+\frac{\ln K_{i,n}-\ln K_{i,n-1}}{T_n-T_{n-1}}
+\]
+
+Duplicate temperatures or non-finite extrapolations fall back explicitly to
+the previous state. Predictions are never silently clamped.
+
+The corrector builds a logarithmic pressure interval symmetric about
+`ln(P_pred)` and clips it to the configured pressure bounds. Module 8 evaluates
+five evenly spaced log-pressure points spanning that interval, plus its own
+Wilson centring pressure clamped into it; the clamped value coincides with an
+interval edge for a narrow window and contributes a sixth distinct sample for a
+wide one. An unclipped interval therefore samples `P_pred` exactly, while a
+clipped one is neither symmetric nor centred on it. The predicted log K-values
+seed every one of these fixed-pressure evaluations, including those made by the
+bracketed root solve and the final reconstruction. The half-span begins at
+`0.08` and expands by `1.8`, up to five expansions. Only a fully converged
+nontrivial inner result can supply an objective or bracket. A Wilson-seeded
+81-point Module 8 search is available only as a recorded fallback after local
+failure.
+
+Default branch-jump thresholds are `0.50` predicted log-pressure error, `1.00`
+maximum predicted log-K error, `0.35` incipient-composition change, `0.75`
+consecutive log-pressure change, and `0.50` selected-root change. A rejected
+step is halved. Easy local corrections increase the next step by `1.25`;
+expanded, fallback, or difficult corrections reduce it by `0.70`. Configured
+minimum and maximum step magnitudes are enforced.
+
+The tracer retains Module 8's multicomponent unity-K rejection and final
+objective, log-K, composition, fugacity, mechanical-root, and provenance gates.
+Callers may request stricter acceptance tolerances but cannot weaken Module 8.
+
+Near-critical warnings monitor composition separation, maximum active
+`|ln K_i|`, and root separation at each accepted point; the combined manager
+separately reports matched bubble/dew pressure separation as a diagnostic. Two
+severe same-point indicators terminate a branch as `NEAR_CRITICAL`, except with
+a single active component, where the first two indicators are identically zero
+at every temperature and root separation alone decides. A step whose
+corrections all collapse to the trivial solution also ends the branch as
+`NEAR_CRITICAL`; that is how a real near-critical approach terminates, since
+the inner iteration stops resolving two phases before the accepted-point
+indicators enter their warning band.
+
+This is a numerical warning and termination policy, not solution of exact
+criticality conditions. Natural temperature continuation can fail at folded or
+vertical sections; pseudo-arclength and retrograde continuation are not
+implemented.
+
+A continuation seed can hold the inner iteration on the nontrivial branch where
+a Wilson start collapses to `K_i = 1`. Continuation therefore reaches
+saturation states at which an isolated Module 8 search reports `NOT_FOUND`.
+This is a difference in initialization, not in the equations solved: each such
+point still satisfies every Module 8 gate and is pinned against an independent
+solver in the test suite.

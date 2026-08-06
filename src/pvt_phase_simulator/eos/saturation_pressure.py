@@ -56,6 +56,10 @@ PURE_PHASE_ROOT_SEPARATION_TOLERANCE: Final = 1e-8
 # Matches the Module 6 trivial-composition scale. A pure component is excluded
 # because K = 1 is its genuine saturation condition, not a degeneracy.
 TRIVIAL_LOG_K_TOLERANCE: Final = 1e-8
+# Named so continuation callers can recognise a trivial inner collapse. The
+# enclosing search reports its own bracket failure, so this diagnostic is the
+# only place the trivial evidence survives.
+TRIVIAL_STATE_DIAGNOSTIC_CODE: Final = "SATURATION_TRIVIAL_STATE"
 DEFAULT_MAXIMUM_INNER_ITERATIONS: Final = 100
 DEFAULT_PRESSURE_SEARCH_POINTS: Final = 81
 DEFAULT_MAXIMUM_OUTER_ITERATIONS: Final = 100
@@ -454,8 +458,14 @@ def evaluate_saturation_pressure(
         BinaryInteractionPolicy.DEFAULT_ZERO
     ),
     maximum_iterations: int = DEFAULT_MAXIMUM_INNER_ITERATIONS,
+    *,
+    initial_log_k_values: tuple[float, ...] | None = None,
 ) -> SaturationPressureEvaluation:
-    """Solve the normalized incipient phase at one fixed trial pressure."""
+    """Solve the normalized incipient phase at one fixed trial pressure.
+
+    ``initial_log_k_values`` supports continuation callers. Omitting it retains
+    the isolated-saturation Wilson initialization used before Module 9.
+    """
 
     _require_positive(temperature_k, "temperature_k")
     _require_positive(pressure_pa, "pressure_pa")
@@ -464,12 +474,23 @@ def evaluate_saturation_pressure(
         raise ValueError("maximum_iterations must be a positive integer.")
     feed = _feed_composition(mixture)
     parent_kind, incipient_kind = _phase_kinds(saturation_kind)
-    initial_k = calculate_wilson_k_values(
-        tuple(item.component for item in mixture.components),
-        temperature_k,
-        pressure_pa,
-    )
-    log_k_values = tuple(log(item.k_value) for item in initial_k)
+    if initial_log_k_values is None:
+        initial_k = calculate_wilson_k_values(
+            tuple(item.component for item in mixture.components),
+            temperature_k,
+            pressure_pa,
+        )
+        log_k_values = tuple(log(item.k_value) for item in initial_k)
+    else:
+        if not isinstance(initial_log_k_values, tuple) or len(
+            initial_log_k_values
+        ) != len(mixture.components):
+            raise ValueError("initial_log_k_values must be an aligned immutable tuple.")
+        for index, value in enumerate(initial_log_k_values):
+            _require_finite(value, f"initial_log_k_values[{index}]")
+        # Validate that every seed maps to a representable, strictly positive K.
+        k_values_from_log_values(initial_log_k_values)
+        log_k_values = initial_log_k_values
     history: list[SaturationPressureIteration] = []
     diagnostics: list[EOSDiagnostic] = []
     prior_log_k_values: list[tuple[float, ...]] = []
@@ -635,7 +656,7 @@ def evaluate_saturation_pressure(
                     "not a distinct incipient phase."
                 )
                 diagnostics.append(
-                    _failure_diagnostic("SATURATION_TRIVIAL_STATE", reason)
+                    _failure_diagnostic(TRIVIAL_STATE_DIAGNOSTIC_CODE, reason)
                 )
                 return _failed_evaluation(
                     saturation_kind,
@@ -790,8 +811,14 @@ def calculate_saturation_pressure(
     maximum_inner_iterations: int = DEFAULT_MAXIMUM_INNER_ITERATIONS,
     pressure_search_points: int = DEFAULT_PRESSURE_SEARCH_POINTS,
     maximum_outer_iterations: int = DEFAULT_MAXIMUM_OUTER_ITERATIONS,
+    *,
+    initial_log_k_values: tuple[float, ...] | None = None,
 ) -> SaturationPressureResult:
-    """Bracket and solve a fixed-temperature bubble- or dew-point pressure."""
+    """Bracket and solve a fixed-temperature bubble- or dew-point pressure.
+
+    The optional log-K seed is intended for continuation. The default remains
+    the original isolated Wilson-seeded calculation.
+    """
 
     _require_positive(temperature_k, "temperature_k")
     _require_positive(minimum_pressure_pa, "minimum_pressure_pa")
@@ -844,6 +871,7 @@ def calculate_saturation_pressure(
             interaction_snapshot,
             binary_interaction_policy,
             maximum_inner_iterations,
+            initial_log_k_values=initial_log_k_values,
         )
         evaluations.append(evaluation)
         _append_unique_diagnostics(diagnostics, evaluation.diagnostics)
