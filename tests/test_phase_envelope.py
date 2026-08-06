@@ -35,6 +35,7 @@ from pvt_phase_simulator.eos.phase_envelope import (
     trace_dew_branch,
 )
 from pvt_phase_simulator.eos.saturation_pressure import (
+    TRIVIAL_STATE_DIAGNOSTIC_CODE,
     InnerSaturationStatus,
     SaturationKind,
     SaturationStatus,
@@ -740,6 +741,38 @@ def test_minimum_step_terminates_after_branch_loss() -> None:
     assert result.termination_reason is EnvelopeTerminationReason.BRANCH_LOST
     assert len(result.points) == 1
     assert result.rejected_attempts
+
+
+def test_minimum_step_reached_without_branch_or_trivial_evidence() -> None:
+    """Plain corrector failure should retain the minimum-step fallback reason."""
+
+    result = trace_bubble_branch(
+        _methane_ethane(),
+        _settings(
+            205.0,
+            5.0,
+            6,
+            allow_global_fallback=False,
+            local_log_pressure_half_span=1e-9,
+            maximum_local_expansions=0,
+        ),
+        200.0,
+    )
+    assert result.termination_reason is EnvelopeTerminationReason.MINIMUM_STEP_REACHED
+    assert len(result.points) == 1
+    assert result.rejected_attempts
+    assert not any(
+        attempt.status is EnvelopePointStatus.REJECTED
+        for attempt in result.rejected_attempts
+    )
+    assert all(
+        attempt.saturation_result is not None for attempt in result.rejected_attempts
+    )
+    assert not any(
+        diagnostic.code == TRIVIAL_STATE_DIAGNOSTIC_CODE
+        for attempt in result.rejected_attempts
+        for diagnostic in attempt.diagnostics
+    )
 
 
 def test_retry_limit_is_respected() -> None:
