@@ -259,8 +259,10 @@ def test_rachford_rice_exact_phase_boundaries_are_not_interior_roots() -> None:
     upper = solve_rachford_rice((2.0 / 3.0, 1.0 / 3.0), (2.0, 0.5))
     assert lower.status is RachfordRiceStatus.ALL_LIQUID
     assert lower.beta == 0.0
+    assert lower.residual == 0.0
     assert upper.status is RachfordRiceStatus.ALL_VAPOR
     assert upper.beta == 1.0
+    assert upper.residual == 0.0
 
 
 def test_rachford_rice_roots_can_approach_each_physical_endpoint() -> None:
@@ -285,6 +287,11 @@ def test_zero_feed_component_is_ignored_safely_by_rachford_rice() -> None:
     assert with_zero.beta == pytest.approx(reference.beta, abs=2e-15)
 
 
+def test_zero_feed_k_value_does_not_break_unity_k_degeneracy() -> None:
+    result = solve_rachford_rice((0.5, 0.5, 0.0), (1.0, 1.0, 1e100))
+    assert result.status is RachfordRiceStatus.DEGENERATE
+
+
 @pytest.mark.parametrize(
     ("composition", "k_values"),
     [
@@ -293,6 +300,8 @@ def test_zero_feed_component_is_ignored_safely_by_rachford_rice() -> None:
         ((0.5, 0.5), (2.0, float("nan"))),
         ((0.5, 0.5), (2.0, float("inf"))),
         ((0.5, float("nan")), (2.0, 0.5)),
+        ((), ()),
+        ((-0.1, 1.1), (2.0, 0.5)),
         ((0.6, 0.5), (2.0, 0.5)),
         ((0.5, 0.5), (2.0,)),
     ],
@@ -603,12 +612,39 @@ def test_iterate_pattern_detects_stagnation_oscillation_and_normal_motion() -> N
     )
 
 
+def test_iterate_pattern_rejects_empty_current_state_directly() -> None:
+    with pytest.raises(ValueError, match="aligned tuples"):
+        detect_flash_iterate_pattern((), (), None)
+
+
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), 1e4, -1e4])
 def test_log_k_conversion_rejects_nonfinite_overflow_and_underflow(
     value: float,
 ) -> None:
     with pytest.raises(ValueError):
         k_values_from_log_values((value,))
+
+
+def test_log_k_conversion_rejects_empty_input() -> None:
+    with pytest.raises(ValueError, match="non-empty"):
+        k_values_from_log_values(())
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"maximum_iterations": 0},
+        {"stability_maximum_iterations": 0},
+    ],
+)
+def test_flash_rejects_invalid_iteration_controls(changes: dict[str, int]) -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        calculate_two_phase_flash(
+            _unstable_mixture(),
+            UNSTABLE_TEMPERATURE_K,
+            UNSTABLE_PRESSURE_PA,
+            **changes,  # type: ignore[arg-type]
+        )
 
 
 def test_every_convergence_metric_is_required(
@@ -737,6 +773,27 @@ def test_flash_phase_rejects_binary_interaction_provenance_mismatch() -> None:
             stability,
             {("Methane", "Ethane"): 0.02, ("Ethane", "Methane"): 0.02},
             BinaryInteractionPolicy.REQUIRE_ALL_PAIRS,
+        )
+
+
+@pytest.mark.parametrize("include_both", [False, True])
+def test_flash_phase_requires_exactly_one_provenance_source(
+    include_both: bool,
+) -> None:
+    mixture = _unstable_mixture()
+    stability = analyze_mixture_phase_stability(
+        mixture, UNSTABLE_TEMPERATURE_K, UNSTABLE_PRESSURE_PA
+    )
+    provenance = flash_module.phase_interaction_provenance_from_stability(stability)
+    with pytest.raises(ValueError, match="exactly one"):
+        evaluate_flash_phase(
+            mixture,
+            (0.1, 0.9),
+            UNSTABLE_TEMPERATURE_K,
+            UNSTABLE_PRESSURE_PA,
+            PhaseTrialKind.LIQUID_LIKE,
+            stability if include_both else None,
+            interaction_provenance=provenance if include_both else None,
         )
 
 

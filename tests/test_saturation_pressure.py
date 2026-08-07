@@ -309,6 +309,110 @@ def test_invalid_pressure_bounds_are_rejected(
         )
 
 
+def test_invalid_saturation_kind_is_rejected() -> None:
+    with pytest.raises(ValueError, match="SaturationKind"):
+        calculate_saturation_pressure(
+            _binary_mixture(),
+            BINARY_TEMPERATURE_K,
+            "bubble",  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"pressure_search_points": 2},
+        {"maximum_outer_iterations": 0},
+        {"maximum_inner_iterations": 0},
+    ],
+)
+def test_invalid_iteration_controls_are_rejected(changes: dict[str, int]) -> None:
+    expected_name = next(iter(changes))
+    with pytest.raises(ValueError, match=expected_name):
+        calculate_saturation_pressure(
+            _binary_mixture(),
+            BINARY_TEMPERATURE_K,
+            SaturationKind.BUBBLE_POINT,
+            **changes,  # type: ignore[arg-type]
+        )
+
+
+def test_minimum_pressure_search_grid_is_accepted() -> None:
+    result = calculate_saturation_pressure(
+        _binary_mixture(),
+        BINARY_TEMPERATURE_K,
+        SaturationKind.BUBBLE_POINT,
+        pressure_search_points=3,
+    )
+    assert isinstance(result, saturation_module.SaturationPressureResult)
+
+
+def test_inner_evaluation_rejects_zero_iterations_at_validation_boundary() -> None:
+    mixture = _binary_mixture()
+    with pytest.raises(ValueError, match="maximum_iterations"):
+        evaluate_saturation_pressure(
+            mixture,
+            BINARY_TEMPERATURE_K,
+            BINARY_BUBBLE_PRESSURE_PA,
+            SaturationKind.BUBBLE_POINT,
+            _provenance(
+                mixture,
+                BINARY_TEMPERATURE_K,
+                BINARY_BUBBLE_PRESSURE_PA,
+            ),
+            maximum_iterations=0,
+        )
+
+
+@pytest.mark.parametrize(
+    ("objective", "composition", "k_values"),
+    [
+        (calculate_bubble_pressure_objective, (), ()),
+        (calculate_dew_pressure_objective, (), ()),
+        (calculate_bubble_pressure_objective, (0.5, 0.5), (2.0,)),
+        (calculate_dew_pressure_objective, (0.5, 0.5), (2.0,)),
+        (calculate_bubble_pressure_objective, (-0.1, 1.1), (2.0, 0.5)),
+        (calculate_dew_pressure_objective, (-0.1, 1.1), (2.0, 0.5)),
+        (calculate_bubble_pressure_objective, (0.6, 0.5), (2.0, 0.5)),
+        (calculate_dew_pressure_objective, (0.6, 0.5), (2.0, 0.5)),
+    ],
+)
+def test_pressure_objectives_reject_invalid_inputs(
+    objective: object,
+    composition: tuple[float, ...],
+    k_values: tuple[float, ...],
+) -> None:
+    expected = "non-empty" if not composition else "aligned|non-negative|sum to one"
+    with pytest.raises(ValueError, match=expected):
+        objective(composition, k_values)  # type: ignore[operator]
+
+
+def test_inner_evaluation_rejects_misaligned_log_k_seed_directly() -> None:
+    mixture = _binary_mixture()
+    with pytest.raises(ValueError, match="aligned immutable tuple"):
+        evaluate_saturation_pressure(
+            mixture,
+            BINARY_TEMPERATURE_K,
+            BINARY_BUBBLE_PRESSURE_PA,
+            SaturationKind.BUBBLE_POINT,
+            _provenance(
+                mixture,
+                BINARY_TEMPERATURE_K,
+                BINARY_BUBBLE_PRESSURE_PA,
+            ),
+            initial_log_k_values=(0.0,),
+        )
+
+
+def test_log_objective_ignores_zero_feed_support() -> None:
+    objective = saturation_module._saturation_objective_from_log_k(
+        (1.0, 0.0),
+        (0.0, 1_000.0),
+        SaturationKind.BUBBLE_POINT,
+    )
+    assert objective == 0.0
+
+
 def test_result_models_are_immutable(
     binary_bubble: saturation_module.SaturationPressureResult,
 ) -> None:
@@ -480,6 +584,18 @@ def test_binary_bubble_state_satisfies_all_contracts(
         candidate.compressibility_factor
         for candidate in binary_bubble.incipient_phase.root_selection.candidates
         if candidate.classification is MechanicalStabilityClassification.STABLE
+    )
+
+
+def test_active_fugacity_residuals_are_preserved_and_aggregated(
+    binary_bubble: saturation_module.SaturationPressureResult,
+) -> None:
+    final_iteration = binary_bubble.evaluation_history[-1]
+    residuals = final_iteration.fugacity_equilibrium_residuals
+    assert all(value is not None for value in residuals)
+    active_residuals = tuple(abs(value) for value in residuals if value is not None)
+    assert final_iteration.history[-1].maximum_fugacity_equilibrium_residual == max(
+        active_residuals
     )
 
 

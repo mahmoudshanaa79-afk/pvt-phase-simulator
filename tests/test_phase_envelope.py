@@ -356,15 +356,25 @@ def _independent_saturation(
         {"minimum_temperature_step_k": 3.0, "maximum_temperature_step_k": 2.0},
         {"initial_temperature_step_k": 0.1},
         {"maximum_points": 0},
+        {"maximum_local_expansions": -1},
+        {"maximum_step_retries": -1},
+        {"easy_iteration_limit": 0},
         {"minimum_pressure_pa": 1.0e6, "maximum_pressure_pa": 1.0e6},
         {"local_expansion_factor": 1.0},
         {"easy_predictor_log_pressure_error": 0.0},
         {"easy_predictor_log_k_error": float("nan")},
         {"retry_step_reduction_factor": 0.0},
         {"retry_step_reduction_factor": 1.0},
+        {"step_increase_factor": 1.0},
         {"step_decrease_factor": 1.0},
         {"saturation_objective_tolerance": 1e-7},
+        {"fugacity_equilibrium_tolerance": 1e-7},
         {"log_k_tolerance": 1e-9},
+        {"composition_tolerance": 1e-7},
+        {
+            "near_critical_composition_stop": 0.03,
+            "near_critical_composition_warning": 0.02,
+        },
     ],
 )
 def test_invalid_settings_are_rejected(changes: dict[str, object]) -> None:
@@ -381,6 +391,17 @@ def test_settings_are_immutable() -> None:
     settings = _settings()
     with pytest.raises(FrozenInstanceError):
         settings.maximum_points = 2  # type: ignore[misc]
+
+
+def test_equal_temperature_step_limits_accept_the_only_legal_step() -> None:
+    settings = EnvelopeContinuationSettings(
+        target_temperature_k=220.0,
+        initial_temperature_step_k=5.0,
+        minimum_temperature_step_k=5.0,
+        maximum_temperature_step_k=5.0,
+    )
+    assert settings.initial_temperature_step_k == settings.minimum_temperature_step_k
+    assert settings.initial_temperature_step_k == settings.maximum_temperature_step_k
 
 
 def test_named_threshold_defaults_preserve_the_audited_policy() -> None:
@@ -426,6 +447,11 @@ def test_result_models_are_immutable(
 def test_invalid_start_temperature_is_rejected(start: float) -> None:
     with pytest.raises(ValueError):
         trace_bubble_branch(_methane_ethane(), _settings(), start)
+
+
+def test_missing_start_temperature_preserves_value_error_contract() -> None:
+    with pytest.raises(ValueError, match="finite positive start temperature"):
+        trace_bubble_branch(_methane_ethane(), _settings())
 
 
 def test_wrong_continuation_direction_is_rejected() -> None:
@@ -476,6 +502,56 @@ def test_supplied_converged_start_is_used_without_mutation() -> None:
     )
     assert result.points[0].saturation_result is start
     assert start.temperature_k == 200.0
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"failure_reason": "unresolved"}, "unresolved failure"),
+        ({"pressure_residual": None}, "equilibrium gates"),
+        ({"evaluation_history": ()}, "reconstruction history"),
+        ({"temperature_k": -1.0}, "greater than zero"),
+    ],
+)
+def test_supplied_start_rejects_inconsistent_success_state(
+    changes: dict[str, object],
+    message: str,
+) -> None:
+    mixture = _methane_ethane()
+    start = calculate_saturation_pressure(mixture, 200.0, SaturationKind.BUBBLE_POINT)
+    forged = replace(start, **changes)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match=message):
+        trace_bubble_branch(mixture, _settings(), starting_result=forged)
+
+
+def test_supplied_start_rejects_failed_inner_convergence_gate() -> None:
+    mixture = _methane_ethane()
+    start = calculate_saturation_pressure(mixture, 200.0, SaturationKind.BUBBLE_POINT)
+    final_evaluation = replace(
+        start.evaluation_history[-1],
+        maximum_log_k_residual=None,
+    )
+    forged = replace(
+        start,
+        evaluation_history=(*start.evaluation_history[:-1], final_evaluation),
+    )
+    with pytest.raises(ValueError, match="inner convergence gate"):
+        trace_bubble_branch(mixture, _settings(), starting_result=forged)
+
+
+def test_supplied_start_rejects_component_identity_mismatch() -> None:
+    start = calculate_saturation_pressure(
+        _methane_ethane(), 200.0, SaturationKind.BUBBLE_POINT
+    )
+    different_components = FluidMixture(
+        (MixtureComponent(METHANE, 0.5), MixtureComponent(PROPANE, 0.5))
+    )
+    with pytest.raises(ValueError, match="components"):
+        trace_bubble_branch(
+            different_components,
+            _settings(),
+            starting_result=start,
+        )
 
 
 def test_nonconverged_start_is_rejected() -> None:
@@ -1641,10 +1717,13 @@ def test_pressure_bounds_termination_preserves_partial_branch() -> None:
     assert all(point.pressure_pa <= 2_700_000.0 for point in result.points)
 
 
-def test_maximum_points_termination() -> None:
-    result = trace_bubble_branch(_methane_ethane(), _settings(220.0, 5.0, 2), 200.0)
+@pytest.mark.parametrize("maximum_points", [1, 2])
+def test_maximum_points_termination(maximum_points: int) -> None:
+    result = trace_bubble_branch(
+        _methane_ethane(), _settings(220.0, 5.0, maximum_points), 200.0
+    )
     assert result.termination_reason is EnvelopeTerminationReason.MAXIMUM_POINTS
-    assert len(result.points) == 2
+    assert len(result.points) == maximum_points
 
 
 def test_failed_start_returns_empty_partial_result() -> None:
@@ -1662,6 +1741,27 @@ def test_failed_start_returns_empty_partial_result() -> None:
     assert result.termination_reason is EnvelopeTerminationReason.CORRECTOR_FAILED
     assert result.points == ()
     assert result.termination_message
+
+
+def test_failed_generated_start_without_reason_uses_fallback_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    failed = calculate_saturation_pressure(
+        _methane_ethane(), 200.0, SaturationKind.BUBBLE_POINT
+    )
+    failed = replace(
+        failed,
+        status=SaturationStatus.NOT_FOUND,
+        failure_reason=None,
+    )
+    monkeypatch.setattr(
+        envelope_module,
+        "calculate_saturation_pressure",
+        lambda *args, **kwargs: failed,
+    )
+    result = trace_bubble_branch(_methane_ethane(), _settings(), 200.0)
+    assert result.termination_reason is EnvelopeTerminationReason.CORRECTOR_FAILED
+    assert result.termination_message == "starting saturation solve failed."
 
 
 def test_deterministic_repeated_trace() -> None:
