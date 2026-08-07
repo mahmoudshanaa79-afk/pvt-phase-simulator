@@ -843,6 +843,215 @@ def _retry_termination(
     return exhausted_reason, exhausted_message
 
 
+@dataclass(frozen=True, slots=True)
+class _ContinuationStepOutcome:
+    """Immutable outcome of correcting one requested continuation step."""
+
+    accepted_point: PhaseEnvelopePoint | None
+    rejected_attempts: tuple[EnvelopeCorrectionAttempt, ...]
+    diagnostics: tuple[EOSDiagnostic, ...]
+    retry_count: int
+    requested_temperature_step_k: float
+    termination: tuple[EnvelopeTerminationReason, str] | None
+
+
+def _attempt_continuation_step(
+    mixture: FluidMixture,
+    branch_kind: EnvelopeBranchKind,
+    settings: EnvelopeContinuationSettings,
+    points: tuple[PhaseEnvelopePoint, ...],
+    requested_temperature_step_k: float,
+    initial_prediction: EnvelopePrediction,
+    diagnostics: tuple[EOSDiagnostic, ...],
+    expected_provenance: PhaseInteractionProvenance,
+    binary_interactions: BinaryInteractionMapping | None,
+    binary_interaction_policy: BinaryInteractionPolicy,
+) -> _ContinuationStepOutcome:
+    """Correct one temperature step, including retries and failure evidence."""
+
+    current = points[-1]
+    rejected: list[EnvelopeCorrectionAttempt] = []
+    collected_diagnostics = list(diagnostics)
+    requested_step = requested_temperature_step_k
+    retry = 0
+    possible_branch_loss = False
+    trivial_collapse = False
+    numerical_failure = False
+    prediction = initial_prediction
+    while retry <= settings.maximum_step_retries:
+        if retry > 0:
+            target_temperature = current.temperature_k + requested_step
+            prediction = predict_envelope_state(
+                current,
+                target_temperature,
+                points[-2] if len(points) > 1 else None,
+            )
+        collected_diagnostics.extend(
+            item for item in prediction.diagnostics if item not in collected_diagnostics
+        )
+        if prediction.log_pressure < log(settings.minimum_pressure_pa) or (
+            prediction.log_pressure > log(settings.maximum_pressure_pa)
+        ):
+            return _ContinuationStepOutcome(
+                None,
+                tuple(rejected),
+                tuple(collected_diagnostics),
+                retry,
+                requested_step,
+                (
+                    EnvelopeTerminationReason.PRESSURE_OUT_OF_BOUNDS,
+                    "Predicted pressure lies outside the configured bounds.",
+                ),
+            )
+        result, attempts = correct_envelope_prediction(
+            mixture,
+            branch_kind,
+            prediction,
+            requested_step,
+            settings,
+            binary_interactions,
+            binary_interaction_policy,
+        )
+        if result is not None:
+            _validate_converged_result(
+                result, mixture, branch_kind, expected_provenance, settings
+            )
+            source = attempts[-1].source
+            candidate = _make_point(
+                branch_kind,
+                result,
+                prediction,
+                source,
+                requested_step,
+                attempts,
+            )
+            jump_reason = _branch_jump_reason(current, candidate, settings)
+            duplicate = any(
+                abs(existing.temperature_k - candidate.temperature_k)
+                <= TEMPERATURE_UNIQUENESS_TOLERANCE_K
+                for existing in points
+            )
+            if jump_reason is None and not duplicate:
+                accepted_attempt = EnvelopeCorrectionAttempt(
+                    source=attempts[-1].source,
+                    status=attempts[-1].status,
+                    temperature_k=attempts[-1].temperature_k,
+                    requested_temperature_step_k=(
+                        attempts[-1].requested_temperature_step_k
+                    ),
+                    pressure_bounds_pa=attempts[-1].pressure_bounds_pa,
+                    log_pressure_half_span=attempts[-1].log_pressure_half_span,
+                    saturation_result=attempts[-1].saturation_result,
+                    accepted=True,
+                    failure_reason=None,
+                    diagnostics=attempts[-1].diagnostics,
+                )
+                candidate = PhaseEnvelopePoint(
+                    branch_kind=candidate.branch_kind,
+                    status=candidate.status,
+                    saturation_result=candidate.saturation_result,
+                    prediction=candidate.prediction,
+                    correction_source=candidate.correction_source,
+                    accepted_temperature_step_k=candidate.accepted_temperature_step_k,
+                    correction_attempts=(*attempts[:-1], accepted_attempt),
+                    log_k_values=candidate.log_k_values,
+                    root_separation=candidate.root_separation,
+                    composition_separation=candidate.composition_separation,
+                    maximum_active_log_k=candidate.maximum_active_log_k,
+                    predictor_log_pressure_error=candidate.predictor_log_pressure_error,
+                    predictor_log_k_error=candidate.predictor_log_k_error,
+                    diagnostics=candidate.diagnostics,
+                )
+                rejected.extend(attempts[:-1])
+                collected_diagnostics.extend(
+                    item
+                    for item in candidate.diagnostics
+                    if item not in collected_diagnostics
+                )
+                return _ContinuationStepOutcome(
+                    candidate,
+                    tuple(rejected),
+                    tuple(collected_diagnostics),
+                    retry,
+                    requested_step,
+                    None,
+                )
+            possible_branch_loss = jump_reason is not None
+            failure = jump_reason or "duplicate envelope point was rejected."
+            rejected.extend(
+                EnvelopeCorrectionAttempt(
+                    source=item.source,
+                    status=EnvelopePointStatus.REJECTED,
+                    temperature_k=item.temperature_k,
+                    requested_temperature_step_k=item.requested_temperature_step_k,
+                    pressure_bounds_pa=item.pressure_bounds_pa,
+                    log_pressure_half_span=item.log_pressure_half_span,
+                    saturation_result=item.saturation_result,
+                    accepted=False,
+                    failure_reason=failure,
+                    diagnostics=(
+                        *item.diagnostics,
+                        _diagnostic("ENVELOPE_BRANCH_JUMP", failure),
+                    ),
+                )
+                for item in attempts
+            )
+        else:
+            rejected.extend(attempts)
+            numerical_failure = (
+                numerical_failure
+                or bool(attempts)
+                and all(item.saturation_result is None for item in attempts)
+            )
+            # The Module 8 diagnostic preserves trivial-collapse evidence when
+            # its enclosing bracket failure has a more general reason string.
+            trivial_collapse = trivial_collapse or any(
+                (
+                    item.failure_reason is not None
+                    and "trivial" in item.failure_reason.lower()
+                )
+                or any(
+                    entry.code == TRIVIAL_STATE_DIAGNOSTIC_CODE
+                    for entry in item.diagnostics
+                )
+                for item in attempts
+            )
+        retry += 1
+        next_magnitude = abs(requested_step) * 0.5
+        if next_magnitude < settings.minimum_temperature_step_k:
+            termination = _retry_termination(
+                trivial_collapse,
+                numerical_failure,
+                possible_branch_loss,
+                EnvelopeTerminationReason.MINIMUM_STEP_REACHED,
+                "Minimum temperature step reached without an acceptable correction.",
+            )
+            return _ContinuationStepOutcome(
+                None,
+                tuple(rejected),
+                tuple(collected_diagnostics),
+                retry,
+                requested_step,
+                termination,
+            )
+        requested_step = (1.0 if requested_step > 0.0 else -1.0) * next_magnitude
+    termination = _retry_termination(
+        trivial_collapse,
+        numerical_failure,
+        possible_branch_loss,
+        EnvelopeTerminationReason.CORRECTOR_FAILED,
+        "Continuation retry limit reached without an acceptable point.",
+    )
+    return _ContinuationStepOutcome(
+        None,
+        tuple(rejected),
+        tuple(collected_diagnostics),
+        retry,
+        requested_step,
+        termination,
+    )
+
+
 def trace_phase_envelope_branch(
     mixture: FluidMixture,
     branch_kind: EnvelopeBranchKind,
@@ -979,240 +1188,27 @@ def trace_phase_envelope_branch(
                 expected_provenance,
             )
         requested_step = direction * min(abs(step), abs(remaining))
-        retry = 0
-        accepted = False
-        possible_branch_loss = False
-        trivial_collapse = False
-        numerical_failure = False
-        while retry <= settings.maximum_step_retries:
-            target_temperature = current.temperature_k + requested_step
-            prediction = predict_envelope_state(
-                current,
-                target_temperature,
-                points[-2] if len(points) > 1 else None,
-            )
-            diagnostics.extend(
-                item for item in prediction.diagnostics if item not in diagnostics
-            )
-            if prediction.log_pressure < log(settings.minimum_pressure_pa) or (
-                prediction.log_pressure > log(settings.maximum_pressure_pa)
-            ):
-                return _finish_branch(
-                    mixture,
-                    branch_kind,
-                    settings,
-                    points,
-                    rejected,
-                    EnvelopeTerminationReason.PRESSURE_OUT_OF_BOUNDS,
-                    "Predicted pressure lies outside the configured bounds.",
-                    diagnostics,
-                    expected_provenance,
-                )
-            result, attempts = correct_envelope_prediction(
-                mixture,
-                branch_kind,
-                prediction,
-                requested_step,
-                settings,
-                binary_interactions,
-                binary_interaction_policy,
-            )
-            if result is not None:
-                _validate_converged_result(
-                    result, mixture, branch_kind, expected_provenance, settings
-                )
-                source = attempts[-1].source
-                candidate = _make_point(
-                    branch_kind,
-                    result,
-                    prediction,
-                    source,
-                    requested_step,
-                    attempts,
-                )
-                jump_reason = _branch_jump_reason(current, candidate, settings)
-                duplicate = any(
-                    abs(existing.temperature_k - candidate.temperature_k)
-                    <= TEMPERATURE_UNIQUENESS_TOLERANCE_K
-                    for existing in points
-                )
-                if jump_reason is None and not duplicate:
-                    accepted_attempt = EnvelopeCorrectionAttempt(
-                        source=attempts[-1].source,
-                        status=attempts[-1].status,
-                        temperature_k=attempts[-1].temperature_k,
-                        requested_temperature_step_k=(
-                            attempts[-1].requested_temperature_step_k
-                        ),
-                        pressure_bounds_pa=attempts[-1].pressure_bounds_pa,
-                        log_pressure_half_span=attempts[-1].log_pressure_half_span,
-                        saturation_result=attempts[-1].saturation_result,
-                        accepted=True,
-                        failure_reason=None,
-                        diagnostics=attempts[-1].diagnostics,
-                    )
-                    candidate = PhaseEnvelopePoint(
-                        branch_kind=candidate.branch_kind,
-                        status=candidate.status,
-                        saturation_result=candidate.saturation_result,
-                        prediction=candidate.prediction,
-                        correction_source=candidate.correction_source,
-                        accepted_temperature_step_k=(
-                            candidate.accepted_temperature_step_k
-                        ),
-                        correction_attempts=(*attempts[:-1], accepted_attempt),
-                        log_k_values=candidate.log_k_values,
-                        root_separation=candidate.root_separation,
-                        composition_separation=candidate.composition_separation,
-                        maximum_active_log_k=candidate.maximum_active_log_k,
-                        predictor_log_pressure_error=(
-                            candidate.predictor_log_pressure_error
-                        ),
-                        predictor_log_k_error=candidate.predictor_log_k_error,
-                        diagnostics=candidate.diagnostics,
-                    )
-                    rejected.extend(attempts[:-1])
-                    points.append(candidate)
-                    diagnostics.extend(
-                        item
-                        for item in candidate.diagnostics
-                        if item not in diagnostics
-                    )
-                    near_diagnostics, terminate_near = _near_critical_diagnostics(
-                        candidate, settings
-                    )
-                    diagnostics.extend(
-                        item for item in near_diagnostics if item not in diagnostics
-                    )
-                    if terminate_near:
-                        return _finish_branch(
-                            mixture,
-                            branch_kind,
-                            settings,
-                            points,
-                            rejected,
-                            EnvelopeTerminationReason.NEAR_CRITICAL,
-                            (
-                                "Phase distinctions entered the near-critical "
-                                "stop band; this is not an exact critical point."
-                            ),
-                            diagnostics,
-                            expected_provenance,
-                        )
-                    if (
-                        direction
-                        * (settings.target_temperature_k - candidate.temperature_k)
-                        <= TEMPERATURE_UNIQUENESS_TOLERANCE_K
-                    ):
-                        return _finish_branch(
-                            mixture,
-                            branch_kind,
-                            settings,
-                            points,
-                            rejected,
-                            EnvelopeTerminationReason.TARGET_REACHED,
-                            "Target temperature reached.",
-                            diagnostics,
-                            expected_provenance,
-                        )
-                    final_inner_iterations = len(result.evaluation_history[-1].history)
-                    easy = (
-                        source is EnvelopeCorrectionSource.LOCAL
-                        and retry == 0
-                        and final_inner_iterations <= settings.easy_iteration_limit
-                        and candidate.predictor_log_pressure_error < 0.1
-                        and candidate.predictor_log_k_error < 0.2
-                    )
-                    factor = (
-                        settings.step_increase_factor
-                        if easy
-                        else settings.step_decrease_factor
-                    )
-                    step = direction * min(
-                        settings.maximum_temperature_step_k,
-                        max(
-                            settings.minimum_temperature_step_k,
-                            abs(requested_step) * factor,
-                        ),
-                    )
-                    accepted = True
-                    break
-                possible_branch_loss = jump_reason is not None
-                failure = jump_reason or "duplicate envelope point was rejected."
-                rejected.extend(
-                    EnvelopeCorrectionAttempt(
-                        source=item.source,
-                        status=EnvelopePointStatus.REJECTED,
-                        temperature_k=item.temperature_k,
-                        requested_temperature_step_k=(
-                            item.requested_temperature_step_k
-                        ),
-                        pressure_bounds_pa=item.pressure_bounds_pa,
-                        log_pressure_half_span=item.log_pressure_half_span,
-                        saturation_result=item.saturation_result,
-                        accepted=False,
-                        failure_reason=failure,
-                        diagnostics=(
-                            *item.diagnostics,
-                            _diagnostic("ENVELOPE_BRANCH_JUMP", failure),
-                        ),
-                    )
-                    for item in attempts
-                )
-            else:
-                rejected.extend(attempts)
-                numerical_failure = (
-                    numerical_failure
-                    or bool(attempts)
-                    and all(item.saturation_result is None for item in attempts)
-                )
-                # A trivial inner collapse is reported by the enclosing Module 8
-                # search as a bracket failure, so its own reason string never
-                # mentions it. The diagnostic is where that evidence survives.
-                trivial_collapse = trivial_collapse or any(
-                    (
-                        item.failure_reason is not None
-                        and "trivial" in item.failure_reason.lower()
-                    )
-                    or any(
-                        entry.code == TRIVIAL_STATE_DIAGNOSTIC_CODE
-                        for entry in item.diagnostics
-                    )
-                    for item in attempts
-                )
-            retry += 1
-            next_magnitude = abs(requested_step) * 0.5
-            if next_magnitude < settings.minimum_temperature_step_k:
-                reason, message = _retry_termination(
-                    trivial_collapse,
-                    numerical_failure,
-                    possible_branch_loss,
-                    EnvelopeTerminationReason.MINIMUM_STEP_REACHED,
-                    (
-                        "Minimum temperature step reached without an acceptable "
-                        "correction."
-                    ),
-                )
-                return _finish_branch(
-                    mixture,
-                    branch_kind,
-                    settings,
-                    points,
-                    rejected,
-                    reason,
-                    message,
-                    diagnostics,
-                    expected_provenance,
-                )
-            requested_step = direction * next_magnitude
-        if not accepted:
-            termination, message = _retry_termination(
-                trivial_collapse,
-                numerical_failure,
-                possible_branch_loss,
-                EnvelopeTerminationReason.CORRECTOR_FAILED,
-                "Continuation retry limit reached without an acceptable point.",
-            )
+        prediction = predict_envelope_state(
+            current,
+            current.temperature_k + requested_step,
+            points[-2] if len(points) > 1 else None,
+        )
+        outcome = _attempt_continuation_step(
+            mixture,
+            branch_kind,
+            settings,
+            tuple(points),
+            requested_step,
+            prediction,
+            tuple(diagnostics),
+            expected_provenance,
+            binary_interactions,
+            binary_interaction_policy,
+        )
+        rejected.extend(outcome.rejected_attempts)
+        diagnostics = list(outcome.diagnostics)
+        if outcome.termination is not None:
+            termination, message = outcome.termination
             return _finish_branch(
                 mixture,
                 branch_kind,
@@ -1224,6 +1220,63 @@ def trace_phase_envelope_branch(
                 diagnostics,
                 expected_provenance,
             )
+        candidate = outcome.accepted_point
+        assert candidate is not None
+        points.append(candidate)
+        near_diagnostics, terminate_near = _near_critical_diagnostics(
+            candidate, settings
+        )
+        diagnostics.extend(item for item in near_diagnostics if item not in diagnostics)
+        if terminate_near:
+            return _finish_branch(
+                mixture,
+                branch_kind,
+                settings,
+                points,
+                rejected,
+                EnvelopeTerminationReason.NEAR_CRITICAL,
+                (
+                    "Phase distinctions entered the near-critical stop band; "
+                    "this is not an exact critical point."
+                ),
+                diagnostics,
+                expected_provenance,
+            )
+        if (
+            direction * (settings.target_temperature_k - candidate.temperature_k)
+            <= TEMPERATURE_UNIQUENESS_TOLERANCE_K
+        ):
+            return _finish_branch(
+                mixture,
+                branch_kind,
+                settings,
+                points,
+                rejected,
+                EnvelopeTerminationReason.TARGET_REACHED,
+                "Target temperature reached.",
+                diagnostics,
+                expected_provenance,
+            )
+        final_inner_iterations = len(
+            candidate.saturation_result.evaluation_history[-1].history
+        )
+        easy = (
+            candidate.correction_source is EnvelopeCorrectionSource.LOCAL
+            and outcome.retry_count == 0
+            and final_inner_iterations <= settings.easy_iteration_limit
+            and candidate.predictor_log_pressure_error < 0.1
+            and candidate.predictor_log_k_error < 0.2
+        )
+        factor = (
+            settings.step_increase_factor if easy else settings.step_decrease_factor
+        )
+        step = direction * min(
+            settings.maximum_temperature_step_k,
+            max(
+                settings.minimum_temperature_step_k,
+                abs(outcome.requested_temperature_step_k) * factor,
+            ),
+        )
     return _finish_branch(
         mixture,
         branch_kind,
