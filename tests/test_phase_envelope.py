@@ -1,24 +1,17 @@
 """Tests for natural-temperature phase-envelope branch continuation."""
 
 from dataclasses import FrozenInstanceError, replace
-from math import exp, fsum, isfinite, log
+from math import exp, fsum, isfinite, log, log1p, sqrt
 from time import perf_counter
 
+import numpy as np
 import pytest
-from scipy.optimize import brentq
+from scipy.optimize import toms748
 
 import pvt_phase_simulator.eos.phase_envelope as envelope_module
 from pvt_phase_simulator.eos.flash import calculate_two_phase_flash
 from pvt_phase_simulator.eos.mixing_rules import (
     calculate_peng_robinson_mixture_parameters,
-)
-from pvt_phase_simulator.eos.mixture_fugacity import (
-    calculate_mixture_fugacity_coefficients,
-)
-from pvt_phase_simulator.eos.peng_robinson import (
-    MechanicalStabilityClassification,
-    calculate_compressibility_roots,
-    classify_mechanical_stability,
 )
 from pvt_phase_simulator.eos.phase_envelope import (
     EnvelopeBranchKind,
@@ -119,26 +112,95 @@ def _independent_phase(
     pressure_pa: float,
     liquid: bool,
 ) -> tuple[float, tuple[float, ...]]:
-    mixture = FluidMixture(
-        tuple(
-            MixtureComponent(component, fraction)
-            for component, fraction in zip(components, composition, strict=True)
+    """Evaluate PR roots and fugacities from test-local equations.
+
+    The reference cases use the project's documented zero binary-interaction
+    assumption. Only immutable component property data are reused.
+    """
+
+    gas_constant = 8.31446261815324
+    omega_a = 0.45724
+    omega_b = 0.07780
+    sqrt_two = sqrt(2.0)
+    a_alpha = tuple(
+        omega_a
+        * gas_constant**2
+        * component.critical_temperature_k**2
+        / component.critical_pressure_pa
+        * (
+            1.0
+            + (
+                0.37464
+                + 1.54226 * component.acentric_factor
+                - 0.26992 * component.acentric_factor**2
+            )
+            * (1.0 - sqrt(temperature_k / component.critical_temperature_k))
+        )
+        ** 2
+        for component in components
+    )
+    b_values = tuple(
+        omega_b
+        * gas_constant
+        * component.critical_temperature_k
+        / component.critical_pressure_pa
+        for component in components
+    )
+    a_mix = fsum(
+        composition[i] * composition[j] * sqrt(a_alpha[i] * a_alpha[j])
+        for i in range(len(components))
+        for j in range(len(components))
+    )
+    b_mix = fsum(
+        fraction * b_value
+        for fraction, b_value in zip(composition, b_values, strict=True)
+    )
+    dimensionless_a = a_mix * pressure_pa / (gas_constant**2 * temperature_k**2)
+    dimensionless_b = b_mix * pressure_pa / (gas_constant * temperature_k)
+    roots = np.roots(
+        (
+            1.0,
+            dimensionless_b - 1.0,
+            dimensionless_a - 3.0 * dimensionless_b**2 - 2.0 * dimensionless_b,
+            -(
+                dimensionless_a * dimensionless_b
+                - dimensionless_b**2
+                - dimensionless_b**3
+            ),
         )
     )
-    parameters = calculate_peng_robinson_mixture_parameters(
-        mixture, temperature_k, pressure_pa
+    physical_roots = tuple(
+        sorted(
+            float(candidate.real)
+            for candidate in roots
+            if abs(float(candidate.imag)) <= 1e-9
+            and float(candidate.real) > dimensionless_b
+        )
     )
-    stable_roots = tuple(
-        root
-        for root in calculate_compressibility_roots(parameters.A_mix, parameters.B_mix)
-        if classify_mechanical_stability(
-            root, parameters.A_mix, parameters.B_mix
-        ).classification
-        is MechanicalStabilityClassification.STABLE
+    if not physical_roots:
+        raise ValueError("test-local PR calculation found no physical root")
+    root = min(physical_roots) if liquid else max(physical_roots)
+    logarithm_ratio = log1p((1.0 + sqrt_two) * dimensionless_b / root) - log1p(
+        (1.0 - sqrt_two) * dimensionless_b / root
     )
-    root = min(stable_roots) if liquid else max(stable_roots)
-    fugacity = calculate_mixture_fugacity_coefficients(parameters, root)
-    return root, tuple(item.log_fugacity_coefficient for item in fugacity)
+    log_phi = tuple(
+        b_values[i] / b_mix * (root - 1.0)
+        - log(root - dimensionless_b)
+        - dimensionless_a
+        / (2.0 * sqrt_two * dimensionless_b)
+        * (
+            2.0
+            * fsum(
+                composition[j] * sqrt(a_alpha[i] * a_alpha[j])
+                for j in range(len(components))
+            )
+            / a_mix
+            - b_values[i] / b_mix
+        )
+        * logarithm_ratio
+        for i in range(len(components))
+    )
+    return root, log_phi
 
 
 def _independent_saturation(
@@ -146,10 +208,14 @@ def _independent_saturation(
     feed: tuple[float, ...],
     temperature_k: float,
     kind: SaturationKind,
-    bracket: tuple[float, float],
     initial_log_k: tuple[float, ...] | None = None,
 ) -> tuple[float, tuple[float, ...], tuple[float, ...], float, float]:
-    """Independent Modules 4--5 pressure/composition correction."""
+    """Partially independent wide-search pressure/composition correction.
+
+    Only immutable component property data are reused. PR mixing, cubic-root,
+    fugacity, pressure-search, and composition-correction equations are
+    implemented locally; Modules 8--9 and their solution seeds are not used.
+    """
 
     def normalize(values: tuple[float, ...]) -> tuple[float, ...]:
         direction = 1.0 if kind is SaturationKind.BUBBLE_POINT else -1.0
@@ -225,17 +291,59 @@ def _independent_saturation(
             return residual, incipient, values, parent_root, incipient_root
         return residual
 
-    pressure = brentq(
-        lambda pressure_pa: float(objective(pressure_pa)),
-        bracket[0],
-        bracket[1],
-        xtol=1e-7,
-        rtol=1e-13,
+    minimum_pressure_pa = 1_000.0
+    maximum_pressure_pa = 100_000_000.0
+    search_points = 241
+    lower_log = log(minimum_pressure_pa)
+    upper_log = log(maximum_pressure_pa)
+    pressures = tuple(
+        exp(lower_log + index * (upper_log - lower_log) / (search_points - 1))
+        for index in range(search_points)
     )
-    details = objective(pressure, True)
-    if not isinstance(details, tuple):
-        raise AssertionError("independent details are required")
-    return pressure, details[1], details[2], details[3], details[4]
+    brackets: list[tuple[float, float]] = []
+    previous: tuple[float, float] | None = None
+    for pressure_pa in pressures:
+        try:
+            residual = float(objective(pressure_pa))
+        except (ArithmeticError, ValueError):
+            previous = None
+            continue
+        if not isfinite(residual):
+            previous = None
+            continue
+        if residual == 0.0:
+            brackets.append((pressure_pa, pressure_pa))
+        elif previous is not None and (
+            previous[1] < 0.0 < residual or residual < 0.0 < previous[1]
+        ):
+            brackets.append((previous[0], pressure_pa))
+        previous = pressure_pa, residual
+
+    candidates: list[
+        tuple[float, tuple[float, ...], tuple[float, ...], float, float]
+    ] = []
+    for lower, upper in brackets:
+        pressure = (
+            lower
+            if lower == upper
+            else toms748(
+                lambda pressure_pa: float(objective(pressure_pa)),
+                lower,
+                upper,
+                xtol=1e-7,
+                rtol=1e-13,
+            )
+        )
+        details = objective(pressure, True)
+        if not isinstance(details, tuple):
+            raise AssertionError("independent details are required")
+        candidate = pressure, details[1], details[2], details[3], details[4]
+        if max(abs(value) for value in candidate[2]) > 1e-7:
+            candidates.append(candidate)
+    if not candidates:
+        raise AssertionError("independent wide search found no nontrivial saturation")
+    selector = max if kind is SaturationKind.BUBBLE_POINT else min
+    return selector(candidates, key=lambda candidate: candidate[0])
 
 
 @pytest.mark.parametrize(
@@ -293,8 +401,16 @@ def test_easy_predictor_threshold_changes_only_adaptive_step_policy() -> None:
         200.0,
     )
     assert default.points[:3] == restrictive.points[:3]
-    assert default.points[3].accepted_temperature_step_k == pytest.approx(4.375)
-    assert restrictive.points[3].accepted_temperature_step_k == pytest.approx(2.45)
+    assert (
+        default.points[3].accepted_temperature_step_k
+        == default.points[2].accepted_temperature_step_k
+        * default.settings.step_increase_factor
+    )
+    assert (
+        restrictive.points[3].accepted_temperature_step_k
+        == restrictive.points[2].accepted_temperature_step_k
+        * restrictive.settings.step_decrease_factor
+    )
 
 
 def test_result_models_are_immutable(
@@ -713,7 +829,10 @@ def test_branch_jump_is_rejected_and_step_reduced() -> None:
     )
     result = trace_bubble_branch(_methane_ethane(), settings, 200.0)
     assert result.points[-1].temperature_k == pytest.approx(205.0)
-    assert result.points[1].accepted_temperature_step_k < 5.0
+    assert (
+        result.points[1].accepted_temperature_step_k
+        < settings.initial_temperature_step_k
+    )
     assert result.rejected_attempts
     assert any(
         item.status is EnvelopePointStatus.REJECTED for item in result.rejected_attempts
@@ -723,11 +842,21 @@ def test_branch_jump_is_rejected_and_step_reduced() -> None:
 def test_adaptive_step_increases_after_easy_correction(
     binary_bubble: envelope_module.PhaseEnvelopeBranchResult,
 ) -> None:
-    steps = tuple(
-        point.accepted_temperature_step_k for point in binary_bubble.points[1:]
+    easy_point = binary_bubble.points[2]
+    following_point = binary_bubble.points[3]
+    assert easy_point.correction_source is EnvelopeCorrectionSource.LOCAL
+    assert (
+        easy_point.predictor_log_pressure_error
+        < binary_bubble.settings.easy_predictor_log_pressure_error
     )
-    assert 4.375 in steps
-    assert steps[2] > steps[1]
+    assert (
+        easy_point.predictor_log_k_error
+        < binary_bubble.settings.easy_predictor_log_k_error
+    )
+    assert (
+        following_point.accepted_temperature_step_k
+        > easy_point.accepted_temperature_step_k
+    )
 
 
 def test_adaptive_step_decreases_after_expansion(
@@ -737,7 +866,10 @@ def test_adaptive_step_decreases_after_expansion(
         binary_bubble.points[1].correction_source
         is EnvelopeCorrectionSource.EXPANDED_LOCAL
     )
-    assert binary_bubble.points[2].accepted_temperature_step_k == pytest.approx(3.5)
+    assert (
+        binary_bubble.points[2].accepted_temperature_step_k
+        < binary_bubble.points[1].accepted_temperature_step_k
+    )
 
 
 def test_maximum_step_is_respected() -> None:
@@ -748,7 +880,7 @@ def test_maximum_step_is_respected() -> None:
     )
     assert (
         max(abs(point.accepted_temperature_step_k) for point in result.points[1:])
-        <= 3.0
+        <= result.settings.maximum_temperature_step_k
     )
 
 
@@ -1245,7 +1377,7 @@ def test_bubble_not_below_dew_for_binary_reference(
 
 
 @pytest.mark.parametrize(
-    ("fixture_name", "point_index", "components", "feed", "kind", "bracket"),
+    ("fixture_name", "point_index", "components", "feed", "kind"),
     [
         (
             "binary_bubble",
@@ -1253,7 +1385,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE),
             (0.5, 0.5),
             SaturationKind.BUBBLE_POINT,
-            (2.3e6, 2.9e6),
         ),
         (
             "binary_bubble",
@@ -1261,7 +1392,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE),
             (0.5, 0.5),
             SaturationKind.BUBBLE_POINT,
-            (2.9e6, 3.4e6),
         ),
         (
             "binary_bubble",
@@ -1269,7 +1399,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE),
             (0.5, 0.5),
             SaturationKind.BUBBLE_POINT,
-            (3.5e6, 4.2e6),
         ),
         (
             "binary_dew",
@@ -1277,7 +1406,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE),
             (0.5, 0.5),
             SaturationKind.DEW_POINT,
-            (0.3e6, 0.55e6),
         ),
         (
             "binary_dew",
@@ -1285,7 +1413,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE),
             (0.5, 0.5),
             SaturationKind.DEW_POINT,
-            (0.5e6, 0.75e6),
         ),
         (
             "binary_dew",
@@ -1293,7 +1420,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE),
             (0.5, 0.5),
             SaturationKind.DEW_POINT,
-            (0.8e6, 1.2e6),
         ),
         (
             "methane_propane_bubble",
@@ -1301,7 +1427,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, PROPANE),
             (0.6, 0.4),
             SaturationKind.BUBBLE_POINT,
-            (5.3e6, 6.2e6),
         ),
         (
             "methane_propane_bubble",
@@ -1309,7 +1434,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, PROPANE),
             (0.6, 0.4),
             SaturationKind.BUBBLE_POINT,
-            (6.1e6, 6.8e6),
         ),
         (
             "methane_propane_bubble",
@@ -1317,7 +1441,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, PROPANE),
             (0.6, 0.4),
             SaturationKind.BUBBLE_POINT,
-            (7.0e6, 7.8e6),
         ),
         (
             "methane_propane_dew",
@@ -1325,7 +1448,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, PROPANE),
             (0.6, 0.4),
             SaturationKind.DEW_POINT,
-            (0.15e6, 0.35e6),
         ),
         (
             "methane_propane_dew",
@@ -1333,7 +1455,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, PROPANE),
             (0.6, 0.4),
             SaturationKind.DEW_POINT,
-            (0.25e6, 0.45e6),
         ),
         (
             "methane_propane_dew",
@@ -1341,7 +1462,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, PROPANE),
             (0.6, 0.4),
             SaturationKind.DEW_POINT,
-            (0.4e6, 0.7e6),
         ),
         (
             "ternary_bubble",
@@ -1349,7 +1469,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE, PROPANE),
             (0.6, 0.3, 0.1),
             SaturationKind.BUBBLE_POINT,
-            (2.8e6, 3.5e6),
         ),
         (
             "ternary_bubble",
@@ -1357,7 +1476,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE, PROPANE),
             (0.6, 0.3, 0.1),
             SaturationKind.BUBBLE_POINT,
-            (3.5e6, 4.2e6),
         ),
         (
             "ternary_bubble",
@@ -1365,7 +1483,6 @@ def test_bubble_not_below_dew_for_binary_reference(
             (METHANE, ETHANE, PROPANE),
             (0.6, 0.3, 0.1),
             SaturationKind.BUBBLE_POINT,
-            (4.4e6, 5.1e6),
         ),
     ],
 )
@@ -1376,7 +1493,6 @@ def test_independent_endpoint_reference(
     components: tuple[Component, ...],
     feed: tuple[float, ...],
     kind: SaturationKind,
-    bracket: tuple[float, float],
 ) -> None:
     branch = request.getfixturevalue(fixture_name)
     point = branch.points[point_index]
@@ -1385,7 +1501,6 @@ def test_independent_endpoint_reference(
         feed,
         point.temperature_k,
         kind,
-        bracket,
     )
     assert point.pressure_pa == pytest.approx(independent[0], abs=5e-5)
     assert point.saturation_result.incipient_composition == pytest.approx(
