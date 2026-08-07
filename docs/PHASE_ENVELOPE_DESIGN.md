@@ -73,16 +73,19 @@ A corrected point is compared with both its predictor and the last accepted
 point. Default rejection thresholds are `0.50` in predicted log pressure,
 `1.00` in maximum predicted log K, `0.35` in incipient composition, `0.75` in
 consecutive log pressure, and `0.50` in selected root. A rejected step is
-halved and retried. When no acceptable point survives, the evidence gathered
-during the retries chooses the reason -- trivial collapse, numerical failure,
-or branch loss -- and only when none of those applies does the loop report the
-limit that stopped it, either the minimum step or the retry counter. The same
-situation therefore never reports two different reasons.
+multiplied by the configurable `retry_step_reduction_factor`, whose default
+`0.5` preserves step halving. When no acceptable point survives, the evidence
+gathered during the retries chooses the reason -- trivial collapse, numerical
+failure, or branch loss -- and only when none of those applies does the loop
+report the limit that stopped it, either the minimum step or the retry counter.
+The same situation therefore never reports two different reasons.
 
-An easy unexpanded correction with small predictor errors increases the next
-temperature-step magnitude by `1.25`. Expanded, fallback, or difficult
-corrections reduce it by `0.70`. Every step stays within configured minimum and
-maximum magnitudes and preserves direction. There is no random behavior.
+An easy unexpanded correction with predictor errors below the configurable
+`easy_predictor_log_pressure_error = 0.1` and
+`easy_predictor_log_k_error = 0.2` defaults increases the next temperature-step
+magnitude by `1.25`. Expanded, fallback, or difficult corrections reduce it by
+`0.70`. Every step stays within configured minimum and maximum magnitudes and
+preserves direction. There is no random behavior.
 
 ## Near-critical warnings and termination
 
@@ -104,6 +107,14 @@ well before the accepted-point indicators enter their warning band.
 
 `NEAR_CRITICAL` means phases are becoming numerically difficult to
 distinguish. It is not an exact critical point.
+
+Starting states are rejected as numerically indistinguishable only when both
+their maximum composition separation is at most the fixed
+`PHASE_COMPOSITION_DISTINGUISHABILITY_TOLERANCE = 1e-10` and their selected-root
+separation is at most `PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE = 1e-8`.
+Matched bubble/dew pressures produce the approach diagnostic when their fixed
+relative separation is at most
+`CROSS_BRANCH_PRESSURE_RELATIVE_TOLERANCE = 0.02`.
 
 ## Result and termination semantics
 

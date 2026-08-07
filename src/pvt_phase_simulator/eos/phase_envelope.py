@@ -34,6 +34,12 @@ from pvt_phase_simulator.eos.saturation_pressure import (
 from pvt_phase_simulator.fluid_models import MOLE_FRACTION_TOLERANCE, FluidMixture
 
 TEMPERATURE_UNIQUENESS_TOLERANCE_K: Final = 1e-10
+# Fixed safeguards for rejecting reconstructed phases that are numerically
+# indistinguishable in composition and selected compressibility factor.
+PHASE_COMPOSITION_DISTINGUISHABILITY_TOLERANCE: Final = 1e-10
+PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE: Final = 1e-8
+# Diagnostic-only relative pressure proximity for matched bubble/dew points.
+CROSS_BRANCH_PRESSURE_RELATIVE_TOLERANCE: Final = 0.02
 
 
 class EnvelopeBranchKind(StrEnum):
@@ -99,6 +105,9 @@ class EnvelopeContinuationSettings:
     maximum_step_retries: int = 6
     allow_global_fallback: bool = True
     easy_iteration_limit: int = 30
+    easy_predictor_log_pressure_error: float = 0.1
+    easy_predictor_log_k_error: float = 0.2
+    retry_step_reduction_factor: float = 0.5
     step_increase_factor: float = 1.25
     step_decrease_factor: float = 0.70
     maximum_predictor_log_pressure_error: float = 0.50
@@ -126,6 +135,11 @@ class EnvelopeContinuationSettings:
             "maximum_pressure_pa": self.maximum_pressure_pa,
             "local_log_pressure_half_span": self.local_log_pressure_half_span,
             "local_expansion_factor": self.local_expansion_factor,
+            "easy_predictor_log_pressure_error": (
+                self.easy_predictor_log_pressure_error
+            ),
+            "easy_predictor_log_k_error": self.easy_predictor_log_k_error,
+            "retry_step_reduction_factor": self.retry_step_reduction_factor,
             "step_increase_factor": self.step_increase_factor,
             "step_decrease_factor": self.step_decrease_factor,
             "maximum_predictor_log_pressure_error": (
@@ -189,6 +203,8 @@ class EnvelopeContinuationSettings:
             raise ValueError("local_expansion_factor must be greater than one.")
         if self.step_increase_factor <= 1.0:
             raise ValueError("step_increase_factor must be greater than one.")
+        if self.retry_step_reduction_factor >= 1.0:
+            raise ValueError("retry step reduction factor must be less than one.")
         if not 0.0 < self.step_decrease_factor < 1.0:
             raise ValueError(
                 "step_decrease_factor must lie strictly between zero and one."
@@ -664,7 +680,10 @@ def _validate_converged_result(
     active_count = sum(fraction > 0.0 for fraction in result.feed_composition)
     if active_count > 1 and maximum_log_k <= TRIVIAL_LOG_K_TOLERANCE:
         raise ValueError("starting saturation result is a trivial unity-K state.")
-    if composition_separation <= 1e-10 and root_separation <= 1e-8:
+    if (
+        composition_separation <= PHASE_COMPOSITION_DISTINGUISHABILITY_TOLERANCE
+        and root_separation <= PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE
+    ):
         raise ValueError("starting saturation result has indistinguishable phases.")
     if not all(isfinite(value) for value in log_k_values):
         raise ValueError("starting saturation log K-values must be finite.")
@@ -1017,7 +1036,7 @@ def _attempt_continuation_step(
                 for item in attempts
             )
         retry += 1
-        next_magnitude = abs(requested_step) * 0.5
+        next_magnitude = abs(requested_step) * settings.retry_step_reduction_factor
         if next_magnitude < settings.minimum_temperature_step_k:
             termination = _retry_termination(
                 trivial_collapse,
@@ -1264,8 +1283,9 @@ def trace_phase_envelope_branch(
             candidate.correction_source is EnvelopeCorrectionSource.LOCAL
             and outcome.retry_count == 0
             and final_inner_iterations <= settings.easy_iteration_limit
-            and candidate.predictor_log_pressure_error < 0.1
-            and candidate.predictor_log_k_error < 0.2
+            and candidate.predictor_log_pressure_error
+            < settings.easy_predictor_log_pressure_error
+            and candidate.predictor_log_k_error < settings.easy_predictor_log_k_error
         )
         factor = (
             settings.step_increase_factor if easy else settings.step_decrease_factor
@@ -1428,7 +1448,7 @@ def calculate_phase_envelope(
                     bubble_point.pressure_pa - dew_point.pressure_pa
                 ) / max(bubble_point.pressure_pa, dew_point.pressure_pa)
                 separations.append((bubble_point.temperature_k, relative_separation))
-                if relative_separation <= 0.02:
+                if relative_separation <= CROSS_BRANCH_PRESSURE_RELATIVE_TOLERANCE:
                     diagnostics.append(
                         _diagnostic(
                             "ENVELOPE_BRANCH_PRESSURES_APPROACHING",

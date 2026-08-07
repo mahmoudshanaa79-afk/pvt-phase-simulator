@@ -250,6 +250,10 @@ def _independent_saturation(
         {"maximum_points": 0},
         {"minimum_pressure_pa": 1.0e6, "maximum_pressure_pa": 1.0e6},
         {"local_expansion_factor": 1.0},
+        {"easy_predictor_log_pressure_error": 0.0},
+        {"easy_predictor_log_k_error": float("nan")},
+        {"retry_step_reduction_factor": 0.0},
+        {"retry_step_reduction_factor": 1.0},
         {"step_decrease_factor": 1.0},
         {"saturation_objective_tolerance": 1e-7},
         {"log_k_tolerance": 1e-9},
@@ -269,6 +273,28 @@ def test_settings_are_immutable() -> None:
     settings = _settings()
     with pytest.raises(FrozenInstanceError):
         settings.maximum_points = 2  # type: ignore[misc]
+
+
+def test_named_threshold_defaults_preserve_the_audited_policy() -> None:
+    settings = _settings()
+    assert settings.easy_predictor_log_pressure_error == 0.1
+    assert settings.easy_predictor_log_k_error == 0.2
+    assert settings.retry_step_reduction_factor == 0.5
+    assert envelope_module.PHASE_COMPOSITION_DISTINGUISHABILITY_TOLERANCE == 1e-10
+    assert envelope_module.PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE == 1e-8
+    assert envelope_module.CROSS_BRANCH_PRESSURE_RELATIVE_TOLERANCE == 0.02
+
+
+def test_easy_predictor_threshold_changes_only_adaptive_step_policy() -> None:
+    default = trace_bubble_branch(_methane_ethane(), _settings(220.0, 5.0, 4), 200.0)
+    restrictive = trace_bubble_branch(
+        _methane_ethane(),
+        _settings(220.0, 5.0, 4, easy_predictor_log_pressure_error=1e-12),
+        200.0,
+    )
+    assert default.points[:3] == restrictive.points[:3]
+    assert default.points[3].accepted_temperature_step_k == pytest.approx(4.375)
+    assert restrictive.points[3].accepted_temperature_step_k == pytest.approx(2.45)
 
 
 def test_result_models_are_immutable(

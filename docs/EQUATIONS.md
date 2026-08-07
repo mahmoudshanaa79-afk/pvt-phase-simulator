@@ -672,13 +672,21 @@ failure.
 Default branch-jump thresholds are `0.50` predicted log-pressure error, `1.00`
 maximum predicted log-K error, `0.35` incipient-composition change, `0.75`
 consecutive log-pressure change, and `0.50` selected-root change. A rejected
-step is halved. Easy local corrections increase the next step by `1.25`;
-expanded, fallback, or difficult corrections reduce it by `0.70`. Configured
-minimum and maximum step magnitudes are enforced.
+step is multiplied by `retry_step_reduction_factor`, default `0.5`. A local
+correction is easy only when its predicted log-pressure and maximum log-K
+errors are below `easy_predictor_log_pressure_error = 0.1` and
+`easy_predictor_log_k_error = 0.2`. Easy corrections increase the next step by
+`1.25`; expanded, fallback, or difficult corrections reduce it by `0.70`.
+Configured minimum and maximum step magnitudes are enforced.
 
 The tracer retains Module 8's multicomponent unity-K rejection and final
 objective, log-K, composition, fugacity, mechanical-root, and provenance gates.
 Callers may request stricter acceptance tolerances but cannot weaken Module 8.
+The fixed starting-state distinguishability safeguards are `1e-10` in maximum
+composition separation and `1e-8` in selected-root separation; both must be
+met to reject the phases as indistinguishable. The combined manager's matched
+bubble/dew approach diagnostic uses a fixed relative-pressure threshold of
+`0.02`.
 
 Near-critical warnings monitor composition separation, maximum active
 `|ln K_i|`, and root separation at each accepted point; the combined manager
