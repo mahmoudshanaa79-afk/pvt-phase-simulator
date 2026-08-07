@@ -26,6 +26,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "cosmic-ray>=8.4.6",
+    "hypothesis>=6.165.2",
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
