@@ -507,11 +507,25 @@ At equal phase pressure:
 x_i\phi_i^L P=y_i\phi_i^V P
 \]
 
-so the undamped log-space update is:
+so the log-space equilibrium target is:
 
 \[
 \ln K_i^{new}=\ln\phi_i^L-\ln\phi_i^V
 \]
+
+Module 11 optionally damps movement toward that target:
+
+\[
+\Delta\ln K_i=\ln K_i^{new}-\ln K_i,
+\qquad
+\ln K_i^{next}=\ln K_i+\lambda\Delta\ln K_i,
+\qquad 0<\lambda\le1.
+\]
+
+The default `successive_substitution_damping_factor = 1.0` returns the target
+directly and preserves the historical undamped path. Flash and saturation use
+the same validated log-K update; phase-envelope correction inherits the factor
+through saturation. Stability trial-weight iteration is unchanged.
 
 The implemented signed equilibrium residual is:
 
@@ -529,8 +543,11 @@ A two-phase result converges only when the Rachford–Rice residual is within
 `1e-12`, maximum log-K and fugacity-equilibrium residuals are within `1e-8`,
 composition-sum and material-balance residuals are within `1e-10`, beta is
 strictly physical, and both phase roots are mechanically stable. Beta change
-or composition change alone cannot establish convergence. This undamped
-successive-substitution implementation is not a bubble-point, dew-point,
+or composition change alone cannot establish convergence. In particular,
+convergence uses the full `Delta ln K`, not the damped movement
+`lambda Delta ln K`; a small lambda cannot create false convergence. Fixed
+damping may reduce overshoot or oscillation, but it is robustness control, not
+acceleration or proof of convergence. This flash implementation is not a bubble-point, dew-point,
 phase-envelope, or global multiphase solver.
 
 ## Module 8: fixed-temperature saturation pressure

@@ -661,6 +661,53 @@ def k_values_from_log_values(log_k_values: tuple[float, ...]) -> tuple[float, ..
     return tuple(values)
 
 
+def calculate_damped_log_k_values(
+    current_log_k_values: tuple[float, ...],
+    target_log_k_values: tuple[float, ...],
+    successive_substitution_damping_factor: float = 1.0,
+) -> tuple[float, ...]:
+    """Return one safeguarded successive-substitution update in log-K space.
+
+    A factor of one returns the target tuple directly, preserving the exact
+    historical undamped path without additional floating-point operations.
+    """
+
+    _require_finite(
+        successive_substitution_damping_factor,
+        "successive_substitution_damping_factor",
+    )
+    if not 0.0 < successive_substitution_damping_factor <= 1.0:
+        raise ValueError(
+            "successive_substitution_damping_factor must be greater than zero "
+            "and at most one."
+        )
+    if (
+        not isinstance(current_log_k_values, tuple)
+        or not current_log_k_values
+        or len(target_log_k_values) != len(current_log_k_values)
+    ):
+        raise ValueError(
+            "current and target log K-values must be non-empty tuples of equal length."
+        )
+    for label, values in (
+        ("current_log_k_values", current_log_k_values),
+        ("target_log_k_values", target_log_k_values),
+    ):
+        for index, value in enumerate(values):
+            _require_finite(value, f"{label}[{index}]")
+    if successive_substitution_damping_factor == 1.0:
+        return target_log_k_values
+    damped = tuple(
+        current + successive_substitution_damping_factor * (target - current)
+        for current, target in zip(
+            current_log_k_values, target_log_k_values, strict=True
+        )
+    )
+    for index, value in enumerate(damped):
+        _require_finite(value, f"damped_log_k_values[{index}]")
+    return damped
+
+
 def detect_flash_iterate_pattern(
     current_log_k_values: tuple[float, ...],
     updated_log_k_values: tuple[float, ...],
@@ -856,8 +903,10 @@ def calculate_two_phase_flash(
     ),
     maximum_iterations: int = DEFAULT_MAXIMUM_FLASH_ITERATIONS,
     stability_maximum_iterations: int = DEFAULT_STABILITY_MAXIMUM_ITERATIONS,
+    *,
+    successive_substitution_damping_factor: float = 1.0,
 ) -> TwoPhaseFlashResult:
-    """Run a stability-gated undamped successive-substitution two-phase flash."""
+    """Run a stability-gated successive-substitution two-phase flash."""
 
     _require_positive(temperature_k, "temperature_k")
     _require_positive(pressure_pa, "pressure_pa")
@@ -868,6 +917,9 @@ def calculate_two_phase_flash(
         or stability_maximum_iterations <= 0
     ):
         raise ValueError("stability_maximum_iterations must be a positive integer.")
+    calculate_damped_log_k_values(
+        (0.0,), (0.0,), successive_substitution_damping_factor
+    )
     interaction_snapshot = (
         None if binary_interactions is None else dict(binary_interactions)
     )
@@ -1015,7 +1067,7 @@ def calculate_two_phase_flash(
             if vapor_switch is not None:
                 _append_unique_diagnostics(diagnostics, (vapor_switch,))
 
-        updated_log_k_values = tuple(
+        target_log_k_values = tuple(
             liquid_log_phi - vapor_log_phi
             for liquid_log_phi, vapor_log_phi in zip(
                 liquid_phase.component_log_fugacity_coefficients,
@@ -1023,11 +1075,16 @@ def calculate_two_phase_flash(
                 strict=True,
             )
         )
-        for index, value in enumerate(updated_log_k_values):
-            _require_finite(value, f"updated_log_k_values[{index}]")
+        for index, value in enumerate(target_log_k_values):
+            _require_finite(value, f"target_log_k_values[{index}]")
+        updated_log_k_values = calculate_damped_log_k_values(
+            log_k_values,
+            target_log_k_values,
+            successive_substitution_damping_factor,
+        )
         log_k_residuals = tuple(
-            current - updated
-            for current, updated in zip(log_k_values, updated_log_k_values, strict=True)
+            current - target
+            for current, target in zip(log_k_values, target_log_k_values, strict=True)
         )
         maximum_log_k_residual = max(
             (abs(value) for value in log_k_residuals), default=0.0

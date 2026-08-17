@@ -41,8 +41,9 @@ implemented.
 
 ## Corrector and local pressure search
 
-The corrector passes predicted log K-values into Module 8's unchanged
-equilibrium iteration, and into every fixed-pressure evaluation that search
+The corrector passes predicted log K-values and the configured
+`successive_substitution_damping_factor` into Module 8's equilibrium iteration,
+and into every fixed-pressure evaluation that search
 makes. The local interval is symmetric in log pressure around the predicted
 pressure and is then clipped to the configured pressure bounds. Module 8
 samples five evenly spaced log-pressure points spanning the interval, so an
@@ -54,7 +55,8 @@ The interval expands by a configured factor after failure. Only fully
 converged, nontrivial inner states can form a bracket, and Module 8
 reconstructs the final state at the solved pressure. A full Wilson-seeded
 Module 8 search is an optional, separately recorded fallback after every local
-attempt fails.
+attempt fails. The default factor is one, preserving the historical branch and
+correction path. The envelope contains no separate damping implementation.
 
 The continuation path retains Module 8's `1e-8` multicomponent unity-log-K
 rejection, composition/root triviality check, mechanical root policies, and

@@ -19,6 +19,7 @@ from pvt_phase_simulator.eos.flash import (
     FlashIteratePattern,
     FlashPhaseResult,
     PhaseInteractionProvenance,
+    calculate_damped_log_k_values,
     detect_flash_iterate_pattern,
     evaluate_flash_phase,
     k_values_from_log_values,
@@ -460,6 +461,7 @@ def evaluate_saturation_pressure(
     maximum_iterations: int = DEFAULT_MAXIMUM_INNER_ITERATIONS,
     *,
     initial_log_k_values: tuple[float, ...] | None = None,
+    successive_substitution_damping_factor: float = 1.0,
 ) -> SaturationPressureEvaluation:
     """Solve the normalized incipient phase at one fixed trial pressure.
 
@@ -472,6 +474,9 @@ def evaluate_saturation_pressure(
     _require_kind(saturation_kind)
     if not isinstance(maximum_iterations, int) or maximum_iterations <= 0:
         raise ValueError("maximum_iterations must be a positive integer.")
+    calculate_damped_log_k_values(
+        (0.0,), (0.0,), successive_substitution_damping_factor
+    )
     feed = _feed_composition(mixture)
     parent_kind, incipient_kind = _phase_kinds(saturation_kind)
     if initial_log_k_values is None:
@@ -548,27 +553,32 @@ def evaluate_saturation_pressure(
             liquid_log_phi, vapor_log_phi = _phase_log_phi(
                 saturation_kind, parent_phase, incipient_phase
             )
-            updated_log_k = tuple(
+            target_log_k = tuple(
                 liquid_value - vapor_value
                 for liquid_value, vapor_value in zip(
                     liquid_log_phi, vapor_log_phi, strict=True
                 )
             )
-            for index, value in enumerate(updated_log_k):
-                _require_finite(value, f"updated saturation log K[{index}]")
+            for index, value in enumerate(target_log_k):
+                _require_finite(value, f"target saturation log K[{index}]")
+            updated_log_k = calculate_damped_log_k_values(
+                log_k_values,
+                target_log_k,
+                successive_substitution_damping_factor,
+            )
             updated_incipient = _normalize_incipient_composition(
-                feed, updated_log_k, saturation_kind
+                feed, target_log_k, saturation_kind
             )
             maximum_log_k_residual = max(
-                abs(updated - current)
-                for updated, current in zip(updated_log_k, log_k_values, strict=True)
+                abs(target - current)
+                for target, current in zip(target_log_k, log_k_values, strict=True)
             )
             composition_change = max(
                 abs(updated - current)
                 for updated, current in zip(updated_incipient, incipient, strict=True)
             )
             objective = _saturation_objective_from_log_k(
-                feed, updated_log_k, saturation_kind
+                feed, target_log_k, saturation_kind
             )
             sum_residual = fsum(incipient) - 1.0
             fugacity_residuals = _fugacity_residuals(
@@ -640,7 +650,7 @@ def evaluate_saturation_pressure(
             )
             active_log_k = tuple(
                 value
-                for fraction, value in zip(feed, updated_log_k, strict=True)
+                for fraction, value in zip(feed, target_log_k, strict=True)
                 if fraction > 0.0
             )
             unity_equilibrium_ratios = (
@@ -813,6 +823,7 @@ def calculate_saturation_pressure(
     maximum_outer_iterations: int = DEFAULT_MAXIMUM_OUTER_ITERATIONS,
     *,
     initial_log_k_values: tuple[float, ...] | None = None,
+    successive_substitution_damping_factor: float = 1.0,
 ) -> SaturationPressureResult:
     """Bracket and solve a fixed-temperature bubble- or dew-point pressure.
 
@@ -832,6 +843,9 @@ def calculate_saturation_pressure(
         raise ValueError("maximum_outer_iterations must be a positive integer.")
     if not isinstance(maximum_inner_iterations, int) or maximum_inner_iterations <= 0:
         raise ValueError("maximum_inner_iterations must be a positive integer.")
+    calculate_damped_log_k_values(
+        (0.0,), (0.0,), successive_substitution_damping_factor
+    )
 
     estimates = calculate_wilson_pressure_estimates(mixture, temperature_k)
     estimate = (
@@ -872,6 +886,9 @@ def calculate_saturation_pressure(
             binary_interaction_policy,
             maximum_inner_iterations,
             initial_log_k_values=initial_log_k_values,
+            successive_substitution_damping_factor=(
+                successive_substitution_damping_factor
+            ),
         )
         evaluations.append(evaluation)
         _append_unique_diagnostics(diagnostics, evaluation.diagnostics)

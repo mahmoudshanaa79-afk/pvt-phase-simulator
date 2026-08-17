@@ -125,6 +125,7 @@ class EnvelopeContinuationSettings:
     near_critical_composition_stop: float = 0.005
     near_critical_log_k_stop: float = 0.01
     near_critical_root_stop: float = 0.005
+    successive_substitution_damping_factor: float = 1.0
 
     def __post_init__(self) -> None:
         positive_finite = {
@@ -163,6 +164,9 @@ class EnvelopeContinuationSettings:
             "near_critical_composition_stop": self.near_critical_composition_stop,
             "near_critical_log_k_stop": self.near_critical_log_k_stop,
             "near_critical_root_stop": self.near_critical_root_stop,
+            "successive_substitution_damping_factor": (
+                self.successive_substitution_damping_factor
+            ),
         }
         for name, value in positive_finite.items():
             if not isfinite(value) or value <= 0.0:
@@ -224,6 +228,10 @@ class EnvelopeContinuationSettings:
         ):
             raise ValueError(
                 "near-critical stop thresholds cannot exceed warning thresholds."
+            )
+        if self.successive_substitution_damping_factor > 1.0:
+            raise ValueError(
+                "successive_substitution_damping_factor must be at most one."
             )
 
 
@@ -497,6 +505,9 @@ def correct_envelope_prediction(
                 binary_interaction_policy,
                 pressure_search_points=5,
                 initial_log_k_values=prediction.log_k_values,
+                successive_substitution_damping_factor=(
+                    settings.successive_substitution_damping_factor
+                ),
             )
         except (OverflowError, ValueError) as error:
             reason = f"Continuation-seeded correction failed: {error}"
@@ -542,6 +553,9 @@ def correct_envelope_prediction(
                 settings.maximum_pressure_pa,
                 binary_interactions,
                 binary_interaction_policy,
+                successive_substitution_damping_factor=(
+                    settings.successive_substitution_damping_factor
+                ),
             )
         except (OverflowError, ValueError) as error:
             reason = f"Wilson fallback correction failed: {error}"
@@ -1101,6 +1115,9 @@ def trace_phase_envelope_branch(
             settings.maximum_pressure_pa,
             binary_interactions,
             binary_interaction_policy,
+            successive_substitution_damping_factor=(
+                settings.successive_substitution_damping_factor
+            ),
         )
         if initial.status is not SaturationStatus.CONVERGED:
             return _empty_branch(

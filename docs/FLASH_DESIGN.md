@@ -118,7 +118,7 @@ it is not enforced and root size alone is not a global-stability proof.
 
 ## Successive substitution and convergence
 
-One undamped iteration performs:
+One successive-substitution iteration performs:
 
 1. solve Rachford–Rice using current `ln(K)`;
 2. calculate and validate `x`, `y`, and material balance;
@@ -126,7 +126,20 @@ One undamped iteration performs:
 4. form the equilibrium update
    `ln(K_i^new) = ln(phi_i^L) - ln(phi_i^V)`;
 5. record all numerical and thermodynamic residuals;
-6. repeat using the undamped update.
+6. repeat using either the historical undamped target or a fixed damped step.
+
+With `successive_substitution_damping_factor = lambda`, the next iterate is
+
+\[
+\ln K_i^{next}=\ln K_i+\lambda(\ln K_i^{target}-\ln K_i),
+\qquad 0 < \lambda \le 1.
+\]
+
+The default `lambda = 1` returns the target directly and exactly preserves the
+historical numerical path. Damping is performed in log space, so it cannot
+create a non-positive K-value. It may reduce overshoot or oscillation, but it is
+a robustness control rather than acceleration and is not a proof of
+convergence.
 
 The signed log-space equilibrium residual is:
 
@@ -148,13 +161,14 @@ A result is `CONVERGED` only when all of these hold simultaneously:
 - all required quantities are finite;
 - no unresolved failure exists.
 
-Beta change and maximum phase-composition change are tracked diagnostically but
+The convergence gate uses the full target residual above, never the smaller
+damped movement. Beta change and maximum phase-composition change are tracked diagnostically but
 cannot establish convergence by themselves. Exact repeated states before full
 convergence are classified as stagnation; alternating repeated states are
 classified as oscillation. Maximum-iteration, invalid Rachford–Rice status,
 root-selection failure, provenance mismatch, exponent overflow/underflow, or
-fugacity failure returns a preserved non-converged or failed result. No damping
-is used in this first foundation because it must not be introduced silently.
+fugacity failure returns a preserved non-converged or failed result. Damping is
+opt-in; the default remains undamped.
 
 ## Result interpretation and limitations
 

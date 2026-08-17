@@ -80,11 +80,23 @@ feed support and avoids avoidable overflow.
 
 The parent and normalized incipient phase are evaluated with the shared Module
 7 phase evaluator and explicit immutable binary-interaction provenance. The
-undamped update is:
+equilibrium target is:
 
 \[
 \ln K_i^{new}=\ln\phi_i^L-\ln\phi_i^V
 \]
+
+The optional fixed damping factor applies in log-K space:
+
+\[
+\ln K_i^{next}=\ln K_i+\lambda(\ln K_i^{new}-\ln K_i),
+\qquad 0 < \lambda \le 1.
+\]
+
+`lambda = 1` is the exact historical update. The full difference between the
+EOS target and current log K remains the convergence residual; the smaller
+damped movement cannot establish convergence. Damping changes only the
+numerical path, not the pressure objective or equilibrium equations.
 
 The normalized incipient fixed point can converge at a pressure that is not a
 saturation pressure. Away from the outer root, normalization introduces one
@@ -167,8 +179,9 @@ spurious zero objective at every single-phase pressure.
 
 ## Limitations
 
-This is a deterministic isolated-pressure solver using undamped successive
-substitution and finite search bounds. It does not prove that all roots have
+This is a deterministic isolated-pressure solver using optionally damped
+successive substitution and finite search bounds. Damping is a robustness
+control, not acceleration or a convergence guarantee. The solver does not prove that all roots have
 been found, enforce root continuation, trace retrograde branches, identify the
 critical point, or replace experimental validation and authoritative property
 or binary-interaction data.
