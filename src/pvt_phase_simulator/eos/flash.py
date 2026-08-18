@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
-from math import exp, fsum, isclose, log
+from math import exp, fsum, isclose, isfinite, log
 from sys import float_info
 from typing import Final
 
@@ -57,6 +57,10 @@ FUGACITY_EQUILIBRIUM_TOLERANCE: Final = 1e-8
 LOG_K_UPDATE_TOLERANCE: Final = 1e-8
 ITERATE_REPEAT_TOLERANCE: Final = 1e-12
 DEFAULT_MAXIMUM_FLASH_ITERATIONS: Final = 100
+ACCELERATION_MAXIMUM_STEP_FACTOR: Final = 2.0
+ACCELERATION_MINIMUM_PREDICTED_RESIDUAL_REDUCTION: Final = 0.20
+ACCELERATION_RESIDUAL_WORSENING_FACTOR: Final = 1.05
+ACCELERATION_SECANT_DENOMINATOR_FACTOR: Final = 64.0 * float_info.epsilon
 _LOG_FLOAT_MAX: Final = log(float_info.max)
 _LOG_FLOAT_MIN: Final = log(float_info.min)
 
@@ -94,6 +98,21 @@ class FlashIteratePattern(StrEnum):
     NORMAL = "normal"
     STAGNATION = "stagnation"
     OSCILLATION = "oscillation"
+
+
+class SuccessiveSubstitutionAccelerationStatus(StrEnum):
+    """Disposition of one optional vector-secant acceleration proposal."""
+
+    DISABLED = "disabled"
+    INSUFFICIENT_HISTORY = "insufficient_history"
+    ACCEPTED = "accepted"
+    REJECTED_NONFINITE_HISTORY = "rejected_nonfinite_history"
+    REJECTED_RESIDUAL_WORSENING = "rejected_residual_worsening"
+    REJECTED_DEGENERATE_SECANT = "rejected_degenerate_secant"
+    REJECTED_EXTRAPOLATION_DIRECTION = "rejected_extrapolation_direction"
+    REJECTED_PREDICTED_RESIDUAL = "rejected_predicted_residual"
+    REJECTED_STEP_LIMIT = "rejected_step_limit"
+    REJECTED_NONFINITE_PROPOSAL = "rejected_nonfinite_proposal"
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +176,20 @@ class PhaseInteractionProvenance:
 
 
 @dataclass(frozen=True, slots=True)
+class SafeguardedLogKAccelerationResult:
+    """Immutable evidence for an accepted or rejected acceleration proposal."""
+
+    target_log_k_values: tuple[float, ...]
+    status: SuccessiveSubstitutionAccelerationStatus
+    extrapolation_factor: float | None
+    current_residual_norm: float
+    previous_residual_norm: float | None
+    predicted_residual_norm: float | None
+    proposal_step_norm: float | None
+    ordinary_step_norm: float
+
+
+@dataclass(frozen=True, slots=True)
 class FlashIteration:
     """Immutable record of one successive-substitution flash iteration."""
 
@@ -169,6 +202,7 @@ class FlashIteration:
     phase_compositions: PhaseCompositionResult
     liquid_phase: FlashPhaseResult
     vapor_phase: FlashPhaseResult
+    acceleration: SafeguardedLogKAccelerationResult | None
     updated_log_k_values: tuple[float, ...]
     log_k_residuals: tuple[float, ...]
     maximum_log_k_residual: float
@@ -708,6 +742,182 @@ def calculate_damped_log_k_values(
     return damped
 
 
+def calculate_safeguarded_log_k_acceleration(
+    current_log_k_values: tuple[float, ...],
+    target_log_k_values: tuple[float, ...],
+    previous_log_k_values: tuple[float, ...] | None,
+    previous_target_log_k_values: tuple[float, ...] | None,
+    successive_substitution_acceleration_enabled: bool = False,
+) -> SafeguardedLogKAccelerationResult:
+    """Return a safeguarded vector-secant target for a log-K fixed point.
+
+    Let ``r_n = g(x_n) - x_n``, ``s_n = x_n - x_(n-1)``, and
+    ``y_n = r_n - r_(n-1)``. The scalar secant model proposes
+    ``x_acc = x_n + tau*s_n`` with
+    ``tau = -dot(r_n, y_n) / dot(y_n, y_n)``. The proposal is accepted only
+    when the actual residual improved since the prior iterate, the secant model
+    predicts at least a 20% infinity-norm reduction, and the proposed movement
+    is no more than twice the ordinary fixed-point movement. This is a
+    derivative-free candidate; rejection returns the exact ordinary target.
+    """
+
+    ordinary_target = calculate_damped_log_k_values(
+        current_log_k_values, target_log_k_values, 1.0
+    )
+    if not isinstance(successive_substitution_acceleration_enabled, bool):
+        raise ValueError(
+            "successive_substitution_acceleration_enabled must be a boolean."
+        )
+    current_residual = tuple(
+        target - current
+        for current, target in zip(
+            current_log_k_values, target_log_k_values, strict=True
+        )
+    )
+    current_norm = max((abs(value) for value in current_residual), default=0.0)
+
+    def result(
+        status: SuccessiveSubstitutionAccelerationStatus,
+        *,
+        extrapolation_factor: float | None = None,
+        previous_residual_norm: float | None = None,
+        predicted_residual_norm: float | None = None,
+        proposal_step_norm: float | None = None,
+        target: tuple[float, ...] = ordinary_target,
+    ) -> SafeguardedLogKAccelerationResult:
+        return SafeguardedLogKAccelerationResult(
+            target_log_k_values=target,
+            status=status,
+            extrapolation_factor=extrapolation_factor,
+            current_residual_norm=current_norm,
+            previous_residual_norm=previous_residual_norm,
+            predicted_residual_norm=predicted_residual_norm,
+            proposal_step_norm=proposal_step_norm,
+            ordinary_step_norm=current_norm,
+        )
+
+    if not successive_substitution_acceleration_enabled:
+        return result(SuccessiveSubstitutionAccelerationStatus.DISABLED)
+    if previous_log_k_values is None and previous_target_log_k_values is None:
+        return result(SuccessiveSubstitutionAccelerationStatus.INSUFFICIENT_HISTORY)
+    if previous_log_k_values is None or previous_target_log_k_values is None:
+        raise ValueError("previous log K-values and targets must be supplied together.")
+    if len(previous_log_k_values) != len(current_log_k_values) or len(
+        previous_target_log_k_values
+    ) != len(current_log_k_values):
+        raise ValueError("previous log K-values and targets must remain aligned.")
+    if not all(
+        isfinite(value)
+        for value in (*previous_log_k_values, *previous_target_log_k_values)
+    ):
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_NONFINITE_HISTORY
+        )
+
+    previous_residual = tuple(
+        target - current
+        for current, target in zip(
+            previous_log_k_values,
+            previous_target_log_k_values,
+            strict=True,
+        )
+    )
+    previous_norm = max((abs(value) for value in previous_residual), default=0.0)
+    if current_norm > ACCELERATION_RESIDUAL_WORSENING_FACTOR * previous_norm:
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_RESIDUAL_WORSENING,
+            previous_residual_norm=previous_norm,
+        )
+
+    iterate_step = tuple(
+        current - previous
+        for current, previous in zip(
+            current_log_k_values, previous_log_k_values, strict=True
+        )
+    )
+    residual_change = tuple(
+        current - previous
+        for current, previous in zip(current_residual, previous_residual, strict=True)
+    )
+    denominator = fsum(value * value for value in residual_change)
+    residual_scale = max(
+        fsum(value * value for value in current_residual),
+        fsum(value * value for value in previous_residual),
+        float_info.min,
+    )
+    if denominator <= ACCELERATION_SECANT_DENOMINATOR_FACTOR * residual_scale:
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_DEGENERATE_SECANT,
+            previous_residual_norm=previous_norm,
+        )
+    extrapolation_factor = (
+        -fsum(
+            residual * change
+            for residual, change in zip(current_residual, residual_change, strict=True)
+        )
+        / denominator
+    )
+    if not isfinite(extrapolation_factor) or extrapolation_factor <= 0.0:
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_EXTRAPOLATION_DIRECTION,
+            extrapolation_factor=extrapolation_factor,
+            previous_residual_norm=previous_norm,
+        )
+
+    predicted_residual = tuple(
+        residual + extrapolation_factor * change
+        for residual, change in zip(current_residual, residual_change, strict=True)
+    )
+    predicted_norm = max((abs(value) for value in predicted_residual), default=0.0)
+    if (
+        not isfinite(predicted_norm)
+        or predicted_norm
+        > (1.0 - ACCELERATION_MINIMUM_PREDICTED_RESIDUAL_REDUCTION) * current_norm
+    ):
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_PREDICTED_RESIDUAL,
+            extrapolation_factor=extrapolation_factor,
+            previous_residual_norm=previous_norm,
+            predicted_residual_norm=predicted_norm,
+        )
+
+    proposal = tuple(
+        current + extrapolation_factor * step
+        for current, step in zip(current_log_k_values, iterate_step, strict=True)
+    )
+    proposal_step_norm = max(
+        (
+            abs(proposed - current)
+            for proposed, current in zip(proposal, current_log_k_values, strict=True)
+        ),
+        default=0.0,
+    )
+    if not all(isfinite(value) for value in proposal):
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_NONFINITE_PROPOSAL,
+            extrapolation_factor=extrapolation_factor,
+            previous_residual_norm=previous_norm,
+            predicted_residual_norm=predicted_norm,
+            proposal_step_norm=proposal_step_norm,
+        )
+    if proposal_step_norm > ACCELERATION_MAXIMUM_STEP_FACTOR * current_norm:
+        return result(
+            SuccessiveSubstitutionAccelerationStatus.REJECTED_STEP_LIMIT,
+            extrapolation_factor=extrapolation_factor,
+            previous_residual_norm=previous_norm,
+            predicted_residual_norm=predicted_norm,
+            proposal_step_norm=proposal_step_norm,
+        )
+    return result(
+        SuccessiveSubstitutionAccelerationStatus.ACCEPTED,
+        extrapolation_factor=extrapolation_factor,
+        previous_residual_norm=previous_norm,
+        predicted_residual_norm=predicted_norm,
+        proposal_step_norm=proposal_step_norm,
+        target=proposal,
+    )
+
+
 def detect_flash_iterate_pattern(
     current_log_k_values: tuple[float, ...],
     updated_log_k_values: tuple[float, ...],
@@ -905,6 +1115,7 @@ def calculate_two_phase_flash(
     stability_maximum_iterations: int = DEFAULT_STABILITY_MAXIMUM_ITERATIONS,
     *,
     successive_substitution_damping_factor: float = 1.0,
+    successive_substitution_acceleration_enabled: bool = False,
 ) -> TwoPhaseFlashResult:
     """Run a stability-gated successive-substitution two-phase flash."""
 
@@ -919,6 +1130,13 @@ def calculate_two_phase_flash(
         raise ValueError("stability_maximum_iterations must be a positive integer.")
     calculate_damped_log_k_values(
         (0.0,), (0.0,), successive_substitution_damping_factor
+    )
+    calculate_safeguarded_log_k_acceleration(
+        (0.0,),
+        (0.0,),
+        None,
+        None,
+        successive_substitution_acceleration_enabled,
     )
     interaction_snapshot = (
         None if binary_interactions is None else dict(binary_interactions)
@@ -968,6 +1186,7 @@ def calculate_two_phase_flash(
     previous_liquid_root: PhaseRootSelection | None = None
     previous_vapor_root: PhaseRootSelection | None = None
     prior_log_k_values: list[tuple[float, ...]] = []
+    previous_target_log_k_values: tuple[float, ...] | None = None
 
     for iteration_number in range(1, maximum_iterations + 1):
         try:
@@ -1077,9 +1296,25 @@ def calculate_two_phase_flash(
         )
         for index, value in enumerate(target_log_k_values):
             _require_finite(value, f"target_log_k_values[{index}]")
+        acceleration = (
+            calculate_safeguarded_log_k_acceleration(
+                log_k_values,
+                target_log_k_values,
+                prior_log_k_values[-1] if prior_log_k_values else None,
+                previous_target_log_k_values,
+                True,
+            )
+            if successive_substitution_acceleration_enabled
+            else None
+        )
+        update_target_log_k_values = (
+            target_log_k_values
+            if acceleration is None
+            else acceleration.target_log_k_values
+        )
         updated_log_k_values = calculate_damped_log_k_values(
             log_k_values,
-            target_log_k_values,
+            update_target_log_k_values,
             successive_substitution_damping_factor,
         )
         log_k_residuals = tuple(
@@ -1139,6 +1374,7 @@ def calculate_two_phase_flash(
             phase_compositions=phase_compositions,
             liquid_phase=liquid_phase,
             vapor_phase=vapor_phase,
+            acceleration=acceleration,
             updated_log_k_values=updated_log_k_values,
             log_k_residuals=log_k_residuals,
             maximum_log_k_residual=maximum_log_k_residual,
@@ -1224,6 +1460,7 @@ def calculate_two_phase_flash(
         previous_vapor = phase_compositions.vapor_composition
         previous_liquid_root = liquid_phase.root_selection
         previous_vapor_root = vapor_phase.root_selection
+        previous_target_log_k_values = target_log_k_values
         log_k_values = updated_log_k_values
 
     reason = "Maximum flash iterations reached without convergence."

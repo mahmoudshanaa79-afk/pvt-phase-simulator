@@ -126,6 +126,7 @@ class EnvelopeContinuationSettings:
     near_critical_log_k_stop: float = 0.01
     near_critical_root_stop: float = 0.005
     successive_substitution_damping_factor: float = 1.0
+    successive_substitution_acceleration_enabled: bool = False
 
     def __post_init__(self) -> None:
         positive_finite = {
@@ -232,6 +233,10 @@ class EnvelopeContinuationSettings:
         if self.successive_substitution_damping_factor > 1.0:
             raise ValueError(
                 "successive_substitution_damping_factor must be at most one."
+            )
+        if not isinstance(self.successive_substitution_acceleration_enabled, bool):
+            raise ValueError(
+                "successive_substitution_acceleration_enabled must be a boolean."
             )
 
 
@@ -508,6 +513,9 @@ def correct_envelope_prediction(
                 successive_substitution_damping_factor=(
                     settings.successive_substitution_damping_factor
                 ),
+                successive_substitution_acceleration_enabled=(
+                    settings.successive_substitution_acceleration_enabled
+                ),
             )
         except (OverflowError, ValueError) as error:
             reason = f"Continuation-seeded correction failed: {error}"
@@ -555,6 +563,9 @@ def correct_envelope_prediction(
                 binary_interaction_policy,
                 successive_substitution_damping_factor=(
                     settings.successive_substitution_damping_factor
+                ),
+                successive_substitution_acceleration_enabled=(
+                    settings.successive_substitution_acceleration_enabled
                 ),
             )
         except (OverflowError, ValueError) as error:
@@ -1117,6 +1128,9 @@ def trace_phase_envelope_branch(
             binary_interaction_policy,
             successive_substitution_damping_factor=(
                 settings.successive_substitution_damping_factor
+            ),
+            successive_substitution_acceleration_enabled=(
+                settings.successive_substitution_acceleration_enabled
             ),
         )
         if initial.status is not SaturationStatus.CONVERGED:

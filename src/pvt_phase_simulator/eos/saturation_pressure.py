@@ -19,7 +19,9 @@ from pvt_phase_simulator.eos.flash import (
     FlashIteratePattern,
     FlashPhaseResult,
     PhaseInteractionProvenance,
+    SafeguardedLogKAccelerationResult,
     calculate_damped_log_k_values,
+    calculate_safeguarded_log_k_acceleration,
     detect_flash_iterate_pattern,
     evaluate_flash_phase,
     k_values_from_log_values,
@@ -112,6 +114,7 @@ class SaturationPressureIteration:
     incipient_composition: tuple[float, ...]
     parent_phase: FlashPhaseResult
     incipient_phase: FlashPhaseResult
+    acceleration: SafeguardedLogKAccelerationResult | None
     updated_log_k_values: tuple[float, ...]
     maximum_log_k_residual: float
     composition_change: float
@@ -462,6 +465,7 @@ def evaluate_saturation_pressure(
     *,
     initial_log_k_values: tuple[float, ...] | None = None,
     successive_substitution_damping_factor: float = 1.0,
+    successive_substitution_acceleration_enabled: bool = False,
 ) -> SaturationPressureEvaluation:
     """Solve the normalized incipient phase at one fixed trial pressure.
 
@@ -476,6 +480,13 @@ def evaluate_saturation_pressure(
         raise ValueError("maximum_iterations must be a positive integer.")
     calculate_damped_log_k_values(
         (0.0,), (0.0,), successive_substitution_damping_factor
+    )
+    calculate_safeguarded_log_k_acceleration(
+        (0.0,),
+        (0.0,),
+        None,
+        None,
+        successive_substitution_acceleration_enabled,
     )
     feed = _feed_composition(mixture)
     parent_kind, incipient_kind = _phase_kinds(saturation_kind)
@@ -499,6 +510,7 @@ def evaluate_saturation_pressure(
     history: list[SaturationPressureIteration] = []
     diagnostics: list[EOSDiagnostic] = []
     prior_log_k_values: list[tuple[float, ...]] = []
+    previous_target_log_k_values: tuple[float, ...] | None = None
     previous_parent_selection = None
     previous_incipient_selection = None
 
@@ -561,9 +573,25 @@ def evaluate_saturation_pressure(
             )
             for index, value in enumerate(target_log_k):
                 _require_finite(value, f"target saturation log K[{index}]")
+            acceleration = (
+                calculate_safeguarded_log_k_acceleration(
+                    log_k_values,
+                    target_log_k,
+                    prior_log_k_values[-1] if prior_log_k_values else None,
+                    previous_target_log_k_values,
+                    True,
+                )
+                if successive_substitution_acceleration_enabled
+                else None
+            )
+            update_target_log_k = (
+                target_log_k
+                if acceleration is None
+                else acceleration.target_log_k_values
+            )
             updated_log_k = calculate_damped_log_k_values(
                 log_k_values,
-                target_log_k,
+                update_target_log_k,
                 successive_substitution_damping_factor,
             )
             updated_incipient = _normalize_incipient_composition(
@@ -621,6 +649,7 @@ def evaluate_saturation_pressure(
             incipient_composition=incipient,
             parent_phase=parent_phase,
             incipient_phase=incipient_phase,
+            acceleration=acceleration,
             updated_log_k_values=updated_log_k,
             maximum_log_k_residual=maximum_log_k_residual,
             composition_change=composition_change,
@@ -720,6 +749,7 @@ def evaluate_saturation_pressure(
         prior_log_k_values.append(log_k_values)
         previous_parent_selection = parent_phase.root_selection
         previous_incipient_selection = incipient_phase.root_selection
+        previous_target_log_k_values = target_log_k
         log_k_values = updated_log_k
 
     reason = "Maximum saturation inner iterations reached without convergence."
@@ -824,6 +854,7 @@ def calculate_saturation_pressure(
     *,
     initial_log_k_values: tuple[float, ...] | None = None,
     successive_substitution_damping_factor: float = 1.0,
+    successive_substitution_acceleration_enabled: bool = False,
 ) -> SaturationPressureResult:
     """Bracket and solve a fixed-temperature bubble- or dew-point pressure.
 
@@ -845,6 +876,13 @@ def calculate_saturation_pressure(
         raise ValueError("maximum_inner_iterations must be a positive integer.")
     calculate_damped_log_k_values(
         (0.0,), (0.0,), successive_substitution_damping_factor
+    )
+    calculate_safeguarded_log_k_acceleration(
+        (0.0,),
+        (0.0,),
+        None,
+        None,
+        successive_substitution_acceleration_enabled,
     )
 
     estimates = calculate_wilson_pressure_estimates(mixture, temperature_k)
@@ -888,6 +926,9 @@ def calculate_saturation_pressure(
             initial_log_k_values=initial_log_k_values,
             successive_substitution_damping_factor=(
                 successive_substitution_damping_factor
+            ),
+            successive_substitution_acceleration_enabled=(
+                successive_substitution_acceleration_enabled
             ),
         )
         evaluations.append(evaluation)

@@ -98,6 +98,16 @@ EOS target and current log K remains the convergence residual; the smaller
 damped movement cannot establish convergence. Damping changes only the
 numerical path, not the pressure objective or equilibrium equations.
 
+The independently enabled Module 12 vector-secant accelerator is shared with
+flash. From consecutive current/target pairs it forms the documented
+`tau = -(r^T y)/(y^T y)` proposal in log-K space, subjects it to finite,
+residual-history, predicted-improvement, direction, denominator, and step-size
+safeguards, and otherwise returns the ordinary fugacity-ratio target. The
+accepted or fallback target is then damped exactly once. Each inner iteration
+records the acceleration disposition. Outer pressure objectives, trivial-state
+rejection, final fugacity equality, and all convergence tolerances continue to
+use the raw EOS state and are unchanged. Acceleration is disabled by default.
+
 The normalized incipient fixed point can converge at a pressure that is not a
 saturation pressure. Away from the outer root, normalization introduces one
 common fugacity mismatch. Consequently the live inner convergence gates are
@@ -179,9 +189,9 @@ spurious zero objective at every single-phase pressure.
 
 ## Limitations
 
-This is a deterministic isolated-pressure solver using optionally damped
-successive substitution and finite search bounds. Damping is a robustness
-control, not acceleration or a convergence guarantee. The solver does not prove that all roots have
+This is a deterministic isolated-pressure solver using optional fixed damping,
+optional safeguarded vector-secant acceleration, and finite search bounds.
+Neither numerical control is a convergence guarantee. The solver does not prove that all roots have
 been found, enforce root continuation, trace retrograde branches, identify the
 critical point, or replace experimental validation and authoritative property
 or binary-interaction data.

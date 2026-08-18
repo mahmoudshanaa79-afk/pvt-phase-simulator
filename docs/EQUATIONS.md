@@ -527,6 +527,41 @@ directly and preserves the historical undamped path. Flash and saturation use
 the same validated log-K update; phase-envelope correction inherits the factor
 through saturation. Stability trial-weight iteration is unchanged.
 
+Module 12 optionally replaces the ordinary target with one safeguarded vector
+secant proposal. Write the log-K vector as `x_n`, its raw EOS target as
+`g_n = g(x_n)`, and the full fixed-point residual as `r_n = g_n - x_n`. With
+
+\[
+s_n=x_n-x_{n-1},\qquad y_n=r_n-r_{n-1},
+\]
+
+the scalar secant model computes
+
+\[
+\tau_n=-\frac{r_n^T y_n}{y_n^T y_n},\qquad
+x_n^{acc}=x_n+\tau_n s_n.
+\]
+
+This is derivative-free vector secant extrapolation, not Newton and not
+Anderson acceleration. The candidate is used only when the residual actually
+improved from the prior iterate, the secant denominator is numerically usable,
+`tau_n` and the proposal are finite and forward directed, the secant model
+predicts at least a 20% infinity-norm residual reduction, and the candidate
+movement is no larger than twice the ordinary `||r_n||_infinity` movement.
+Otherwise the exact ordinary target `g_n` is retained.
+
+Acceleration precedes damping exactly once. If `c_n` denotes the accepted
+acceleration candidate or fallback ordinary target, then
+
+\[
+x_{n+1}=x_n+\lambda(c_n-x_n).
+\]
+
+`successive_substitution_acceleration_enabled = False` by default, so no
+acceleration calculation is performed on the historical path. Whether a
+candidate is accepted or rejected, convergence still uses the raw `r_n` and
+all existing physical gates, never the proposal or final step size.
+
 The implemented signed equilibrium residual is:
 
 \[
@@ -544,11 +579,11 @@ A two-phase result converges only when the Rachford–Rice residual is within
 composition-sum and material-balance residuals are within `1e-10`, beta is
 strictly physical, and both phase roots are mechanically stable. Beta change
 or composition change alone cannot establish convergence. In particular,
-convergence uses the full `Delta ln K`, not the damped movement
-`lambda Delta ln K`; a small lambda cannot create false convergence. Fixed
-damping may reduce overshoot or oscillation, but it is robustness control, not
-acceleration or proof of convergence. This flash implementation is not a bubble-point, dew-point,
-phase-envelope, or global multiphase solver.
+convergence uses the full `Delta ln K`, not a damped or accelerated movement;
+neither a small lambda nor an extrapolated step can create false convergence.
+Fixed damping and safeguarded acceleration alter only the optional numerical
+path and are not proofs of convergence. This flash implementation is not a
+bubble-point, dew-point, phase-envelope, or global multiphase solver.
 
 ## Module 8: fixed-temperature saturation pressure
 

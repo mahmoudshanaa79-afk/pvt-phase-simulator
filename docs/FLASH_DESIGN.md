@@ -126,7 +126,8 @@ One successive-substitution iteration performs:
 4. form the equilibrium update
    `ln(K_i^new) = ln(phi_i^L) - ln(phi_i^V)`;
 5. record all numerical and thermodynamic residuals;
-6. repeat using either the historical undamped target or a fixed damped step.
+6. optionally form and safeguard one vector-secant candidate;
+7. apply damping once to the accepted candidate or ordinary target and repeat.
 
 With `successive_substitution_damping_factor = lambda`, the next iterate is
 
@@ -140,6 +141,29 @@ historical numerical path. Damping is performed in log space, so it cannot
 create a non-positive K-value. It may reduce overshoot or oscillation, but it is
 a robustness control rather than acceleration and is not a proof of
 convergence.
+
+With `successive_substitution_acceleration_enabled = True`, the shared Module
+12 helper uses two consecutive iterates and raw targets. For `x = ln K`, raw
+fixed-point residual `r = g(x)-x`, previous displacement `s`, and residual
+change `y`, it proposes
+
+\[
+\tau=-\frac{r^T y}{y^T y},\qquad x^{acc}=x+\tau s.
+\]
+
+This vector secant extrapolation uses no derivative API. It is accepted only
+after finite-value, actual residual-history, secant-denominator, forward-step,
+predicted-residual, and maximum-movement checks. The secant model must predict
+at least a 20% infinity-norm reduction, and proposal movement cannot exceed
+twice the ordinary fixed-point movement. Any failed check records a rejection
+and falls back to the exact ordinary target. The first enabled iteration has
+insufficient history and also uses the ordinary target.
+
+The algorithm order is unambiguous: raw EOS target, optional acceleration
+candidate, safeguard/ordinary-target fallback, then the existing damping
+operation once. Thus acceleration with `lambda < 1` does not apply two
+relaxations. Acceleration is disabled by default and the disabled loop bypasses
+the helper, retaining Module 11 behavior.
 
 The signed log-space equilibrium residual is:
 
@@ -161,14 +185,17 @@ A result is `CONVERGED` only when all of these hold simultaneously:
 - all required quantities are finite;
 - no unresolved failure exists.
 
-The convergence gate uses the full target residual above, never the smaller
-damped movement. Beta change and maximum phase-composition change are tracked diagnostically but
+The convergence gate uses the full raw EOS target residual above, never the
+accelerated proposal or smaller damped movement. Beta change and maximum phase-composition change are tracked diagnostically but
 cannot establish convergence by themselves. Exact repeated states before full
 convergence are classified as stagnation; alternating repeated states are
 classified as oscillation. Maximum-iteration, invalid Rachford–Rice status,
 root-selection failure, provenance mismatch, exponent overflow/underflow, or
-fugacity failure returns a preserved non-converged or failed result. Damping is
-opt-in; the default remains undamped.
+fugacity failure returns a preserved non-converged or failed result. Damping
+and acceleration are independently opt-in; both historical defaults remain
+unchanged. A safeguard is conservative but cannot guarantee that an accepted
+proposal improves the next nonlinear EOS evaluation, so later iterations still
+measure the actual full residual and may reject further acceleration.
 
 ## Result interpretation and limitations
 
