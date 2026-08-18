@@ -762,3 +762,135 @@ saturation states at which an isolated Module 8 search reports `NOT_FOUND`.
 This is a difference in initialization, not in the equations solved: each such
 point still satisfies every Module 8 gate and is pinned against an independent
 solver in the test suite.
+
+## Module 13: analytical derivatives on a fixed PR root
+
+Module 13 adds derivative APIs only. Existing flash, saturation, and envelope
+solvers do not call them. Derivatives are valid locally on a fixed physical
+root and do not include root switching or branch-selection discontinuities.
+
+### Pure temperature derivatives
+
+For component `i`, define
+
+\[
+T_{r,i}=\frac{T}{T_{c,i}},\qquad
+m_i=1+\kappa_i(1-\sqrt{T_{r,i}}),\qquad
+\alpha_i=m_i^2.
+\]
+
+Critical properties, acentric factor, and therefore `kappa_i` are fixed. Term
+by term,
+
+\[
+\frac{d\sqrt{T_{r,i}}}{dT}
+=\frac{1}{2T_{c,i}\sqrt{T_{r,i}}},\qquad
+\frac{dm_i}{dT}
+=-\frac{\kappa_i}{2T_{c,i}\sqrt{T_{r,i}}},
+\]
+
+\[
+\boxed{\frac{d\alpha_i}{dT}
+=-\frac{\kappa_i m_i}{T_{c,i}\sqrt{T_{r,i}}}}.
+\]
+
+The dimensional PR coefficient `a_i` is constant, so for
+`a_i(T)=a_i alpha_i`,
+
+\[
+\frac{d(a_i\alpha_i)}{dT}=a_i\frac{d\alpha_i}{dT},
+\qquad \frac{db_i}{dT}=0.
+\]
+
+### Mixing-rule derivatives
+
+Let `aij=sqrt(ai alpha_i aj alpha_j)(1-kij)`, `S_i=sum_j x_j aij`,
+`a_mix=sum_i x_i S_i`, and `b_mix=sum_i x_i b_i`. Binary interactions are
+fixed. Then
+
+\[
+\frac{da_{ij}}{dT}=\frac{a_{ij}}{2}
+\left(\frac{(a_i\alpha_i)'}{a_i\alpha_i}
++\frac{(a_j\alpha_j)'}{a_j\alpha_j}\right),
+\]
+
+\[
+\frac{dS_i}{dT}=\sum_jx_j\frac{da_{ij}}{dT},\qquad
+\frac{da_{mix}}{dT}=\sum_i\sum_jx_ix_j\frac{da_{ij}}{dT},\qquad
+\frac{db_{mix}}{dT}=0.
+\]
+
+For simplex coordinate `u_k=x_k` and reference component `r`, where
+`x_r=1-sum(u_k)`,
+
+\[
+\frac{da_{mix}}{du_k}=2(S_k-S_r),\qquad
+\frac{db_{mix}}{du_k}=b_k-b_r,\qquad
+\frac{dS_i}{du_k}=a_{ik}-a_{ir}.
+\]
+
+### Dimensionless parameters
+
+With `A=a_mix P/(R^2 T^2)` and `B=b_mix P/(RT)`, at fixed temperature and
+composition,
+
+\[
+\frac{dA}{dP}=\frac{A}{P},\qquad
+\frac{dB}{dP}=\frac{B}{P},\qquad
+\frac{dA}{d\ln P}=A,\qquad
+\frac{dB}{d\ln P}=B.
+\]
+
+At fixed pressure and composition,
+
+\[
+\frac{dA}{dT}=A\left(\frac{a_{mix}'}{a_{mix}}-\frac{2}{T}\right),
+\qquad
+\frac{dB}{dT}=-\frac{B}{T}.
+\]
+
+At fixed pressure and temperature,
+
+\[
+\frac{dA}{du_k}=\frac{A}{a_{mix}}\frac{da_{mix}}{du_k},\qquad
+\frac{dB}{du_k}=\frac{B}{b_{mix}}\frac{db_{mix}}{du_k}.
+\]
+
+### Implicit compressibility derivative
+
+The PR cubic residual is
+
+\[
+F=Z^3+(B-1)Z^2+(A-3B^2-2B)Z-AB+B^2+B^3.
+\]
+
+Its required partials are
+
+\[
+F_Z=3Z^2+2(B-1)Z+A-3B^2-2B,
+\]
+
+\[
+F_A=Z-B,\qquad
+F_B=Z^2-(6B+2)Z-A+2B+3B^2.
+\]
+
+For any supported coordinate `q` along an already selected root,
+
+\[
+\boxed{\frac{dZ}{dq}=-\frac{F_A(dA/dq)+F_B(dB/dq)}{F_Z}}.
+\]
+
+When `F_Z` is unresolved at the documented float64-scaled tolerance, the API
+returns structured non-applicability. It does not divide through a repeated or
+numerically degenerate root and does not differentiate root selection.
+
+### Log-fugacity coefficients
+
+The analytical derivative is taken through the existing mixture
+`ln(phi_i)` expression, including `A`, `B`, `a_mix`, `b_mix`, `S_i`, the
+implicit `Z`, `ln(Z-B)`, and both arguments of its stable logarithm ratio.
+Pressure results are reported per Pa and separately with respect to `ln(P)`;
+temperature results are per K; composition results use the explicit `n-1`
+simplex coordinates. See `DERIVATIVE_DESIGN.md` for the API contract and
+failure semantics.

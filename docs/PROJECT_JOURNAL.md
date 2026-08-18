@@ -699,6 +699,136 @@ No Module 13 work has begun. Any next stage must first preserve the disabled
 golden path and review the conservative safeguard evidence rather than assume
 that benchmark iteration reductions generalize.
 
+## Module 13 — Thermodynamic Derivative APIs
+
+### Purpose
+
+Add the smallest scientifically complete analytical derivative surface needed
+for a future fixed-temperature saturation Newton formulation, without adding
+Newton or connecting derivatives to any existing solver.
+
+### Science
+
+Pure PR alpha, dimensional attraction, quadratic mixing-rule, dimensionless
+`A/B`, selected-root `Z`, and mixture `ln(phi_i)` derivatives are defined
+analytically. Component properties and binary interactions remain fixed.
+Composition uses an explicit `n-1` coordinate chart on the mole-fraction
+simplex. Derivatives are valid locally on a fixed physical root and do not
+include root switching or branch-selection discontinuities.
+
+### Numerical Method
+
+No finite difference is used in production. The cubic is differentiated
+implicitly as `dZ/dq=-(F_A A_q+F_B B_q)/F_Z`. A float64-scaled test on `F_Z`
+returns structured non-applicability at a repeated or numerically unresolved
+root. The fugacity derivative follows the existing root-offset and `log1p`
+formula, including every explicit mixing pathway and the implicit root path.
+
+### Software Engineering
+
+A new isolated `eos.derivatives` module contains frozen, slotted result records
+and precisely named calculation functions. Existing EOS value functions are
+reused for provenance validation and base fugacity values. Flash, saturation,
+envelope, damping, acceleration, and all default call paths remain untouched.
+
+### Main Equations / Algorithms
+
+- `dalpha_i/dT=-kappa_i m_i/(Tc_i sqrt(Tr_i))`.
+- `daij/dT=(aij/2)[(ai alpha_i)'/(ai alpha_i)+(aj alpha_j)'/(aj alpha_j)]`.
+- `da_mix/du_k=2(S_k-S_r)` and `db_mix/du_k=b_k-b_r`.
+- `dA/dP=A/P`, `dB/dP=B/P`, `dA/dlnP=A`, and `dB/dlnP=B`.
+- `dA/dT=A[(da_mix/dT)/a_mix-2/T]` and `dB/dT=-B/T`.
+- `dZ/dq=-(F_A dA/dq+F_B dB/dq)/F_Z` on one selected root.
+
+### Files Changed
+
+- `src/pvt_phase_simulator/eos/derivatives.py`
+- `tests/test_derivatives.py`
+- `docs/DERIVATIVE_DESIGN.md`, `docs/EQUATIONS.md`, `docs/README.md`
+- `docs/PROJECT_JOURNAL.md`
+
+### Important Functions / Classes
+
+`calculate_pure_component_temperature_derivatives`,
+`calculate_pure_dimensionless_parameter_derivatives`,
+`calculate_mixture_parameter_derivatives`,
+`calculate_fixed_root_compressibility_derivative`, and
+`calculate_fixed_root_mixture_fugacity_derivatives`; result structures
+`PureComponentTemperatureDerivatives`,
+`PureDimensionlessParameterDerivatives`, `MixtureParameterDerivatives`,
+`FixedRootCompressibilityDerivative`, and
+`FixedRootMixtureFugacityDerivatives`.
+
+### Design Decisions
+
+The future fixed-temperature saturation residual has `n` log-fugacity
+equalities and naturally uses pressure plus `n-1` incipient-composition
+coordinates. The last component is the default dependent reference, while an
+explicit alternative reference is supported. Pressure-per-Pa and log-pressure
+derivatives are separate named fields. The API differentiates an already
+selected root, never the selection pipeline. Temperature derivatives are also
+included for later continuation, but no general AD framework is added.
+
+### Bugs / Failure Modes Found
+
+An early provenance check compared supplied mapping entries individually and
+could miss the semantic difference between an omitted pair and an explicitly
+supplied zero pair. Direct exact-equality assertions for the pressure chain
+rule also exposed ordinary last-bit multiplication rounding. Central
+differences showed the expected truncation-error variation between the two
+fixed temperature step sizes.
+
+### Fixes
+
+Binary interactions are compared with the repository's canonical coefficient
+and supplied-pair representations. Chain-rule tests use a near-machine
+precision comparison, while finite-difference checks use one declared tolerance
+for both predetermined step sizes rather than tuning each case.
+
+### Verification
+
+The focused derivative suite contains 41 passing tests split into structural
+API, algebraic identity, analytical-versus-central-difference sanity, and
+singularity/failure groups. It covers methane, ethane, and propane; subcritical,
+near-critical nonsingular, and supercritical pure states; binary and ternary
+mixtures; low, moderate, and high pressures; liquid-like, vapor-like,
+three-root, and single-root states; reversal, pure, zero-fraction, and near-pure
+cases. Full repository gates and the post-edit strict golden comparison are
+clean: 737 tests passed in 448.05 seconds; Ruff, format checking, mypy over 15
+source files, compileall, and whitespace checks passed. The post-edit strict
+golden comparison reported zero physical drift, numerical-path, status,
+termination, missing, and extra changes. Its 328 notices were solely the
+expected baseline source-commit metadata difference.
+
+### Important Numerical Regression Values
+
+The Module 10 baseline remains 328 cases with SHA-256
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+The pre-edit strict comparison reported zero physical drift, numerical-path,
+status, termination, missing, and extra changes; 328 notices were baseline
+source-commit metadata only. The identical post-edit counts confirm that the
+new derivative module is absent from all historical solver paths.
+
+### Limitations
+
+Derivatives are local and can be undefined or extremely ill-conditioned near
+a multiple root. They do not include root switching, phase-branch selection,
+critical-point solution, derivatives of binary interactions or physical
+properties, automatic differentiation, or solver globalization. Central
+differences in this module are sanity checks, not independent verification.
+
+### Commit / Provenance
+
+Work began from clean `master` commit
+`f73009c5494fcff3de6435030ed48925f3cfdffa`. Module 13 is intentionally
+uncommitted pending review; no final commit hash is invented.
+
+### Connection to Next Stage
+
+Module 14 must independently verify these derivatives before any Newton solver
+is allowed to use them. Newton implementation and solver integration remain
+outside Module 13.
+
 ## Module/Stage X — Name
 
 ### Purpose
