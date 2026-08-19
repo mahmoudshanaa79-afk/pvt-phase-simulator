@@ -829,6 +829,154 @@ Module 14 must independently verify these derivatives before any Newton solver
 is allowed to use them. Newton implementation and solver integration remain
 outside Module 13.
 
+## Module 14 — Independent Derivative Verification
+
+### Purpose
+
+Independently verify every public fixed-root derivative output from Module 13
+before any Newton saturation solver may use it. Verification must exercise
+different numerical and algebraic routes from production and must not change
+solver behavior.
+
+### Science
+
+The verification domain is explicitly local and smooth: pressure,
+log-pressure, temperature, and `n-1` tangent-simplex coordinates are perturbed
+while the same admissible mechanical root is tracked. The matrix covers pure
+methane, ethane, and propane; CH4/C2, CH4/C3, and ternary mixtures; balanced,
+asymmetric, reversed, near-pure, and zero-fraction compositions; and single,
+liquid-like, and vapor-like roots. No global root-selection derivative is
+claimed.
+
+### Numerical Method
+
+Exact chain rules and independently evaluated cubic partials form the first
+layer. A separately written complex-safe PR algebra checks pure, mixing, and
+`A/B` derivatives with a `1e-30` imaginary step. Complex values never enter
+roots or fugacity. Ordinary real EOS values use central differences at `h`,
+`h/2`, `h/4`, and `h/8`; the primary reference is the fixed second-order
+Richardson estimate from `h` and `h/2`. Root continuation requires unchanged
+root count, ordered/nearest agreement, admissibility, unambiguous distance, and
+unchanged mechanical classification.
+
+### Software Engineering
+
+All implementation is verification-only. `derivative_reference.py` does not
+import Module 13 and owns ordinary-state reconstruction, safe root tracking,
+Richardson logic, isolated complex algebra, and independent cubic/fugacity
+algebra. `derivative_verification.py` constructs immutable metrics. The pytest
+suite checks tolerances, coverage, determinism, convergence, exclusions,
+permutation covariance, conditioning, and adversarial mutations. A separate
+module command prints the full extended report. Production source is unchanged.
+
+### Main Equations / Algorithms
+
+- `D(h)=[f(q+h)-f(q-h)]/(2h)` for ordinary real values.
+- `D_R=D(h/2)+[D(h/2)-D(h)]/3` is the declared reference.
+- `h`, `h/2`, `h/4`, and `h/8` expose second-order behavior and roundoff.
+- `F_q+F_Z(dZ/dq)=0` is checked with independently written cubic partials.
+- Near zero, `abs_error <= abs_tol + rel_tol*scale` avoids meaningless
+  relative-only claims.
+
+### Files Changed
+
+- `tests/derivative_reference.py`
+- `tests/derivative_verification.py`
+- `tests/test_derivative_verification.py`
+- `tests/run_derivative_verification.py`
+- `docs/DERIVATIVE_VERIFICATION.md`, `docs/README.md`
+- `docs/PROJECT_JOURNAL.md`
+
+### Important Functions / Classes
+
+`ordinary_state`, `richardson_vector`, `pressure_richardson`,
+`log_pressure_richardson`, `temperature_richardson`,
+`composition_richardson`, `complex_algebra_values`,
+`independent_cubic_partials`, `independent_log_fugacity_algebra`,
+`run_verification_matrix`, `VerificationState`, `OrdinaryState`,
+`RichardsonVectorResult`, `VerificationEntry`, and `VerificationReport`.
+
+### Design Decisions
+
+The reference code duplicates the published rounded PR constants so a defect
+in a production helper cannot automatically reproduce itself. Complex-step is
+restricted to algebra that contains no real-only decisions. The full root and
+fugacity pipeline is verified only through ordinary real recomputation.
+Composition columns reconstruct the dependent reference fraction directly.
+The zero-fraction boundary coordinate is excluded from central differences and
+checked separately with a labeled one-sided formula.
+
+### Bugs / Failure Modes Found
+
+No Module 13 analytical defect was found. Verification infrastructure explicitly
+encountered the expected composition-boundary limitation: the zero ethane
+coordinate cannot take a negative central perturbation. The near-singular
+study also confirmed increasing finite-difference sensitivity as `|F_Z|`
+decreases; mathematically large derivatives are not treated as defects.
+
+### Fixes
+
+No production correction was made. The boundary coordinate is classified as
+an exclusion rather than forced through an invalid state, and its analytical
+mixing derivative is checked by a second-order forward difference. Root-count
+changes and ambiguous correspondence raise verification-only errors.
+
+### Verification
+
+The deterministic matrix uses 21 explicit case specifications and 774 scalar
+comparisons. The sole excluded central coordinate is
+`ternary_zero_ethane:u[1|r=2]`, reason `composition_boundary`; it has a separate
+one-sided check. The Module 14 focused suite has 23 passing tests in 2.502
+seconds wall time, and the extended report passes in 1.162 seconds wall time.
+Module 13's original 41 tests remain unchanged and pass. The full repository
+has 760 passing tests in 191.37 seconds pytest time (193.169 seconds wall
+time). Ruff, format checking, mypy over 15 source files, and compileall pass.
+
+Maximum regular-domain absolute discrepancies by family are:
+
+- pure alpha/a-alpha T: `2.8874472257633954e-15`
+- A: `1.3344880755994382e-13`; B: `3.464589726220879e-14`
+- mixing T: `9.90960785651751e-16`; mixing composition:
+  `1.2312373343092986e-13`
+- Z pressure: `5.676636938289903e-10`; Z temperature:
+  `1.474964827358205e-9`; Z composition: `5.953649040435494e-8`
+- lnphi pressure: `9.0153684517702e-10`; lnphi temperature:
+  `2.2481950988362254e-9`; lnphi composition: `8.223608194413146e-8`
+
+The independent cubic-identity residual is at most
+`1.6653345369377348e-16`.
+
+### Important Numerical Regression Values
+
+The Module 10 baseline remains 328 cases with SHA-256
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+The pre-edit strict golden comparison reported zero physical drift,
+numerical-path, status, termination, missing, and extra changes; 328 notices
+were source-commit metadata only.
+The post-implementation strict comparison was identical: zero physical drift,
+numerical-path, status, termination, missing, and extra changes, with 328
+source-commit metadata notices. `baseline.csv` was not regenerated.
+
+### Limitations
+
+This finite deterministic matrix does not establish differentiability across
+root switches, global phase smoothness, critical-point correctness,
+experimental accuracy, or Newton convergence. Repeated roots are excluded from
+ordinary relative-error claims. No nonzero `kij` data, property uncertainty,
+or solver globalization is studied.
+
+### Commit / Provenance
+
+Work began from clean `master` commit
+`874d00043f07ff2ea69bfcef0189c4f9101f2b1c`. Module 14 is intentionally
+uncommitted pending review; no final commit hash is invented.
+
+### Connection to Next Stage
+
+Only after Module 14 passes may Module 15 use these derivatives inside a
+safeguarded Newton saturation solver. Module 15 and Newton implementation have
+not started.
+
 ## Module/Stage X — Name
 
 ### Purpose
