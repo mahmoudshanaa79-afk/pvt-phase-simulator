@@ -69,6 +69,17 @@ PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE: Final = PURE_PHASE_ROOT_SEPARATION_TOLE
 # Matches the Module 6 trivial-composition scale. A pure component is excluded
 # because K = 1 is its genuine saturation condition, not a degeneracy.
 TRIVIAL_LOG_K_TOLERANCE: Final = 1e-8
+# Module 15.2 discrimination-study bounds for a simultaneous multicomponent
+# same-phase collapse.  These are deliberately separate from the exact unity-K
+# rule above: none of the three indicators is sufficient on its own near a real
+# mixture critical point.  The closest accepted audit branch point has
+# (max |ln K|, max |delta composition|, |delta Z|) approximately
+# (3.03e-4, 1.51e-4, 2.43e-4), while all measured false collapses stay below
+# (1.10e-3, 2.19e-4, 7.46e-5).  Requiring all three bounds preserves that
+# legitimate point while rejecting the measured numerical same-phase branch.
+NEAR_TRIVIAL_LOG_K_TOLERANCE: Final = 2e-3
+NEAR_TRIVIAL_COMPOSITION_TOLERANCE: Final = 5e-4
+NEAR_TRIVIAL_ROOT_TOLERANCE: Final = 1e-4
 # Named so continuation callers can recognise a trivial inner collapse. The
 # enclosing search reports its own bracket failure, so this diagnostic is the
 # only place the trivial evidence survives.
@@ -468,6 +479,49 @@ def saturation_phase_roles_are_consistent(
     return parent_compressibility_factor > incipient_compressibility_factor
 
 
+def multicomponent_saturation_is_near_trivial(
+    feed: tuple[float, ...],
+    incipient: tuple[float, ...],
+    saturation_kind: SaturationKind,
+    parent_phase: FlashPhaseResult,
+    incipient_phase: FlashPhaseResult,
+) -> bool:
+    """Return whether a multicomponent candidate is a same-phase collapse.
+
+    Exact unity K-values remain independently decisive.  The wider near-
+    trivial safeguard requires simultaneous collapse of equilibrium ratios,
+    compositions, and selected roots; no individual near-critical indicator
+    is treated as proof.  Pure and effectively pure feeds are exempt because
+    their physical coexistence condition is K=1 and equal compositions.
+    """
+
+    _require_kind(saturation_kind)
+    if len(feed) != len(incipient):
+        raise ValueError("feed and incipient compositions must be aligned.")
+    active = tuple(
+        (parent, trial)
+        for parent, trial in zip(feed, incipient, strict=True)
+        if parent > 0.0
+    )
+    if len(active) <= 1:
+        return False
+    direction = 1.0 if saturation_kind is SaturationKind.BUBBLE_POINT else -1.0
+    log_k = tuple(direction * (log(trial) - log(parent)) for parent, trial in active)
+    log_k_metric = max(abs(value) for value in log_k)
+    if log_k_metric <= TRIVIAL_LOG_K_TOLERANCE:
+        return True
+    composition_metric = max(abs(parent - trial) for parent, trial in active)
+    root_metric = abs(
+        parent_phase.selected_compressibility_factor
+        - incipient_phase.selected_compressibility_factor
+    )
+    return (
+        log_k_metric <= NEAR_TRIVIAL_LOG_K_TOLERANCE
+        and composition_metric <= NEAR_TRIVIAL_COMPOSITION_TOLERANCE
+        and root_metric <= NEAR_TRIVIAL_ROOT_TOLERANCE
+    )
+
+
 def _phase_role_failure(
     saturation_kind: SaturationKind,
     parent_phase: FlashPhaseResult,
@@ -675,7 +729,7 @@ def evaluate_saturation_pressure(
                 interaction_provenance=interaction_provenance,
             )
             if (
-                len(mixture.components) == 1
+                sum(fraction > 0.0 for fraction in feed) == 1
                 and abs(
                     parent_phase.selected_compressibility_factor
                     - incipient_phase.selected_compressibility_factor
@@ -793,30 +847,16 @@ def evaluate_saturation_pressure(
             and incipient_phase.mechanical_classification
             is MechanicalStabilityClassification.STABLE
         ):
-            composition_separation = max(
-                abs(parent - trial)
-                for parent, trial in zip(feed, incipient, strict=True)
-            )
-            root_separation = abs(
-                parent_phase.selected_compressibility_factor
-                - incipient_phase.selected_compressibility_factor
-            )
-            active_log_k = tuple(
-                value
-                for fraction, value in zip(feed, target_log_k, strict=True)
-                if fraction > 0.0
-            )
-            unity_equilibrium_ratios = (
-                len(active_log_k) > 1
-                and max(abs(value) for value in active_log_k) <= TRIVIAL_LOG_K_TOLERANCE
-            )
-            if unity_equilibrium_ratios or (
-                composition_separation <= INNER_COMPOSITION_TOLERANCE
-                and root_separation <= PURE_PHASE_ROOT_SEPARATION_TOLERANCE
+            if multicomponent_saturation_is_near_trivial(
+                feed,
+                incipient,
+                saturation_kind,
+                parent_phase,
+                incipient_phase,
             ):
                 reason = (
-                    "The inner iteration returned the trivial parent phase, "
-                    "not a distinct incipient phase."
+                    "The inner iteration returned a trivial or near-trivial "
+                    "same-phase state, not a distinct incipient phase."
                 )
                 diagnostics.append(
                     _failure_diagnostic(TRIVIAL_STATE_DIAGNOSTIC_CODE, reason)
@@ -1364,23 +1404,12 @@ def _newton_is_trivial(
     parent_phase: FlashPhaseResult,
     incipient_phase: FlashPhaseResult,
 ) -> bool:
-    if len(feed) <= 1:
-        return False
-    direction = 1.0 if saturation_kind is SaturationKind.BUBBLE_POINT else -1.0
-    log_k = tuple(
-        direction * (log(trial) - log(parent))
-        for parent, trial in zip(feed, incipient, strict=True)
-    )
-    composition_separation = max(
-        abs(parent - trial) for parent, trial in zip(feed, incipient, strict=True)
-    )
-    root_separation = abs(
-        parent_phase.selected_compressibility_factor
-        - incipient_phase.selected_compressibility_factor
-    )
-    return max(abs(value) for value in log_k) <= TRIVIAL_LOG_K_TOLERANCE or (
-        composition_separation <= INNER_COMPOSITION_TOLERANCE
-        and root_separation <= PURE_PHASE_ROOT_SEPARATION_TOLERANCE
+    return multicomponent_saturation_is_near_trivial(
+        feed,
+        incipient,
+        saturation_kind,
+        parent_phase,
+        incipient_phase,
     )
 
 
@@ -1487,6 +1516,7 @@ def _attempt_saturation_newton(
     full_steps = 0
     backtracked_steps = 0
     rejected_steps = 0
+    trivial_rejection_observed = False
     history: list[SaturationNewtonIteration] = []
 
     def reject(
@@ -1677,6 +1707,7 @@ def _attempt_saturation_newton(
                     last_rejection_reason = "root branch continuity was not preserved"
                 elif trivial:
                     last_rejection_reason = "the trial was a prohibited trivial state"
+                    trivial_rejection_observed = True
                 else:
                     last_rejection_reason = "the equilibrium merit did not improve"
             except (OverflowError, TypeError, ValueError) as error:
@@ -1731,9 +1762,10 @@ def _attempt_saturation_newton(
             history=tuple(history),
         )
         return attempt, current, estimate
-    return reject(
-        "Maximum Newton iterations reached without full residual convergence."
-    )
+    reason = "Maximum Newton iterations reached without full residual convergence."
+    if trivial_rejection_observed:
+        reason += " A prohibited trivial or near-trivial trial was rejected."
+    return reject(reason)
 
 
 def _build_newton_saturation_result(
@@ -1915,7 +1947,9 @@ def _build_newton_saturation_result(
         state.parent_phase,
         state.incipient_phase,
     ):
-        final_converged = False
+        raise ValueError(
+            "Newton state is a prohibited trivial or near-trivial same-phase collapse."
+        )
     if _phase_role_failure(saturation_kind, parent_phase, incipient_phase) is not None:
         final_converged = False
     if not final_converged:
@@ -2016,7 +2050,7 @@ def calculate_saturation_pressure(
             return result
         return replace(result, diagnostics=(*result.diagnostics, seed_diagnostic))
 
-    def historical() -> SaturationPressureResult:
+    def historical(*, discard_caller_seed: bool = False) -> SaturationPressureResult:
         return with_seed_diagnostic(
             _calculate_saturation_pressure_historical(
                 mixture,
@@ -2029,7 +2063,9 @@ def calculate_saturation_pressure(
                 maximum_inner_iterations,
                 pressure_search_points,
                 maximum_outer_iterations,
-                initial_log_k_values=effective_initial_log_k_values,
+                initial_log_k_values=(
+                    None if discard_caller_seed else effective_initial_log_k_values
+                ),
                 successive_substitution_damping_factor=(
                     successive_substitution_damping_factor
                 ),
@@ -2079,7 +2115,15 @@ def calculate_saturation_pressure(
                 converged=False,
                 failure_reason=f"Newton final reconstruction was rejected: {error}",
             )
-    return replace(historical(), newton_attempt=attempt)
+    discard_caller_seed = bool(
+        effective_initial_log_k_values is not None
+        and attempt.failure_reason is not None
+        and "trivial" in attempt.failure_reason.lower()
+    )
+    return replace(
+        historical(discard_caller_seed=discard_caller_seed),
+        newton_attempt=attempt,
+    )
 
 
 def _calculate_saturation_pressure_historical(

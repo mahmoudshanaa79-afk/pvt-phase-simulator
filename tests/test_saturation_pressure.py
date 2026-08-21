@@ -1068,6 +1068,9 @@ def test_one_exact_hit_plus_a_separate_bracket_is_inconclusive(
     """
 
     monkeypatch.setattr(saturation_module, "TRIVIAL_LOG_K_TOLERANCE", -1.0)
+    monkeypatch.setattr(saturation_module, "NEAR_TRIVIAL_LOG_K_TOLERANCE", -1.0)
+    monkeypatch.setattr(saturation_module, "NEAR_TRIVIAL_COMPOSITION_TOLERANCE", -1.0)
+    monkeypatch.setattr(saturation_module, "NEAR_TRIVIAL_ROOT_TOLERANCE", -1.0)
     result = calculate_saturation_pressure(
         _methane_propane_mixture(),
         METHANE_PROPANE_TEMPERATURE_K,

@@ -1232,10 +1232,101 @@ UI work was added.
 ### Commit / Provenance and Next Stage
 
 Work began from clean `master` commit
-`1d58fd908da22994251ec15170d9d98671b0951f`. Module 15.1 remains intentionally
-uncommitted for review; no future commit hash is invented. After review and
-commit, a corrections-only independent Claude re-audit is required. Module 16
-may begin only after that audit explicitly approves these corrections.
+`1d58fd908da22994251ec15170d9d98671b0951f` and was committed as
+`caeeed42e7baa5a81d9a5af8c92ecf6082dbe7c6`. A corrections-only independent
+Claude re-audit then identified B-2 and the C-6 coverage gap described below.
+
+## Module 15.2 — Near-Trivial Saturation Collapse Correction
+
+### Purpose and Audit Provenance
+
+The corrections-only independent Claude re-audit of Module 15.1 found B-2, a
+pre-existing numerical same-phase equilibrium branch, and C-6, an unpinned
+envelope defence-in-depth check. This package corrects only those findings. It
+does not add Module 16 property data, validation, critical solving,
+pseudo-arclength, depletion, separation, characterization, or UI capability.
+
+### B-2 Reproduction and Mechanism
+
+For CH4/C3 60/40 at 250 K, a bubble request with
+`initial_log_k_values=(+0.1,-0.1)` and Newton enabled converged at the default
+15-iteration limit to `3322705.621296047 Pa`, not the physical bubble pressure
+`7385216.135238444 Pa`. Its incipient composition was approximately
+`(0.6000836046,0.3999163954)`, `max|ln K|=2.0903e-4`, composition separation
+`8.3605e-5`, and root separation `1.5578e-5`, despite a fugacity residual of
+`6.73e-11`. Limits 16 and 20 returned the same false state; limit 14 stopped
+before convergence. The correct final-iteration convergence fix exposed this
+old branch at the default limit but did not create it and remains intact.
+
+The defect exists because fugacity equality includes the mathematical identity
+of a phase in equilibrium with itself. The earlier exact `1e-8` unity-K rule
+correctly rejected the endpoint but did not cover a closely approached trivial
+branch that satisfied all numerical equilibrium tolerances.
+
+### Discrimination Study and Shared Policy
+
+The study measured `max|ln K|`, maximum parent/incipient composition
+separation, and selected-root separation. Eighty-eight frozen valid
+multicomponent golden and envelope states had individual minima `0.4378`,
+`0.1611`, and `0.2717`. The closest accepted Module 15.1 critical-region point
+was the final CH4/C2 A-1 point at `(3.0262e-4,1.5129e-4,2.4278e-4)`. A 72-case
+CH4/C3 near-K sweep produced seven false convergences, with metrics spanning
+`2.0903e-4..4.8359e-4`, `8.3605e-5..1.9348e-4`, and
+`1.5578e-5..3.5986e-5`. A 144-attempt pre-fix four-family study found additional
+collapses up to `(1.0901e-3,2.1814e-4,7.4564e-5)`.
+
+The common `multicomponent_saturation_is_near_trivial` policy retains exact
+unity at `TRIVIAL_LOG_K_TOLERANCE=1e-8`. Its wider tier requires all of
+`NEAR_TRIVIAL_LOG_K_TOLERANCE=2e-3`,
+`NEAR_TRIVIAL_COMPOSITION_TOLERANCE=5e-4`, and
+`NEAR_TRIVIAL_ROOT_TOLERANCE=1e-4`. Log-K and composition overlap the legitimate
+A-1 point and therefore cannot be used alone; simultaneous root collapse
+separates every measured fake while preserving that accepted point. This is a
+conservative numerical discrimination rule, not a critical-point detector.
+
+Pure/effectively pure feeds are exempt because physical pure coexistence has
+`K=1` and equal compositions. Their established distinct-root requirement is
+unchanged. Historical inner acceptance and Newton initialization, trials, and
+final reconstruction call the same policy. A caller seed is retained until
+physical evidence appears; if its Newton trajectory rejects a trivial or near-
+trivial trial, fallback discards the seed and restores normal initialization.
+
+### C-6 Defence in Depth
+
+The envelope already repeats phase-role validation after saturation-level
+acceptance. A focused regression now constructs an inverted continuation
+candidate directly, bypassing the lower acceptance layer, and requires
+`_branch_jump_reason` to reject it with the explicit phase-role reason. Removing
+the envelope clause therefore fails this test even though the natural A-1 path
+is normally stopped by saturation first.
+
+### Verification and Limitations
+
+Nineteen dedicated Module 15.2 tests pin B-2 at iteration limits 14, 15, 16,
+and 20; the 72-case near-K sweep; a 96-case four-family sweep; ordinary,
+near-critical, zero-fraction, permutation, and pure-component states; and C-6.
+All 19 pass. The complete repository passes 856 tests. Module 15 remains 54/54,
+Module 15.1 remains 23/23, Module 13 remains 41/41, and Module 14 remains 23/23
+with 21 specifications, 774 scalar comparisons, and one documented boundary
+exclusion. Strict golden comparison reports zero physical drift, numerical-path
+change, status/termination change, missing cases, and extra cases. The benchmark
+remains 12 improved, zero tied, one worsened, and one fallback, with `94.9116%`
+improved-only and `82.9537%` all-case work reduction. Ruff lint/format, strict
+mypy over 15 source files, and compileall pass. The baseline remains frozen at
+SHA-256
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+
+Without an exact mixture critical solver this policy cannot prove criticality,
+branch completeness, or the global uniqueness of a saturation solution. It
+only rejects the empirically separated simultaneous same-phase collapse.
+
+### Commit / Provenance and Next Stage
+
+Work began from clean `master` commit
+`caeeed42e7baa5a81d9a5af8c92ecf6082dbe7c6`. Module 15.2 remains intentionally
+unstaged and uncommitted for review. After Module 15.2 is committed, perform one
+final targeted Claude re-audit of B-2 and C-6. Only after explicit approval may
+Module 16 begin.
 
 ## Module/Stage X — Name
 

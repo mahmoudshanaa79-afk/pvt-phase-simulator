@@ -124,13 +124,28 @@ to `sum(z_i) - 1 = 0` identically, at any single-phase pressure. The objective
 therefore cannot distinguish a trivial state from a saturation boundary, and a
 trivial state must be rejected before it can supply an outer objective value.
 
-A converged multicomponent inner state is rejected as trivial when every active
-`|ln(K_i)| <= 1e-8`, matching the Module 6 trivial-composition scale. It is also
-rejected when the incipient composition and the parent composition agree within
-`1e-10` *and* the two selected roots agree within `1e-8`. A pure component is
-excluded from the unity-K test because `K = 1` is precisely its genuine
-saturation condition; for one component the separate requirement of two distinct
-mechanically stable roots supplies the same protection.
+A converged multicomponent inner state is rejected as exactly trivial when
+every active `|ln(K_i)| <= 1e-8`, matching the Module 6 trivial-composition
+scale. Module 15.2 adds a separate near-trivial same-phase policy. It rejects a
+candidate only when all three measured indicators collapse simultaneously:
+maximum active `|ln K_i| <= 2e-3`, maximum parent/incipient composition
+separation `<= 5e-4`, and selected-root separation `<= 1e-4`. Fugacity equality
+alone cannot distinguish this numerical equilibrium branch because the same
+phase is necessarily in equilibrium with itself.
+
+The three-way condition is empirical and conservative, not a critical-point
+detector. Across 88 frozen valid multicomponent saturation/envelope states the
+ordinary minima are much larger. The closest accepted Module 15.1 critical-
+region point measures approximately `(3.03e-4, 1.51e-4, 2.43e-4)` in log-K,
+composition, and root separation, while the deliberately generated false
+collapses measured at most `(1.10e-3, 2.19e-4, 7.46e-5)`. The first two signals
+overlap a real near-critical state, so neither is safe alone; the root bound
+supplies the observed separation and all three must agree.
+
+Pure or effectively pure feeds are excluded from both multicomponent tests
+because `K = 1` and equal compositions are precisely their genuine coexistence
+conditions. For one active component, two distinct mechanically stable roots
+supply the physical protection.
 
 Rejecting these states can leave a genuine boundary without a usable bracket,
 because the non-trivial incipient branch does not always extend past the
@@ -174,6 +189,8 @@ A result is `CONVERGED` only when:
 - the incipient composition sum residual is `<= 1e-10`;
 - maximum active-component `|ln(f_i^{incipient})-ln(f_i^{parent})| <= 1e-8`;
 - parent and incipient roots are mechanically stable;
+- a multicomponent state passes the shared exact/near-trivial phase-distinction
+  policy;
 - pressure and every required value are finite and in-domain;
 - no unresolved failure remains.
 
@@ -193,9 +210,12 @@ a bubble calculation requires `Z_parent < Z_incipient` and a dew calculation
 requires `Z_parent > Z_incipient`. Roots inside the dead band are treated as
 ordering-ambiguous rather than forced into an inequality. A clearly inverted
 caller-provided log-K seed is discarded after an evaluable trial and normal
-Wilson initialization is used; unusual seeds without conclusive physical
-evidence are retained. Historical and Newton final acceptance use the same
-rule, and the requested saturation kind is never silently changed.
+Wilson initialization is used; unusual near-unity seeds are not banned
+pre-emptively. If their Newton trajectory later supplies combined evidence of
+same-phase collapse, that numerical branch is rejected and the historical
+solver retries from normal initialization. Historical inner and Newton
+trial/final acceptance use the same phase-distinction and phase-role rules, and
+the requested saturation kind is never silently changed.
 
 ## Optional Module 15 Newton layer
 

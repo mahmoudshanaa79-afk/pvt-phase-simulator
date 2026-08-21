@@ -70,10 +70,12 @@ attempt continues through the existing local historical correction, including
 its independently enabled acceleration and damping, so envelope termination
 semantics are unchanged. Newton defaults to disabled.
 
-The continuation path retains Module 8's `1e-8` multicomponent unity-log-K
-rejection, composition/root triviality check, mechanical root policies, and
-final convergence gates. A trivial attempt cannot supply an objective, bracket,
-or accepted point. Pure components remain exempt from the unity-K rule.
+The continuation path retains Module 8's exact `1e-8` multicomponent unity-log-K
+rejection and Module 15.2's shared three-indicator near-trivial policy, along
+with mechanical root policies and final convergence gates. A trivial or near-
+trivial same-phase attempt cannot supply an objective, bracket, or accepted
+point. Pure/effectively pure feeds remain exempt from multicomponent K and
+composition collapse logic.
 
 Because a continuation seed can hold the inner iteration on the nontrivial
 branch where a Wilson start collapses to `K_i = 1`, continuation reaches
@@ -100,6 +102,13 @@ vapor incipient root and dew points require a vapor parent above the liquid
 incipient root. An inverted candidate is rejected rather than accepted under
 the old branch label. The existing `1e-8` root-distinguishability tolerance is
 the ordering dead band; no second arbitrary tolerance is introduced.
+
+The continuation step independently repeats this phase-role check after a
+candidate passes saturation reconstruction. A focused C-6 regression constructs
+an otherwise acceptable inverted candidate directly, bypassing the lower gate,
+and pins `_branch_jump_reason` to the phase-role rejection. This is intentional
+defence in depth for future correctors rather than evidence of a second live
+defect.
 
 An easy unexpanded correction with predictor errors below the configurable
 `easy_predictor_log_pressure_error = 0.1` and
@@ -132,7 +141,10 @@ through the unresolved critical region and continuing with liquid/vapor labels
 swapped; no rejected inverted point is promoted into the accepted branch.
 
 `NEAR_CRITICAL` means phases are becoming numerically difficult to
-distinguish. It is not an exact critical point.
+distinguish. It is not an exact critical point. In particular, a standalone
+caller-seeded same-phase collapse far from the independently known saturation
+pressure is rejected as a numerical trivial branch and retried normally; it is
+not relabeled as physical criticality.
 
 Starting states are rejected as numerically indistinguishable only when both
 their maximum composition separation is at most the fixed

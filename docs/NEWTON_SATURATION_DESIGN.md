@@ -110,7 +110,8 @@ before the factor would fall below `1e-6`. A trial is accepted only when:
 - both phase states and fixed-root derivatives are valid;
 - root count and mechanical classifications are unchanged;
 - each selected root is the unambiguous nearest continuation of its prior root;
-- the multicomponent candidate is not the established trivial `K~=1` state;
+- the multicomponent candidate passes the shared exact/near-trivial
+  phase-distinction policy;
 - and `||R_trial||_infinity < ||R_current||_infinity`.
 
 Root merger/split, ambiguous correspondence, classification change, root-role
@@ -127,6 +128,13 @@ asserted. A clearly inverted caller seed is discarded in favor of normal
 Wilson initialization, and a clearly inverted converged candidate is rejected;
 the requested saturation kind is never relabeled.
 
+They also share one multicomponent nontriviality policy. Exact unity remains
+`max|ln K| <= 1e-8`. A wider numerical same-phase collapse is rejected only
+when `max|ln K| <= 2e-3`, maximum parent/incipient composition separation is
+`<= 5e-4`, and selected-root separation is `<= 1e-4` simultaneously. These
+bounds come from the Module 15.2 discrimination study; no individual signal is
+sufficient near a real critical region. Pure/effectively pure feeds are exempt.
+
 ## Convergence, reconstruction, and fallback
 
 Newton converges only when the full raw equilibrium norm is at most the
@@ -135,7 +143,10 @@ small line-search factor cannot establish convergence. The accepted active
 state is mapped back to full component order and freshly reevaluated. It must
 then satisfy the historical saturation objective, incipient sum, fugacity
 equilibrium, mechanical stability, finite pressure, bounds, root identity, and
-trivial-state gates. A failure at reconstruction also falls back.
+trivial-state gates. A failure at reconstruction also falls back. When a
+caller-seeded trajectory records a trivial or near-trivial rejection, fallback
+discards that seed and restores the normal historical initialization; unusual
+seeds remain usable when no such physical evidence exists.
 
 The standalone seed uses the Wilson pressure and Wilson K-values. When an
 existing log-K continuation seed is supplied, the logarithmic midpoint of the
