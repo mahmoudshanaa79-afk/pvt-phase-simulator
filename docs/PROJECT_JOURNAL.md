@@ -560,11 +560,13 @@ For current log-K vector `x_n`, raw EOS target `g_n`, residual
 
 This is a scalar secant extrapolation of a vector residual, not Anderson,
 Aitken component-wise Δ², Newton, or a derivative API. A proposal is rejected
-unless values are finite, the actual residual did not worsen by more than 5%,
-the secant denominator is numerically resolved, `tau_n > 0`, the secant model
-predicts at least 20% infinity-norm residual reduction, and movement is at most
-twice the ordinary fixed-point movement. Rejection or insufficient history
-returns the exact raw target.
+unless values are finite, the ordinary iteration's own residual history did
+not worsen by more than 5%, the secant denominator is numerically resolved,
+`tau_n > 0`, the secant model predicts at least 20% infinity-norm residual
+reduction, and movement is at most twice the ordinary fixed-point movement.
+The accelerated candidate is accepted from that secant-model prediction; its
+true nonlinear residual is evaluated on the next iteration. Rejection or
+insufficient history returns the exact raw target.
 
 The fixed order is raw target → optional acceleration/safeguard → ordinary
 target fallback if needed → one damping operation. The existing factor `λ`
@@ -1119,6 +1121,121 @@ uncommitted for review; no final commit hash is invented.
 
 Development pauses after Module 15 for a major independent Claude audit of the
 complete Modules 10–15 numerical stack before Module 16 begins.
+
+## Module 15.1 — Independent-Audit Corrections
+
+### Purpose
+
+The independent Claude adversarial audit blocked Module 16 after finding a
+critical cross-state phase-role inversion in Newton-enabled continuation and a
+major caller-seed path that could return the bubble solution under a dew label.
+This corrections-only package repairs those Category A/B findings and the
+directly related coverage, reporting, and documentation issues. It adds no new
+thermodynamic model or Module 16 capability.
+
+### Science
+
+Fugacity equality remains the saturation equation. A shared physical identity
+gate now checks reconstructed roots: outside the existing dimensionless
+`PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE = 1e-8` dead band, bubble requires
+`Z_parent < Z_incipient` (liquid parent, vapor incipient) and dew requires
+`Z_parent > Z_incipient` (vapor parent, liquid incipient). Inside the dead band
+ordering is unresolved and is not blindly asserted. The existing tolerance was
+reused; no competing near-critical scale was introduced.
+
+### Numerical Method and Software Engineering
+
+The common fixed-pressure saturation acceptance path rejects clearly inverted
+phase roles, and both historical and Newton final reconstruction apply the same
+defensive gate. A caller-provided log-K seed is first evaluated at the clamped
+requested Wilson pressure when possible. Clear inversion discards the seed and
+restores normal Wilson initialization; ambiguous or unevaluable evidence does
+not reject an unusual continuation seed. Saturation kind is never relabeled.
+
+Envelope starting-state and branch-jump validation call the same phase-role
+classifier. Repeated correction evidence of role inversion or entry into the
+root-order dead band terminates with the existing `NEAR_CRITICAL` semantic, so
+no inverted point is accepted and no exact critical-point claim is made. The
+within-Newton fixed-root continuity policy remains unchanged.
+
+Newton now performs a final raw-residual convergence test after the last
+permitted accepted step. Maximum iterations still counts accepted Newton
+iterations; a state meeting the unchanged `1e-10` residual and all final
+physical gates on that last step is accepted. Dedicated regressions separately
+pin strict line-search merit improvement and the primary `1e-8` trivial-log-K
+band.
+
+### Audit Reproductions and Regression Protection
+
+Before correction, the CH4/C2 50/50 bubble trace from 260 to 285 K accepted five
+role-inverted points, first at 266.109375 K. The CH4/C2/C3 50/30/20 trace from
+280 to 330 K also accepted five, first at 293.046875 K. After correction both
+traces accept zero inverted points and stop `NEAR_CRITICAL`, at 265.7265625 K
+and 290.654296875 K respectively with the audited settings.
+
+Before correction, CH4/C3 60/40 at 250 K with a dew request and
+`initial_log_k_values=(-3,+3)` returned the bubble pressure
+`7385216.135238431 Pa`. It now discards the clearly inverted seed and recovers
+the physical dew: historical `575969.5124486194 Pa`, Newton
+`575969.5124486142 Pa`. The opposite-direction bounded bubble regression also
+proves that a dew seed cannot be returned as a bubble-labelled dew-pressure
+state. Selected canonical bubble, dew, CH4/C3 dew, and envelope golden rows are
+reused as Newton-enabled physical references without changing the canonical
+baseline.
+
+### Benchmark Reporting
+
+The natural CH4/C2 20/80 bubble case at 220 K is now included. Newton falls
+back after 102 rejected trials and uses 2376 benchmark work units versus 1480
+historically. The expanded matrix reports 12 improved, zero tied, one worsened,
+and one fallback case. Mean work reduction is `94.9116%` among improved cases
+and `82.9537%` across all cases. Work remains the benchmark-defined EOS calls
+plus fugacity calls, not wall-clock runtime or a universal speedup.
+
+### Documentation Corrections
+
+The Module 12 journal now correctly distinguishes the ordinary residual-history
+check from the secant model's predicted acceptance. Module 14 documentation
+states its precise production-value-function derivative claim and the boundary
+of external audit evidence. The Newton condition threshold is documented as a
+hopeless-case backstop, not an accuracy guarantee. The derivative module now
+records Module 15 as a legitimate consumer, with its defensive unreachable
+`None` branch explained.
+
+### Verification
+
+Twenty-three dedicated Module 15.1 tests cover the physical invariant, dead-band
+boundary, historical and Newton paths, caller seeds, both audit envelopes,
+zero fractions, permutation, selected golden references, strict merit,
+trivial-log-K isolation, final-iteration convergence, and pure methane. The
+canonical golden baseline is not regenerated and its SHA-256 remains
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+The correction-focused saturation/envelope/Newton matrix passes 277 tests. The
+complete repository passes 837 tests in 706.52 seconds. Module 13 remains 41/41;
+Module 14 remains 23/23, with 21 specifications, 774 scalar comparisons, and
+one documented composition-boundary exclusion in its extended report. Ruff
+lint and format checking, strict mypy over 15 source files, and compileall pass.
+The strict golden comparison reports zero physical drift, numerical-path,
+status, termination, missing, and extra changes, with only the expected 328
+source-commit metadata notices.
+
+### Limitations
+
+The role-order gate is a physical identity check, not a critical solver or a
+proof of branch completeness. Natural-temperature continuation still cannot
+cross an unresolved critical region. The optional repeated branch-failure
+fast-exit remains deferred because it is performance-only and is not required
+for correctness. No property database, experimental validation, nonzero `kij`,
+pseudo-arclength, pseudo-components, depletion, separator, critical solver, or
+UI work was added.
+
+### Commit / Provenance and Next Stage
+
+Work began from clean `master` commit
+`1d58fd908da22994251ec15170d9d98671b0951f`. Module 15.1 remains intentionally
+uncommitted for review; no future commit hash is invented. After review and
+commit, a corrections-only independent Claude re-audit is required. Module 16
+may begin only after that audit explicitly approves these corrections.
 
 ## Module/Stage X — Name
 

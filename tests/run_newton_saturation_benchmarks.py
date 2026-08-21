@@ -226,6 +226,12 @@ def run_benchmarks() -> tuple[BenchmarkResult, ...]:
     saturation_cases = (
         ("easy binary bubble", BINARY, 220.0, SaturationKind.BUBBLE_POINT),
         (
+            "known adverse binary bubble",
+            ASYMMETRIC_BINARY,
+            220.0,
+            SaturationKind.BUBBLE_POINT,
+        ),
+        (
             "difficult binary bubble",
             METHANE_PROPANE,
             250.0,
@@ -324,23 +330,41 @@ def main() -> None:
         for case in dict.fromkeys(row.case for row in rows)
     }
     improved = tied = worsened = fallback = 0
-    reductions: list[float] = []
+    improved_reductions: list[float] = []
+    all_case_reductions: list[float] = []
     for methods in grouped.values():
         historical = methods["historical"].work_units
         newton = methods["newton"].work_units
         fallback += int(methods["newton"].fallback_used)
+        if historical:
+            all_case_reductions.append(1.0 - newton / historical)
         if newton < historical:
             improved += 1
             if historical:
-                reductions.append(1.0 - newton / historical)
+                improved_reductions.append(1.0 - newton / historical)
         elif newton == historical:
             tied += 1
         else:
             worsened += 1
-    mean_reduction = sum(reductions) / len(reductions) if reductions else 0.0
+    mean_improved_reduction = (
+        sum(improved_reductions) / len(improved_reductions)
+        if improved_reductions
+        else 0.0
+    )
+    mean_all_reduction = (
+        sum(all_case_reductions) / len(all_case_reductions)
+        if all_case_reductions
+        else 0.0
+    )
     print(
         f"SUMMARY improved={improved} tied={tied} worsened={worsened} "
-        f"fallback={fallback} mean_improved_work_reduction={mean_reduction:.6f}"
+        f"fallback={fallback} "
+        f"mean_improved_work_reduction={mean_improved_reduction:.6f} "
+        f"mean_all_work_reduction={mean_all_reduction:.6f}"
+    )
+    print(
+        "WORK_METRIC benchmark-defined EOS calls + fugacity calls; "
+        "not wall-clock runtime or a universal speedup"
     )
     regression = next(
         row

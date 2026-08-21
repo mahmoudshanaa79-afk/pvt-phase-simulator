@@ -96,7 +96,10 @@ continuous for every perturbed state.
 Each iteration solves `J delta_q = -R` with `numpy.linalg.solve`; an inverse is
 never formed. The residual and Jacobian, condition number, and step must all be
 finite. The default maximum allowed 2-norm condition number is `1e12`.
-Singular solves and stronger ill-conditioning reject the attempt.
+Singular solves and stronger ill-conditioning reject the attempt. This value is
+a hopeless-case backstop, not an accuracy guarantee; residual improvement,
+globalization, root/branch continuity, and final physical checks protect the
+quality of an accepted step.
 
 The merit function is `||R||_infinity`. Deterministic backtracking starts at
 `alpha=1` and multiplies by `0.5`. It stops after 20 rejected reductions or
@@ -114,6 +117,15 @@ Root merger/split, ambiguous correspondence, classification change, root-role
 change, invalid EOS state, or lack of strict merit improvement causes rejection
 and backtracking. Newton does not step through a discontinuous root-selection
 boundary.
+
+Final and historical saturation reconstruction share one physical phase-role
+policy. Outside the existing `1e-8` PR-root distinguishability dead band, a
+bubble state requires `Z_parent < Z_incipient` (liquid parent, vapor incipient)
+and a dew state requires `Z_parent > Z_incipient` (vapor parent, liquid
+incipient). Inside that dead band ordering is unresolved rather than blindly
+asserted. A clearly inverted caller seed is discarded in favor of normal
+Wilson initialization, and a clearly inverted converged candidate is rejected;
+the requested saturation kind is never relabeled.
 
 ## Convergence, reconstruction, and fallback
 

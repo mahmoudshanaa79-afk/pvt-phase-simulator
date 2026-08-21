@@ -587,7 +587,7 @@ def test_maximum_newton_iterations_falls_back() -> None:
     assert "Maximum Newton iterations" in (result.newton_attempt.failure_reason or "")
 
 
-def test_poor_local_guess_rejects_without_losing_historical_success() -> None:
+def test_inverted_local_guess_is_discarded_without_losing_success() -> None:
     historical = calculate_saturation_pressure(BINARY, 220.0, SaturationKind.DEW_POINT)
     assert historical.pressure_pa is not None
     poor_seed = tuple(
@@ -604,7 +604,11 @@ def test_poor_local_guess_rejects_without_losing_historical_success() -> None:
         saturation_newton_enabled=True,
     )
     assert result.status is SaturationStatus.CONVERGED
-    assert result.newton_attempt is not None and not result.newton_attempt.converged
+    assert result.newton_attempt is not None and result.newton_attempt.converged
+    assert any(
+        item.code == saturation_module.INITIAL_LOG_K_PHASE_ROLE_DIAGNOSTIC_CODE
+        for item in result.diagnostics
+    )
 
 
 def test_real_backtracking_step_converges() -> None:

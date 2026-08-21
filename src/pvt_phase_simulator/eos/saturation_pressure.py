@@ -59,6 +59,10 @@ INNER_COMPOSITION_TOLERANCE: Final = 1e-10
 INCIPIENT_SUM_TOLERANCE: Final = 1e-10
 FUGACITY_EQUILIBRIUM_TOLERANCE: Final = 1e-8
 PURE_PHASE_ROOT_SEPARATION_TOLERANCE: Final = 1e-8
+# Shared absolute distinguishability scale for the dimensionless PR roots.
+# Phase-role ordering is enforced only outside this existing near-coalescence
+# dead band; the alias keeps the older pure-component name API-compatible.
+PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE: Final = PURE_PHASE_ROOT_SEPARATION_TOLERANCE
 # A multicomponent state with every active K at unity is the trivial solution:
 # the incipient phase is thermodynamically the parent phase, and the objective
 # sum(z_i K_i^{+-1}) - 1 is then identically zero at any single-phase pressure.
@@ -69,6 +73,9 @@ TRIVIAL_LOG_K_TOLERANCE: Final = 1e-8
 # enclosing search reports its own bracket failure, so this diagnostic is the
 # only place the trivial evidence survives.
 TRIVIAL_STATE_DIAGNOSTIC_CODE: Final = "SATURATION_TRIVIAL_STATE"
+PHASE_ROLE_INVERTED_DIAGNOSTIC_CODE: Final = "SATURATION_PHASE_ROLE_INVERTED"
+PHASES_INDISTINGUISHABLE_DIAGNOSTIC_CODE: Final = "SATURATION_PHASES_INDISTINGUISHABLE"
+INITIAL_LOG_K_PHASE_ROLE_DIAGNOSTIC_CODE: Final = "SATURATION_INITIAL_LOG_K_PHASE_ROLE"
 DEFAULT_MAXIMUM_INNER_ITERATIONS: Final = 100
 DEFAULT_PRESSURE_SEARCH_POINTS: Final = 81
 DEFAULT_MAXIMUM_OUTER_ITERATIONS: Final = 100
@@ -434,6 +441,61 @@ def _phase_kinds(
     return PhaseTrialKind.VAPOR_LIKE, PhaseTrialKind.LIQUID_LIKE
 
 
+def saturation_phase_roles_are_consistent(
+    saturation_kind: SaturationKind,
+    parent_compressibility_factor: float,
+    incipient_compressibility_factor: float,
+) -> bool | None:
+    """Classify requested liquid/vapor root ordering.
+
+    ``True`` means the distinct roots have the requested phase roles, ``False``
+    means they are clearly inverted, and ``None`` means their separation is
+    inside the shared near-coalescence dead band and ordering is unresolved.
+    Fugacity equality remains the equilibrium equation; this is a physical
+    identity gate on a reconstructed two-phase state.
+    """
+
+    _require_kind(saturation_kind)
+    _require_finite(parent_compressibility_factor, "parent compressibility factor")
+    _require_finite(
+        incipient_compressibility_factor, "incipient compressibility factor"
+    )
+    separation = abs(parent_compressibility_factor - incipient_compressibility_factor)
+    if separation <= PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE:
+        return None
+    if saturation_kind is SaturationKind.BUBBLE_POINT:
+        return parent_compressibility_factor < incipient_compressibility_factor
+    return parent_compressibility_factor > incipient_compressibility_factor
+
+
+def _phase_role_failure(
+    saturation_kind: SaturationKind,
+    parent_phase: FlashPhaseResult,
+    incipient_phase: FlashPhaseResult,
+) -> tuple[str, str] | None:
+    consistent = saturation_phase_roles_are_consistent(
+        saturation_kind,
+        parent_phase.selected_compressibility_factor,
+        incipient_phase.selected_compressibility_factor,
+    )
+    if consistent is True:
+        return None
+    if consistent is None:
+        # Ordering is deliberately not asserted inside the shared dead band.
+        # Envelope continuation classifies this evidence as near-critical;
+        # isolated saturation retains its existing structured semantics.
+        return None
+    requested = (
+        "liquid parent below vapor incipient"
+        if saturation_kind is SaturationKind.BUBBLE_POINT
+        else "vapor parent above liquid incipient"
+    )
+    return (
+        PHASE_ROLE_INVERTED_DIAGNOSTIC_CODE,
+        f"The reconstructed roots invert the requested phase roles ({requested}).",
+    )
+
+
 def _phase_log_phi(
     saturation_kind: SaturationKind,
     parent_phase: FlashPhaseResult,
@@ -767,6 +829,34 @@ def evaluate_saturation_pressure(
                     diagnostics,
                     reason,
                 )
+            phase_roles = saturation_phase_roles_are_consistent(
+                saturation_kind,
+                parent_phase.selected_compressibility_factor,
+                incipient_phase.selected_compressibility_factor,
+            )
+            if phase_roles is None:
+                diagnostics.append(
+                    _failure_diagnostic(
+                        PHASES_INDISTINGUISHABLE_DIAGNOSTIC_CODE,
+                        "Parent and incipient roots are inside the phase-role "
+                        "distinguishability dead band.",
+                    )
+                )
+            elif not phase_roles:
+                phase_role_failure = _phase_role_failure(
+                    saturation_kind, parent_phase, incipient_phase
+                )
+                assert phase_role_failure is not None
+                code, reason = phase_role_failure
+                diagnostics.append(_failure_diagnostic(code, reason))
+                return _failed_evaluation(
+                    saturation_kind,
+                    pressure_pa,
+                    feed,
+                    history,
+                    diagnostics,
+                    reason,
+                )
             return SaturationPressureEvaluation(
                 saturation_kind=saturation_kind,
                 pressure_pa=pressure_pa,
@@ -849,6 +939,93 @@ def _phase_interaction_provenance(
             parameters.defaulted_binary_interaction_pairs
         ),
     )
+
+
+def _validated_initial_log_k_seed(
+    mixture: FluidMixture,
+    temperature_k: float,
+    saturation_kind: SaturationKind,
+    minimum_pressure_pa: float,
+    maximum_pressure_pa: float,
+    binary_interactions: BinaryInteractionMapping | None,
+    binary_interaction_policy: BinaryInteractionPolicy,
+    initial_log_k_values: tuple[float, ...] | None,
+) -> tuple[tuple[float, ...] | None, EOSDiagnostic | None]:
+    """Discard only caller seeds with directly evaluable inverted phase roles."""
+
+    if initial_log_k_values is None:
+        return None, None
+    if not isinstance(initial_log_k_values, tuple) or len(initial_log_k_values) != len(
+        mixture.components
+    ):
+        raise ValueError("initial_log_k_values must be an aligned immutable tuple.")
+    for index, value in enumerate(initial_log_k_values):
+        _require_finite(value, f"initial_log_k_values[{index}]")
+    k_values_from_log_values(initial_log_k_values)
+
+    estimates = calculate_wilson_pressure_estimates(mixture, temperature_k)
+    requested_estimate = (
+        estimates.bubble_pressure_pa
+        if saturation_kind is SaturationKind.BUBBLE_POINT
+        else estimates.dew_pressure_pa
+    )
+    pressure_seed = min(
+        max(requested_estimate, minimum_pressure_pa), maximum_pressure_pa
+    )
+    interaction_snapshot = (
+        None if binary_interactions is None else dict(binary_interactions)
+    )
+    try:
+        feed = _feed_composition(mixture)
+        incipient = _normalize_incipient_composition(
+            feed, initial_log_k_values, saturation_kind
+        )
+        provenance = _phase_interaction_provenance(
+            mixture,
+            temperature_k,
+            pressure_seed,
+            interaction_snapshot,
+            binary_interaction_policy,
+        )
+        parent_kind, incipient_kind = _phase_kinds(saturation_kind)
+        parent_phase = evaluate_flash_phase(
+            mixture,
+            feed,
+            temperature_k,
+            pressure_seed,
+            parent_kind,
+            None,
+            interaction_snapshot,
+            binary_interaction_policy,
+            interaction_provenance=provenance,
+        )
+        incipient_phase = evaluate_flash_phase(
+            mixture,
+            incipient,
+            temperature_k,
+            pressure_seed,
+            incipient_kind,
+            None,
+            interaction_snapshot,
+            binary_interaction_policy,
+            interaction_provenance=provenance,
+        )
+        consistent = saturation_phase_roles_are_consistent(
+            saturation_kind,
+            parent_phase.selected_compressibility_factor,
+            incipient_phase.selected_compressibility_factor,
+        )
+    except (OverflowError, TypeError, ValueError):
+        # Absence of evaluable physical evidence is not evidence that an
+        # unusual continuation seed has the wrong phase identity.
+        return initial_log_k_values, None
+    if consistent is not False:
+        return initial_log_k_values, None
+    message = (
+        "The caller-supplied initial log-K seed was discarded because its "
+        "evaluable trial state clearly inverted the requested phase roles."
+    )
+    return None, _failure_diagnostic(INITIAL_LOG_K_PHASE_ROLE_DIAGNOSTIC_CODE, message)
 
 
 def _validate_newton_controls(
@@ -1047,6 +1224,12 @@ def _evaluate_saturation_newton_system(
         raise ValueError(
             "pure-component Newton saturation requires distinct physical roots."
         )
+    phase_role_failure = _phase_role_failure(
+        saturation_kind, parent_phase, incipient_phase
+    )
+    if phase_role_failure is not None:
+        _, phase_role_reason = phase_role_failure
+        raise ValueError(phase_role_reason)
     incipient_mixture = FluidMixture(
         tuple(
             MixtureComponent(item.component, fraction)
@@ -1533,6 +1716,21 @@ def _attempt_saturation_newton(
                 rejected_trial_count=rejected_this_iteration,
             )
         )
+    if current_norm <= INNER_LOG_K_TOLERANCE:
+        attempt = SaturationNewtonAttempt(
+            status=SaturationNewtonStatus.CONVERGED,
+            converged=True,
+            iteration_count=len(history),
+            function_evaluations=function_evaluations,
+            initial_residual_norm=initial_norm,
+            final_residual_norm=current_norm,
+            full_steps=full_steps,
+            backtracked_steps=backtracked_steps,
+            rejected_steps=rejected_steps,
+            failure_reason=None,
+            history=tuple(history),
+        )
+        return attempt, current, estimate
     return reject(
         "Maximum Newton iterations reached without full residual convergence."
     )
@@ -1642,6 +1840,19 @@ def _build_newton_saturation_result(
     diagnostics: list[EOSDiagnostic] = []
     _append_unique_diagnostics(diagnostics, parent_phase.diagnostics)
     _append_unique_diagnostics(diagnostics, incipient_phase.diagnostics)
+    phase_roles = saturation_phase_roles_are_consistent(
+        saturation_kind,
+        parent_phase.selected_compressibility_factor,
+        incipient_phase.selected_compressibility_factor,
+    )
+    if phase_roles is None:
+        diagnostics.append(
+            _failure_diagnostic(
+                PHASES_INDISTINGUISHABLE_DIAGNOSTIC_CODE,
+                "Parent and incipient roots are inside the phase-role "
+                "distinguishability dead band.",
+            )
+        )
     iteration = SaturationPressureIteration(
         iteration=max(1, attempt.iteration_count),
         pressure_pa=state.pressure_pa,
@@ -1704,6 +1915,8 @@ def _build_newton_saturation_result(
         state.parent_phase,
         state.incipient_phase,
     ):
+        final_converged = False
+    if _phase_role_failure(saturation_kind, parent_phase, incipient_phase) is not None:
         final_converged = False
     if not final_converged:
         raise ValueError(
@@ -1785,26 +1998,45 @@ def calculate_saturation_pressure(
         newton_minimum_line_search_factor,
         newton_max_backtracking_iterations,
     )
+    effective_initial_log_k_values, seed_diagnostic = _validated_initial_log_k_seed(
+        mixture,
+        temperature_k,
+        saturation_kind,
+        minimum_pressure_pa,
+        maximum_pressure_pa,
+        binary_interactions,
+        binary_interaction_policy,
+        initial_log_k_values,
+    )
+
+    def with_seed_diagnostic(
+        result: SaturationPressureResult,
+    ) -> SaturationPressureResult:
+        if seed_diagnostic is None or seed_diagnostic in result.diagnostics:
+            return result
+        return replace(result, diagnostics=(*result.diagnostics, seed_diagnostic))
 
     def historical() -> SaturationPressureResult:
-        return _calculate_saturation_pressure_historical(
-            mixture,
-            temperature_k,
-            saturation_kind,
-            minimum_pressure_pa,
-            maximum_pressure_pa,
-            binary_interactions,
-            binary_interaction_policy,
-            maximum_inner_iterations,
-            pressure_search_points,
-            maximum_outer_iterations,
-            initial_log_k_values=initial_log_k_values,
-            successive_substitution_damping_factor=(
-                successive_substitution_damping_factor
-            ),
-            successive_substitution_acceleration_enabled=(
-                successive_substitution_acceleration_enabled
-            ),
+        return with_seed_diagnostic(
+            _calculate_saturation_pressure_historical(
+                mixture,
+                temperature_k,
+                saturation_kind,
+                minimum_pressure_pa,
+                maximum_pressure_pa,
+                binary_interactions,
+                binary_interaction_policy,
+                maximum_inner_iterations,
+                pressure_search_points,
+                maximum_outer_iterations,
+                initial_log_k_values=effective_initial_log_k_values,
+                successive_substitution_damping_factor=(
+                    successive_substitution_damping_factor
+                ),
+                successive_substitution_acceleration_enabled=(
+                    successive_substitution_acceleration_enabled
+                ),
+            )
         )
 
     if not saturation_newton_enabled:
@@ -1817,7 +2049,7 @@ def calculate_saturation_pressure(
         maximum_pressure_pa,
         binary_interactions,
         binary_interaction_policy,
-        initial_log_k_values,
+        effective_initial_log_k_values,
         newton_max_iterations,
         newton_max_jacobian_condition_number,
         newton_line_search_reduction_factor,
@@ -1826,17 +2058,19 @@ def calculate_saturation_pressure(
     )
     if attempt.converged and state is not None and estimate is not None:
         try:
-            return _build_newton_saturation_result(
-                mixture,
-                temperature_k,
-                saturation_kind,
-                minimum_pressure_pa,
-                maximum_pressure_pa,
-                binary_interactions,
-                binary_interaction_policy,
-                attempt,
-                state,
-                estimate,
+            return with_seed_diagnostic(
+                _build_newton_saturation_result(
+                    mixture,
+                    temperature_k,
+                    saturation_kind,
+                    minimum_pressure_pa,
+                    maximum_pressure_pa,
+                    binary_interactions,
+                    binary_interaction_policy,
+                    attempt,
+                    state,
+                    estimate,
+                )
             )
         except (OverflowError, TypeError, ValueError) as error:
             attempt = replace(
@@ -2135,6 +2369,15 @@ def _calculate_saturation_pressure_historical(
         and isfinite(final_evaluation.pressure_pa)
         and final_evaluation.pressure_pa > 0.0
     )
+    phase_role_failure = _phase_role_failure(
+        saturation_kind,
+        final_evaluation.parent_phase,
+        final_evaluation.incipient_phase,
+    )
+    if phase_role_failure is not None:
+        code, phase_reason = phase_role_failure
+        diagnostics.append(_failure_diagnostic(code, phase_reason))
+        final_converged = False
     if not final_converged:
         reason = "Final saturation state did not satisfy every convergence gate."
         diagnostics.append(_failure_diagnostic("SATURATION_FINAL_GATES", reason))

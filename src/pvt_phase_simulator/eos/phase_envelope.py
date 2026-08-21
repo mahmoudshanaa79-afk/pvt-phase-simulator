@@ -28,6 +28,9 @@ from pvt_phase_simulator.eos.saturation_pressure import (
     FUGACITY_EQUILIBRIUM_TOLERANCE,
     INNER_COMPOSITION_TOLERANCE,
     INNER_LOG_K_TOLERANCE,
+    PHASE_ROLE_INVERTED_DIAGNOSTIC_CODE,
+    PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE,
+    PHASES_INDISTINGUISHABLE_DIAGNOSTIC_CODE,
     SATURATION_OBJECTIVE_TOLERANCE,
     TRIVIAL_LOG_K_TOLERANCE,
     TRIVIAL_STATE_DIAGNOSTIC_CODE,
@@ -35,6 +38,7 @@ from pvt_phase_simulator.eos.saturation_pressure import (
     SaturationPressureResult,
     SaturationStatus,
     calculate_saturation_pressure,
+    saturation_phase_roles_are_consistent,
 )
 from pvt_phase_simulator.fluid_models import MOLE_FRACTION_TOLERANCE, FluidMixture
 
@@ -42,7 +46,6 @@ TEMPERATURE_UNIQUENESS_TOLERANCE_K: Final = 1e-10
 # Fixed safeguards for rejecting reconstructed phases that are numerically
 # indistinguishable in composition and selected compressibility factor.
 PHASE_COMPOSITION_DISTINGUISHABILITY_TOLERANCE: Final = 1e-10
-PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE: Final = 1e-8
 # Diagnostic-only relative pressure proximity for matched bubble/dew points.
 CROSS_BRANCH_PRESSURE_RELATIVE_TOLERANCE: Final = 0.02
 
@@ -793,6 +796,15 @@ def _validate_converged_result(
         and root_separation <= PHASE_ROOT_DISTINGUISHABILITY_TOLERANCE
     ):
         raise ValueError("starting saturation result has indistinguishable phases.")
+    phase_roles = saturation_phase_roles_are_consistent(
+        result.saturation_kind,
+        result.parent_phase.selected_compressibility_factor,
+        result.incipient_phase.selected_compressibility_factor,
+    )
+    if phase_roles is None:
+        raise ValueError("starting saturation result has unresolved phase roles.")
+    if not phase_roles:
+        raise ValueError("starting saturation result has inverted phase roles.")
     if not all(isfinite(value) for value in log_k_values):
         raise ValueError("starting saturation log K-values must be finite.")
 
@@ -862,6 +874,15 @@ def _branch_jump_reason(
         or previous.saturation_result.incipient_phase is None
     ):
         return "a branch point lost its reconstructed phase state."
+    phase_roles = saturation_phase_roles_are_consistent(
+        candidate.saturation_result.saturation_kind,
+        candidate.saturation_result.parent_phase.selected_compressibility_factor,
+        candidate.saturation_result.incipient_phase.selected_compressibility_factor,
+    )
+    if phase_roles is None:
+        return "candidate phase roles entered the root-distinguishability dead band."
+    if not phase_roles:
+        return "candidate parent and incipient phase roles are inverted."
     parent_root_change = abs(
         candidate.saturation_result.parent_phase.selected_compressibility_factor
         - previous.saturation_result.parent_phase.selected_compressibility_factor
@@ -934,6 +955,7 @@ def _near_critical_diagnostics(
 
 def _retry_termination(
     trivial_collapse: bool,
+    phase_identity_loss: bool,
     numerical_failure: bool,
     possible_branch_loss: bool,
     exhausted_reason: EnvelopeTerminationReason,
@@ -948,6 +970,15 @@ def _retry_termination(
     reason so the two cannot disagree.
     """
 
+    if phase_identity_loss:
+        return (
+            EnvelopeTerminationReason.NEAR_CRITICAL,
+            (
+                "Requested parent/incipient phase identity was lost while the "
+                "branch approached root-role coalescence; no inverted point was "
+                "accepted and this is not an exact critical point."
+            ),
+        )
     if trivial_collapse:
         return (
             EnvelopeTerminationReason.NEAR_CRITICAL,
@@ -1003,6 +1034,7 @@ def _attempt_continuation_step(
     retry = 0
     possible_branch_loss = False
     trivial_collapse = False
+    phase_identity_loss = False
     numerical_failure = False
     prediction = initial_prediction
     while retry <= settings.maximum_step_retries:
@@ -1104,6 +1136,10 @@ def _attempt_continuation_step(
                     None,
                 )
             possible_branch_loss = jump_reason is not None
+            phase_identity_loss = phase_identity_loss or (
+                jump_reason is not None
+                and ("phase roles" in jump_reason or "phase-role" in jump_reason)
+            )
             failure = jump_reason or "duplicate envelope point was rejected."
             rejected.extend(
                 EnvelopeCorrectionAttempt(
@@ -1125,6 +1161,15 @@ def _attempt_continuation_step(
             )
         else:
             rejected.extend(attempts)
+            phase_identity_loss = phase_identity_loss or any(
+                diagnostic.code
+                in {
+                    PHASE_ROLE_INVERTED_DIAGNOSTIC_CODE,
+                    PHASES_INDISTINGUISHABLE_DIAGNOSTIC_CODE,
+                }
+                for attempt in attempts
+                for diagnostic in attempt.diagnostics
+            )
             numerical_failure = (
                 numerical_failure
                 or bool(attempts)
@@ -1148,6 +1193,7 @@ def _attempt_continuation_step(
         if next_magnitude < settings.minimum_temperature_step_k:
             termination = _retry_termination(
                 trivial_collapse,
+                phase_identity_loss,
                 numerical_failure,
                 possible_branch_loss,
                 EnvelopeTerminationReason.MINIMUM_STEP_REACHED,
@@ -1164,6 +1210,7 @@ def _attempt_continuation_step(
         requested_step = (1.0 if requested_step > 0.0 else -1.0) * next_magnitude
     termination = _retry_termination(
         trivial_collapse,
+        phase_identity_loss,
         numerical_failure,
         possible_branch_loss,
         EnvelopeTerminationReason.CORRECTOR_FAILED,

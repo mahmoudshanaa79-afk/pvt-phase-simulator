@@ -1,8 +1,8 @@
 """Analytical Peng–Robinson derivatives on one fixed physical root.
 
 Derivatives are valid locally on a fixed physical root and do not include root
-switching or branch-selection discontinuities. This module supplies derivative
-infrastructure only; existing equilibrium solvers do not call it.
+switching or branch-selection discontinuities. Module 15's optional Newton
+saturation solver consumes this API; historical equilibrium paths do not.
 """
 
 from dataclasses import dataclass
@@ -685,6 +685,8 @@ def calculate_fixed_root_mixture_fugacity_derivatives(
         row = tuple(
             _log_fugacity_derivative(
                 **common,
+                # Applicability checks above make None unreachable in normal flow;
+                # retain the fallback to keep the narrowed type explicit.
                 d_z=root.derivative if root.derivative is not None else 0.0,
                 d_A=d_A,
                 d_B=d_B,

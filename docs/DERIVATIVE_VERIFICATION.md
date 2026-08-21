@@ -6,10 +6,15 @@ Module 14 independently verifies the local fixed-root Peng--Robinson
 derivatives introduced in Module 13 before any equilibrium solver may consume
 them. No production thermodynamic or solver source is changed.
 
-Passing Module 14 verifies local analytical derivative implementation within
-the tested smooth fixed-root domain. It does not prove global phase smoothness,
-root-selection differentiability, critical-point correctness, Newton global
-convergence, or experimental physical accuracy.
+Passing Module 14 verifies that the analytical derivatives are the derivatives
+of the production value functions over the tested smooth fixed-root domain. It
+does not independently prove that the underlying production Peng--Robinson
+value function is physically correct, nor does it prove global phase
+smoothness, root-selection differentiability, critical-point correctness,
+Newton global convergence, or experimental physical accuracy. The external
+adversarial audit separately cross-checked those value functions against a
+high-precision implementation, but that evidence is external to Module 14 and
+is not claimed here as repository-native verification.
 
 ## Independence hierarchy
 

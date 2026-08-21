@@ -90,9 +90,16 @@ consecutive log pressure, and `0.50` in selected root. A rejected step is
 multiplied by the configurable `retry_step_reduction_factor`, whose default
 `0.5` preserves step halving. When no acceptable point survives, the evidence
 gathered during the retries chooses the reason -- trivial collapse, numerical
-failure, or branch loss -- and only when none of those applies does the loop
+failure, phase-identity loss, or branch loss -- and only when none of those applies does the loop
 report the limit that stopped it, either the minimum step or the retry counter.
 The same situation therefore never reports two different reasons.
+
+Branch identity now also enforces the common saturation root-role invariant.
+For clearly separated roots, bubble points require a liquid parent below the
+vapor incipient root and dew points require a vapor parent above the liquid
+incipient root. An inverted candidate is rejected rather than accepted under
+the old branch label. The existing `1e-8` root-distinguishability tolerance is
+the ordering dead band; no second arbitrary tolerance is introduced.
 
 An easy unexpanded correction with predictor errors below the configurable
 `easy_predictor_log_pressure_error = 0.1` and
@@ -118,6 +125,11 @@ evidence is carried by Module 8's `SATURATION_TRIVIAL_STATE` diagnostic, not by
 the enclosing bracket-failure reason. In practice this is how a real
 near-critical approach ends: the inner iteration stops resolving two phases
 well before the accepted-point indicators enter their warning band.
+
+Loss of requested phase identity during retries likewise terminates as
+`NEAR_CRITICAL`. This prevents natural-temperature continuation from walking
+through the unresolved critical region and continuing with liquid/vapor labels
+swapped; no rejected inverted point is promoted into the accepted branch.
 
 `NEAR_CRITICAL` means phases are becoming numerically difficult to
 distinguish. It is not an exact critical point.
