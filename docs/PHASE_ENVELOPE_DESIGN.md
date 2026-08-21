@@ -61,6 +61,15 @@ Module 8 search is an optional, separately recorded fallback after every local
 attempt fails. The default damping factor is one and acceleration defaults to
 false, preserving the historical branch and correction path.
 
+Module 15 additionally lets `EnvelopeContinuationSettings` pass the optional
+Newton flag and its five safeguard controls into the same saturation entry
+point. The predicted log-K vector and the logarithmic midpoint of the local
+pressure interval form a genuinely local Newton seed. The envelope contains no
+Newton residual, Jacobian, or line-search implementation. A rejected Newton
+attempt continues through the existing local historical correction, including
+its independently enabled acceleration and damping, so envelope termination
+semantics are unchanged. Newton defaults to disabled.
+
 The continuation path retains Module 8's `1e-8` multicomponent unity-log-K
 rejection, composition/root triviality check, mechanical root policies, and
 final convergence gates. A trivial attempt cannot supply an objective, bracket,

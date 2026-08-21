@@ -684,6 +684,50 @@ fugacities must be self-consistent together. Root size is a local branch policy,
 not proof of global thermodynamic stability. The implementation does not trace
 critical or retrograde regions and makes no global-convergence claim.
 
+### Module 15 local Newton saturation system
+
+For `m` active feed components, choose the last active component as reference
+`r` and define direct incipient-simplex coordinates and log pressure:
+
+\[
+u_k=w_k\;(k\ne r),\qquad
+w_r=1-\sum_{k\ne r}u_k,\qquad p=\ln P.
+\]
+
+The `m`-vector of component fugacity-equality residuals is
+
+\[
+R_i=\ln z_i+\ln\phi_i^{parent}
+-\ln w_i-\ln\phi_i^{incipient}.
+\]
+
+The common `ln(P)` cancels between phases. Its effect through the fugacity
+coefficients remains in the pressure column:
+
+\[
+\frac{\partial R_i}{\partial p}=
+\frac{\partial\ln\phi_i^{parent}}{\partial\ln P}
+-\frac{\partial\ln\phi_i^{incipient}}{\partial\ln P}.
+\]
+
+The incipient-composition columns are
+
+\[
+\frac{\partial R_i}{\partial u_k}=
+-\frac{\delta_{ik}-\delta_{ir}}{w_i}
+-\frac{\partial\ln\phi_i^{incipient}}{\partial u_k}.
+\]
+
+The first term is the necessary ideal-composition contribution. The second and
+the pressure column use the Module 13 fixed-root derivatives. Newton solves
+`J delta_q=-R`, measures merit with `||R||_infinity`, and accepts only a
+branch-continuous, physically valid, strictly improving backtracked trial. For
+one active component, the composition block is empty and the scalar pressure
+residual compares distinct liquid and vapor roots.
+
+This optional local layer does not change the Module 8 equations or gates. Its
+failure invokes the complete historical bracketed workflow.
+
 ## Module 9: natural-temperature phase-envelope continuation
 
 `phase_envelope.py` traces ordered bubble and dew saturation states for one

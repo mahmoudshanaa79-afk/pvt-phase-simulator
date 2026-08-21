@@ -20,6 +20,11 @@ from pvt_phase_simulator.eos.peng_robinson import (
     MechanicalStabilityClassification,
 )
 from pvt_phase_simulator.eos.saturation_pressure import (
+    DEFAULT_MAXIMUM_NEWTON_BACKTRACKING_ITERATIONS,
+    DEFAULT_MAXIMUM_NEWTON_ITERATIONS,
+    DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER,
+    DEFAULT_MINIMUM_NEWTON_LINE_SEARCH_FACTOR,
+    DEFAULT_NEWTON_LINE_SEARCH_REDUCTION_FACTOR,
     FUGACITY_EQUILIBRIUM_TOLERANCE,
     INNER_COMPOSITION_TOLERANCE,
     INNER_LOG_K_TOLERANCE,
@@ -127,6 +132,18 @@ class EnvelopeContinuationSettings:
     near_critical_root_stop: float = 0.005
     successive_substitution_damping_factor: float = 1.0
     successive_substitution_acceleration_enabled: bool = False
+    saturation_newton_enabled: bool = False
+    newton_max_iterations: int = DEFAULT_MAXIMUM_NEWTON_ITERATIONS
+    newton_max_jacobian_condition_number: float = (
+        DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER
+    )
+    newton_line_search_reduction_factor: float = (
+        DEFAULT_NEWTON_LINE_SEARCH_REDUCTION_FACTOR
+    )
+    newton_minimum_line_search_factor: float = DEFAULT_MINIMUM_NEWTON_LINE_SEARCH_FACTOR
+    newton_max_backtracking_iterations: int = (
+        DEFAULT_MAXIMUM_NEWTON_BACKTRACKING_ITERATIONS
+    )
 
     def __post_init__(self) -> None:
         positive_finite = {
@@ -167,6 +184,15 @@ class EnvelopeContinuationSettings:
             "near_critical_root_stop": self.near_critical_root_stop,
             "successive_substitution_damping_factor": (
                 self.successive_substitution_damping_factor
+            ),
+            "newton_max_jacobian_condition_number": (
+                self.newton_max_jacobian_condition_number
+            ),
+            "newton_line_search_reduction_factor": (
+                self.newton_line_search_reduction_factor
+            ),
+            "newton_minimum_line_search_factor": (
+                self.newton_minimum_line_search_factor
             ),
         }
         for name, value in positive_finite.items():
@@ -237,6 +263,35 @@ class EnvelopeContinuationSettings:
         if not isinstance(self.successive_substitution_acceleration_enabled, bool):
             raise ValueError(
                 "successive_substitution_acceleration_enabled must be a boolean."
+            )
+        if not isinstance(self.saturation_newton_enabled, bool):
+            raise ValueError("saturation_newton_enabled must be a boolean.")
+        if any(
+            isinstance(value, bool)
+            for value in (
+                self.newton_max_jacobian_condition_number,
+                self.newton_line_search_reduction_factor,
+                self.newton_minimum_line_search_factor,
+            )
+        ):
+            raise ValueError("Newton floating-point controls cannot be booleans.")
+        if (
+            type(self.newton_max_iterations) is not int
+            or self.newton_max_iterations <= 0
+        ):
+            raise ValueError("newton_max_iterations must be a positive integer.")
+        if self.newton_line_search_reduction_factor >= 1.0:
+            raise ValueError(
+                "newton_line_search_reduction_factor must be less than one."
+            )
+        if self.newton_minimum_line_search_factor >= 1.0:
+            raise ValueError("newton_minimum_line_search_factor must be less than one.")
+        if (
+            type(self.newton_max_backtracking_iterations) is not int
+            or self.newton_max_backtracking_iterations < 0
+        ):
+            raise ValueError(
+                "newton_max_backtracking_iterations must be a non-negative integer."
             )
 
 
@@ -516,6 +571,20 @@ def correct_envelope_prediction(
                 successive_substitution_acceleration_enabled=(
                     settings.successive_substitution_acceleration_enabled
                 ),
+                saturation_newton_enabled=settings.saturation_newton_enabled,
+                newton_max_iterations=settings.newton_max_iterations,
+                newton_max_jacobian_condition_number=(
+                    settings.newton_max_jacobian_condition_number
+                ),
+                newton_line_search_reduction_factor=(
+                    settings.newton_line_search_reduction_factor
+                ),
+                newton_minimum_line_search_factor=(
+                    settings.newton_minimum_line_search_factor
+                ),
+                newton_max_backtracking_iterations=(
+                    settings.newton_max_backtracking_iterations
+                ),
             )
         except (OverflowError, ValueError) as error:
             reason = f"Continuation-seeded correction failed: {error}"
@@ -566,6 +635,20 @@ def correct_envelope_prediction(
                 ),
                 successive_substitution_acceleration_enabled=(
                     settings.successive_substitution_acceleration_enabled
+                ),
+                saturation_newton_enabled=settings.saturation_newton_enabled,
+                newton_max_iterations=settings.newton_max_iterations,
+                newton_max_jacobian_condition_number=(
+                    settings.newton_max_jacobian_condition_number
+                ),
+                newton_line_search_reduction_factor=(
+                    settings.newton_line_search_reduction_factor
+                ),
+                newton_minimum_line_search_factor=(
+                    settings.newton_minimum_line_search_factor
+                ),
+                newton_max_backtracking_iterations=(
+                    settings.newton_max_backtracking_iterations
                 ),
             )
         except (OverflowError, ValueError) as error:
@@ -1131,6 +1214,20 @@ def trace_phase_envelope_branch(
             ),
             successive_substitution_acceleration_enabled=(
                 settings.successive_substitution_acceleration_enabled
+            ),
+            saturation_newton_enabled=settings.saturation_newton_enabled,
+            newton_max_iterations=settings.newton_max_iterations,
+            newton_max_jacobian_condition_number=(
+                settings.newton_max_jacobian_condition_number
+            ),
+            newton_line_search_reduction_factor=(
+                settings.newton_line_search_reduction_factor
+            ),
+            newton_minimum_line_search_factor=(
+                settings.newton_minimum_line_search_factor
+            ),
+            newton_max_backtracking_iterations=(
+                settings.newton_max_backtracking_iterations
             ),
         )
         if initial.status is not SaturationStatus.CONVERGED:

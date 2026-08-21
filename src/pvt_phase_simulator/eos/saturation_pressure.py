@@ -1,15 +1,19 @@
 """Fixed-temperature Peng–Robinson bubble- and dew-pressure calculations."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from math import exp, expm1, fsum, isclose, isfinite, log
 from sys import float_info
 from typing import Final
 
+import numpy as np
 from scipy.optimize import brentq  # type: ignore[import-untyped]
 
 from pvt_phase_simulator._validation import require_finite as _require_finite
 from pvt_phase_simulator._validation import require_positive as _require_positive
+from pvt_phase_simulator.eos.derivatives import (
+    calculate_fixed_root_mixture_fugacity_derivatives,
+)
 from pvt_phase_simulator.eos.diagnostics import (
     DiagnosticCategory,
     DiagnosticSeverity,
@@ -31,6 +35,7 @@ from pvt_phase_simulator.eos.mixing_rules import (
     BinaryInteractionPolicy,
     CanonicalBinaryInteractionPairs,
     CanonicalBinaryInteractions,
+    PengRobinsonMixtureParameters,
     calculate_peng_robinson_mixture_parameters,
 )
 from pvt_phase_simulator.eos.peng_robinson import (
@@ -45,6 +50,7 @@ from pvt_phase_simulator.eos.phase_stability import (
 from pvt_phase_simulator.fluid_models import (
     MOLE_FRACTION_TOLERANCE,
     FluidMixture,
+    MixtureComponent,
 )
 
 SATURATION_OBJECTIVE_TOLERANCE: Final = 1e-8
@@ -66,6 +72,11 @@ TRIVIAL_STATE_DIAGNOSTIC_CODE: Final = "SATURATION_TRIVIAL_STATE"
 DEFAULT_MAXIMUM_INNER_ITERATIONS: Final = 100
 DEFAULT_PRESSURE_SEARCH_POINTS: Final = 81
 DEFAULT_MAXIMUM_OUTER_ITERATIONS: Final = 100
+DEFAULT_MAXIMUM_NEWTON_ITERATIONS: Final = 15
+DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER: Final = 1e12
+DEFAULT_NEWTON_LINE_SEARCH_REDUCTION_FACTOR: Final = 0.5
+DEFAULT_MINIMUM_NEWTON_LINE_SEARCH_FACTOR: Final = 1e-6
+DEFAULT_MAXIMUM_NEWTON_BACKTRACKING_ITERATIONS: Final = 20
 _LOG_FLOAT_MAX: Final = log(float_info.max)
 _LOG_FLOAT_MIN: Final = log(float_info.min)
 
@@ -94,6 +105,13 @@ class InnerSaturationStatus(StrEnum):
     FAILED = "failed"
 
 
+class SaturationNewtonStatus(StrEnum):
+    """Disposition of the optional local Newton saturation attempt."""
+
+    CONVERGED = "converged"
+    REJECTED = "rejected"
+
+
 @dataclass(frozen=True, slots=True)
 class WilsonPressureEstimates:
     """Finite positive Wilson pressure estimates in Pa."""
@@ -101,6 +119,37 @@ class WilsonPressureEstimates:
     component_pressure_factors_pa: tuple[float, ...]
     bubble_pressure_pa: float
     dew_pressure_pa: float
+
+
+@dataclass(frozen=True, slots=True)
+class SaturationNewtonIteration:
+    """Immutable evidence for one accepted local Newton iteration."""
+
+    iteration: int
+    pressure_pa: float
+    incipient_composition: tuple[float, ...]
+    residual_norm: float
+    jacobian_condition_number: float
+    step_norm: float
+    line_search_factor: float
+    rejected_trial_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SaturationNewtonAttempt:
+    """Compact evidence from the optional safeguarded Newton layer."""
+
+    status: SaturationNewtonStatus
+    converged: bool
+    iteration_count: int
+    function_evaluations: int
+    initial_residual_norm: float | None
+    final_residual_norm: float | None
+    full_steps: int
+    backtracked_steps: int
+    rejected_steps: int
+    failure_reason: str | None
+    history: tuple[SaturationNewtonIteration, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +230,19 @@ class SaturationPressureResult:
     binary_interactions: CanonicalBinaryInteractions
     supplied_binary_interaction_pairs: CanonicalBinaryInteractionPairs
     defaulted_binary_interaction_pairs: CanonicalBinaryInteractionPairs
+    newton_attempt: SaturationNewtonAttempt | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _SaturationNewtonSystemEvaluation:
+    """One complete residual/Jacobian evaluation on fixed selected roots."""
+
+    pressure_pa: float
+    active_incipient_composition: tuple[float, ...]
+    residuals: tuple[float, ...]
+    jacobian: tuple[tuple[float, ...], ...]
+    parent_phase: FlashPhaseResult
+    incipient_phase: FlashPhaseResult
 
 
 def _feed_composition(mixture: FluidMixture) -> tuple[float, ...]:
@@ -789,6 +851,356 @@ def _phase_interaction_provenance(
     )
 
 
+def _validate_newton_controls(
+    saturation_newton_enabled: bool,
+    newton_max_iterations: int,
+    newton_max_jacobian_condition_number: float,
+    newton_line_search_reduction_factor: float,
+    newton_minimum_line_search_factor: float,
+    newton_max_backtracking_iterations: int,
+) -> None:
+    if not isinstance(saturation_newton_enabled, bool):
+        raise ValueError("saturation_newton_enabled must be a boolean.")
+    if type(newton_max_iterations) is not int or newton_max_iterations <= 0:
+        raise ValueError("newton_max_iterations must be a positive integer.")
+    if isinstance(newton_max_jacobian_condition_number, bool):
+        raise ValueError(
+            "newton_max_jacobian_condition_number must be a finite positive number."
+        )
+    if isinstance(newton_line_search_reduction_factor, bool):
+        raise ValueError(
+            "newton_line_search_reduction_factor must be a finite positive number."
+        )
+    _require_positive(
+        newton_max_jacobian_condition_number,
+        "newton_max_jacobian_condition_number",
+    )
+    if isinstance(newton_minimum_line_search_factor, bool):
+        raise ValueError(
+            "newton_minimum_line_search_factor must be a finite positive number."
+        )
+    _require_positive(
+        newton_line_search_reduction_factor,
+        "newton_line_search_reduction_factor",
+    )
+    if newton_line_search_reduction_factor >= 1.0:
+        raise ValueError("newton_line_search_reduction_factor must be less than one.")
+    _require_positive(
+        newton_minimum_line_search_factor,
+        "newton_minimum_line_search_factor",
+    )
+    if newton_minimum_line_search_factor >= 1.0:
+        raise ValueError("newton_minimum_line_search_factor must be less than one.")
+    if (
+        type(newton_max_backtracking_iterations) is not int
+        or newton_max_backtracking_iterations < 0
+    ):
+        raise ValueError(
+            "newton_max_backtracking_iterations must be a non-negative integer."
+        )
+
+
+def _active_newton_mixture(
+    mixture: FluidMixture,
+) -> tuple[FluidMixture, tuple[int, ...]]:
+    active_indices = tuple(
+        index
+        for index, item in enumerate(mixture.components)
+        if item.mole_fraction > 0.0
+    )
+    active_mixture = FluidMixture(
+        tuple(
+            MixtureComponent(
+                mixture.components[index].component,
+                mixture.components[index].mole_fraction,
+            )
+            for index in active_indices
+        )
+    )
+    return active_mixture, active_indices
+
+
+def _active_interactions(
+    binary_interactions: BinaryInteractionMapping | None,
+    active_mixture: FluidMixture,
+) -> BinaryInteractionMapping | None:
+    if binary_interactions is None:
+        return None
+    names = {item.component.name.casefold() for item in active_mixture.components}
+    return {
+        pair: value
+        for pair, value in binary_interactions.items()
+        if pair[0].casefold() in names and pair[1].casefold() in names
+    }
+
+
+def _provenance_from_parameters(
+    parameters: PengRobinsonMixtureParameters,
+) -> PhaseInteractionProvenance:
+    # Kept local so Newton phase evaluation uses the exact metadata generated
+    # for its reduced active-component mixture.
+    return PhaseInteractionProvenance(
+        binary_interaction_policy=parameters.binary_interaction_policy,
+        binary_interactions=parameters.binary_interactions,
+        supplied_binary_interaction_pairs=parameters.supplied_binary_interaction_pairs,
+        defaulted_binary_interaction_pairs=(
+            parameters.defaulted_binary_interaction_pairs
+        ),
+    )
+
+
+def _newton_composition_from_coordinates(
+    coordinates: tuple[float, ...],
+    active_component_count: int,
+) -> tuple[float, ...]:
+    if len(coordinates) != active_component_count - 1:
+        raise ValueError("Newton composition-coordinate count is inconsistent.")
+    for index, value in enumerate(coordinates):
+        _require_finite(value, f"Newton composition coordinate[{index}]")
+        if value <= 0.0:
+            raise ValueError("Newton active composition coordinates must be positive.")
+    reference_fraction = 1.0 - fsum(coordinates)
+    if reference_fraction <= 0.0:
+        raise ValueError("Newton reference-component fraction must be positive.")
+    composition = (*coordinates, reference_fraction)
+    if not isclose(
+        fsum(composition),
+        1.0,
+        rel_tol=0.0,
+        abs_tol=MOLE_FRACTION_TOLERANCE,
+    ):
+        raise ValueError("Newton incipient composition must remain normalized.")
+    return composition
+
+
+def _evaluate_saturation_newton_system(
+    mixture: FluidMixture,
+    temperature_k: float,
+    saturation_kind: SaturationKind,
+    coordinates: tuple[float, ...],
+    log_pressure: float,
+    minimum_pressure_pa: float,
+    maximum_pressure_pa: float,
+    binary_interactions: BinaryInteractionMapping | None,
+    binary_interaction_policy: BinaryInteractionPolicy,
+) -> _SaturationNewtonSystemEvaluation:
+    """Evaluate the complete local saturation residual and analytical Jacobian.
+
+    For active component ``i``, ``R_i = ln(z_i) + ln(phi_i^parent)
+    - ln(w_i) - ln(phi_i^incipient)``. The unknown vector contains the
+    ``m-1`` direct simplex coordinates followed by ``ln(P)``.
+    """
+
+    _require_finite(log_pressure, "Newton log pressure")
+    lower_log = log(minimum_pressure_pa)
+    upper_log = log(maximum_pressure_pa)
+    if not lower_log <= log_pressure <= upper_log:
+        raise ValueError("Newton pressure proposal lies outside configured bounds.")
+    pressure_pa = exp(log_pressure)
+    active_mixture, _ = _active_newton_mixture(mixture)
+    active_feed = _feed_composition(active_mixture)
+    incipient = _newton_composition_from_coordinates(
+        coordinates, len(active_mixture.components)
+    )
+    active_binary_interactions = _active_interactions(
+        binary_interactions, active_mixture
+    )
+    parent_parameters = calculate_peng_robinson_mixture_parameters(
+        active_mixture,
+        temperature_k,
+        pressure_pa,
+        active_binary_interactions,
+        binary_interaction_policy,
+    )
+    provenance = _provenance_from_parameters(parent_parameters)
+    parent_kind, incipient_kind = _phase_kinds(saturation_kind)
+    parent_phase = evaluate_flash_phase(
+        active_mixture,
+        active_feed,
+        temperature_k,
+        pressure_pa,
+        parent_kind,
+        None,
+        active_binary_interactions,
+        binary_interaction_policy,
+        interaction_provenance=provenance,
+    )
+    incipient_phase = evaluate_flash_phase(
+        active_mixture,
+        incipient,
+        temperature_k,
+        pressure_pa,
+        incipient_kind,
+        None,
+        active_binary_interactions,
+        binary_interaction_policy,
+        interaction_provenance=provenance,
+    )
+    if (
+        len(active_mixture.components) == 1
+        and abs(
+            parent_phase.selected_compressibility_factor
+            - incipient_phase.selected_compressibility_factor
+        )
+        <= PURE_PHASE_ROOT_SEPARATION_TOLERANCE
+    ):
+        raise ValueError(
+            "pure-component Newton saturation requires distinct physical roots."
+        )
+    incipient_mixture = FluidMixture(
+        tuple(
+            MixtureComponent(item.component, fraction)
+            for item, fraction in zip(active_mixture.components, incipient, strict=True)
+        )
+    )
+    incipient_parameters = calculate_peng_robinson_mixture_parameters(
+        incipient_mixture,
+        temperature_k,
+        pressure_pa,
+        active_binary_interactions,
+        binary_interaction_policy,
+    )
+    parent_derivatives = calculate_fixed_root_mixture_fugacity_derivatives(
+        parent_parameters,
+        parent_phase.selected_compressibility_factor,
+        active_binary_interactions,
+    )
+    incipient_derivatives = calculate_fixed_root_mixture_fugacity_derivatives(
+        incipient_parameters,
+        incipient_phase.selected_compressibility_factor,
+        active_binary_interactions,
+    )
+    if not parent_derivatives.applicable or not incipient_derivatives.applicable:
+        reason = (
+            parent_derivatives.failure_reason
+            if not parent_derivatives.applicable
+            else incipient_derivatives.failure_reason
+        )
+        raise ValueError(f"fixed-root derivatives are unavailable: {reason}")
+    parent_pressure = parent_derivatives.log_fugacity_log_pressure_derivatives
+    incipient_pressure = incipient_derivatives.log_fugacity_log_pressure_derivatives
+    incipient_composition = incipient_derivatives.log_fugacity_composition_derivatives
+    if (
+        parent_pressure is None
+        or incipient_pressure is None
+        or incipient_composition is None
+    ):
+        raise ValueError("applicable Newton derivatives are incomplete.")
+    phase_values = zip(
+        active_feed,
+        parent_phase.component_log_fugacity_coefficients,
+        incipient,
+        incipient_phase.component_log_fugacity_coefficients,
+        strict=True,
+    )
+    residual_values: list[float] = []
+    for (
+        parent_fraction,
+        parent_log_phi,
+        incipient_fraction,
+        incipient_log_phi,
+    ) in phase_values:
+        residual_values.append(
+            log(parent_fraction)
+            + parent_log_phi
+            - log(incipient_fraction)
+            - incipient_log_phi
+        )
+    residuals = tuple(residual_values)
+    reference_index = len(incipient) - 1
+    rows: list[tuple[float, ...]] = []
+    for component_index, fraction in enumerate(incipient):
+        composition_columns = tuple(
+            -(
+                (1.0 if component_index == coordinate_index else 0.0)
+                - (1.0 if component_index == reference_index else 0.0)
+            )
+            / fraction
+            - incipient_composition[component_index][column]
+            for column, coordinate_index in enumerate(
+                incipient_derivatives.parameter_derivatives.independent_component_indices
+            )
+        )
+        rows.append(
+            (
+                *composition_columns,
+                parent_pressure[component_index] - incipient_pressure[component_index],
+            )
+        )
+    for index, value in enumerate(residuals):
+        _require_finite(value, f"Newton residual[{index}]")
+    for row_index, row in enumerate(rows):
+        for column_index, value in enumerate(row):
+            _require_finite(value, f"Newton Jacobian[{row_index},{column_index}]")
+    return _SaturationNewtonSystemEvaluation(
+        pressure_pa=pressure_pa,
+        active_incipient_composition=incipient,
+        residuals=residuals,
+        jacobian=tuple(rows),
+        parent_phase=parent_phase,
+        incipient_phase=incipient_phase,
+    )
+
+
+def _root_branch_is_continuous(
+    previous: FlashPhaseResult,
+    current: FlashPhaseResult,
+) -> bool:
+    if previous.trial_kind is not current.trial_kind:
+        return False
+    previous_candidates = previous.root_selection.candidates
+    current_candidates = current.root_selection.candidates
+    if len(previous_candidates) != len(current_candidates):
+        return False
+    if tuple(item.classification for item in previous_candidates) != tuple(
+        item.classification for item in current_candidates
+    ):
+        return False
+    current_stable = tuple(
+        item.compressibility_factor
+        for item in current_candidates
+        if item.classification is MechanicalStabilityClassification.STABLE
+    )
+    if not current_stable:
+        return False
+    previous_z = previous.selected_compressibility_factor
+    current_z = current.selected_compressibility_factor
+    distances = sorted(abs(value - previous_z) for value in current_stable)
+    scale = max(1.0, abs(previous_z), abs(current_z))
+    tolerance = 1e-8 * scale
+    if len(distances) > 1 and abs(distances[1] - distances[0]) <= tolerance:
+        return False
+    closest = min(current_stable, key=lambda value: abs(value - previous_z))
+    return abs(closest - current_z) <= tolerance
+
+
+def _newton_is_trivial(
+    feed: tuple[float, ...],
+    incipient: tuple[float, ...],
+    saturation_kind: SaturationKind,
+    parent_phase: FlashPhaseResult,
+    incipient_phase: FlashPhaseResult,
+) -> bool:
+    if len(feed) <= 1:
+        return False
+    direction = 1.0 if saturation_kind is SaturationKind.BUBBLE_POINT else -1.0
+    log_k = tuple(
+        direction * (log(trial) - log(parent))
+        for parent, trial in zip(feed, incipient, strict=True)
+    )
+    composition_separation = max(
+        abs(parent - trial) for parent, trial in zip(feed, incipient, strict=True)
+    )
+    root_separation = abs(
+        parent_phase.selected_compressibility_factor
+        - incipient_phase.selected_compressibility_factor
+    )
+    return max(abs(value) for value in log_k) <= TRIVIAL_LOG_K_TOLERANCE or (
+        composition_separation <= INNER_COMPOSITION_TOLERANCE
+        and root_separation <= PURE_PHASE_ROOT_SEPARATION_TOLERANCE
+    )
+
+
 def _empty_result(
     saturation_kind: SaturationKind,
     status: SaturationStatus,
@@ -838,7 +1250,605 @@ def _empty_result(
     )
 
 
+def _rejected_newton_attempt(
+    reason: str,
+    *,
+    iteration_count: int = 0,
+    function_evaluations: int = 0,
+    initial_residual_norm: float | None = None,
+    final_residual_norm: float | None = None,
+    full_steps: int = 0,
+    backtracked_steps: int = 0,
+    rejected_steps: int = 0,
+    history: tuple[SaturationNewtonIteration, ...] = (),
+) -> SaturationNewtonAttempt:
+    return SaturationNewtonAttempt(
+        status=SaturationNewtonStatus.REJECTED,
+        converged=False,
+        iteration_count=iteration_count,
+        function_evaluations=function_evaluations,
+        initial_residual_norm=initial_residual_norm,
+        final_residual_norm=final_residual_norm,
+        full_steps=full_steps,
+        backtracked_steps=backtracked_steps,
+        rejected_steps=rejected_steps,
+        failure_reason=reason,
+        history=history,
+    )
+
+
+def _attempt_saturation_newton(
+    mixture: FluidMixture,
+    temperature_k: float,
+    saturation_kind: SaturationKind,
+    minimum_pressure_pa: float,
+    maximum_pressure_pa: float,
+    binary_interactions: BinaryInteractionMapping | None,
+    binary_interaction_policy: BinaryInteractionPolicy,
+    initial_log_k_values: tuple[float, ...] | None,
+    newton_max_iterations: int,
+    newton_max_jacobian_condition_number: float,
+    newton_line_search_reduction_factor: float,
+    newton_minimum_line_search_factor: float,
+    newton_max_backtracking_iterations: int,
+) -> tuple[
+    SaturationNewtonAttempt,
+    _SaturationNewtonSystemEvaluation | None,
+    float | None,
+]:
+    """Attempt the local Newton layer without invoking the historical solver."""
+
+    function_evaluations = 0
+    initial_norm: float | None = None
+    final_norm: float | None = None
+    full_steps = 0
+    backtracked_steps = 0
+    rejected_steps = 0
+    history: list[SaturationNewtonIteration] = []
+
+    def reject(
+        reason: str,
+    ) -> tuple[
+        SaturationNewtonAttempt,
+        _SaturationNewtonSystemEvaluation | None,
+        float | None,
+    ]:
+        return (
+            _rejected_newton_attempt(
+                reason,
+                iteration_count=len(history),
+                function_evaluations=function_evaluations,
+                initial_residual_norm=initial_norm,
+                final_residual_norm=final_norm,
+                full_steps=full_steps,
+                backtracked_steps=backtracked_steps,
+                rejected_steps=rejected_steps,
+                history=tuple(history),
+            ),
+            None,
+            None,
+        )
+
+    try:
+        _require_positive(temperature_k, "temperature_k")
+        _require_positive(minimum_pressure_pa, "minimum_pressure_pa")
+        _require_positive(maximum_pressure_pa, "maximum_pressure_pa")
+        _require_kind(saturation_kind)
+        if minimum_pressure_pa >= maximum_pressure_pa:
+            raise ValueError("minimum pressure must be less than maximum pressure.")
+        estimates = calculate_wilson_pressure_estimates(mixture, temperature_k)
+        estimate = (
+            estimates.bubble_pressure_pa
+            if saturation_kind is SaturationKind.BUBBLE_POINT
+            else estimates.dew_pressure_pa
+        )
+        if initial_log_k_values is None:
+            pressure_seed = min(max(estimate, minimum_pressure_pa), maximum_pressure_pa)
+            initial_k = calculate_wilson_k_values(
+                tuple(item.component for item in mixture.components),
+                temperature_k,
+                pressure_seed,
+            )
+            seed_log_k = tuple(log(item.k_value) for item in initial_k)
+        else:
+            if len(initial_log_k_values) != len(mixture.components):
+                raise ValueError(
+                    "initial_log_k_values must be an aligned immutable tuple."
+                )
+            k_values_from_log_values(initial_log_k_values)
+            seed_log_k = initial_log_k_values
+            pressure_seed = exp(
+                0.5 * (log(minimum_pressure_pa) + log(maximum_pressure_pa))
+            )
+        full_feed = _feed_composition(mixture)
+        initial_incipient = _normalize_incipient_composition(
+            full_feed, seed_log_k, saturation_kind
+        )
+        _, active_indices = _active_newton_mixture(mixture)
+        active_incipient = tuple(initial_incipient[index] for index in active_indices)
+        active_total = fsum(active_incipient)
+        active_incipient = tuple(value / active_total for value in active_incipient)
+        coordinates = active_incipient[:-1]
+        log_pressure = log(pressure_seed)
+        interaction_snapshot = (
+            None if binary_interactions is None else dict(binary_interactions)
+        )
+        # Validate the complete, unreduced interaction input before an active-
+        # component Newton system is allowed to accept a result.
+        _phase_interaction_provenance(
+            mixture,
+            temperature_k,
+            pressure_seed,
+            interaction_snapshot,
+            binary_interaction_policy,
+        )
+        current = _evaluate_saturation_newton_system(
+            mixture,
+            temperature_k,
+            saturation_kind,
+            coordinates,
+            log_pressure,
+            minimum_pressure_pa,
+            maximum_pressure_pa,
+            interaction_snapshot,
+            binary_interaction_policy,
+        )
+        function_evaluations += 1
+        current_norm = max(abs(value) for value in current.residuals)
+        initial_norm = current_norm
+        final_norm = current_norm
+        active_mixture, _ = _active_newton_mixture(mixture)
+        active_feed = _feed_composition(active_mixture)
+        if _newton_is_trivial(
+            active_feed,
+            current.active_incipient_composition,
+            saturation_kind,
+            current.parent_phase,
+            current.incipient_phase,
+        ):
+            return reject("Newton initialization collapsed to the trivial state.")
+    except (OverflowError, TypeError, ValueError) as error:
+        return reject(f"Newton initialization was unsuitable: {error}")
+
+    for iteration_number in range(1, newton_max_iterations + 1):
+        if current_norm <= INNER_LOG_K_TOLERANCE:
+            attempt = SaturationNewtonAttempt(
+                status=SaturationNewtonStatus.CONVERGED,
+                converged=True,
+                iteration_count=len(history),
+                function_evaluations=function_evaluations,
+                initial_residual_norm=initial_norm,
+                final_residual_norm=current_norm,
+                full_steps=full_steps,
+                backtracked_steps=backtracked_steps,
+                rejected_steps=rejected_steps,
+                failure_reason=None,
+                history=tuple(history),
+            )
+            return attempt, current, estimate
+        matrix = np.asarray(current.jacobian, dtype=float)
+        residual = np.asarray(current.residuals, dtype=float)
+        if not np.all(np.isfinite(matrix)) or not np.all(np.isfinite(residual)):
+            return reject("Newton Jacobian or residual is non-finite.")
+        try:
+            condition_number = float(np.linalg.cond(matrix))
+        except np.linalg.LinAlgError as error:
+            return reject(f"Newton Jacobian conditioning failed: {error}")
+        if not isfinite(condition_number):
+            return reject("Newton Jacobian condition number is non-finite.")
+        if condition_number > newton_max_jacobian_condition_number:
+            return reject(
+                "Newton Jacobian exceeds the configured condition-number safeguard."
+            )
+        try:
+            step = np.linalg.solve(matrix, -residual)
+        except np.linalg.LinAlgError as error:
+            return reject(f"Newton linear solve failed: {error}")
+        if not np.all(np.isfinite(step)):
+            return reject("Newton linear solve returned a non-finite step.")
+        step_norm = float(np.linalg.norm(step, ord=np.inf))
+        alpha = 1.0
+        accepted: _SaturationNewtonSystemEvaluation | None = None
+        accepted_coordinates: tuple[float, ...] | None = None
+        accepted_log_pressure: float | None = None
+        rejected_this_iteration = 0
+        last_rejection_reason = "no trial was evaluated"
+        for _ in range(newton_max_backtracking_iterations + 1):
+            trial_coordinates = tuple(
+                coordinate + alpha * float(step[index])
+                for index, coordinate in enumerate(coordinates)
+            )
+            trial_log_pressure = log_pressure + alpha * float(step[-1])
+            try:
+                trial = _evaluate_saturation_newton_system(
+                    mixture,
+                    temperature_k,
+                    saturation_kind,
+                    trial_coordinates,
+                    trial_log_pressure,
+                    minimum_pressure_pa,
+                    maximum_pressure_pa,
+                    interaction_snapshot,
+                    binary_interaction_policy,
+                )
+                function_evaluations += 1
+                trial_norm = max(abs(value) for value in trial.residuals)
+                branch_continuous = _root_branch_is_continuous(
+                    current.parent_phase, trial.parent_phase
+                ) and _root_branch_is_continuous(
+                    current.incipient_phase, trial.incipient_phase
+                )
+                trivial = _newton_is_trivial(
+                    active_feed,
+                    trial.active_incipient_composition,
+                    saturation_kind,
+                    trial.parent_phase,
+                    trial.incipient_phase,
+                )
+                if branch_continuous and not trivial and trial_norm < current_norm:
+                    accepted = trial
+                    accepted_coordinates = trial_coordinates
+                    accepted_log_pressure = trial_log_pressure
+                    break
+                if not branch_continuous:
+                    last_rejection_reason = "root branch continuity was not preserved"
+                elif trivial:
+                    last_rejection_reason = "the trial was a prohibited trivial state"
+                else:
+                    last_rejection_reason = "the equilibrium merit did not improve"
+            except (OverflowError, TypeError, ValueError) as error:
+                last_rejection_reason = str(error)
+            rejected_steps += 1
+            rejected_this_iteration += 1
+            alpha *= newton_line_search_reduction_factor
+            if alpha < newton_minimum_line_search_factor:
+                break
+        if (
+            accepted is None
+            or accepted_coordinates is None
+            or accepted_log_pressure is None
+        ):
+            return reject(
+                "Newton line search found no branch-compatible improving step; "
+                f"last rejection: {last_rejection_reason}."
+            )
+        if alpha == 1.0:
+            full_steps += 1
+        else:
+            backtracked_steps += 1
+        coordinates = accepted_coordinates
+        log_pressure = accepted_log_pressure
+        current = accepted
+        current_norm = max(abs(value) for value in current.residuals)
+        final_norm = current_norm
+        history.append(
+            SaturationNewtonIteration(
+                iteration=iteration_number,
+                pressure_pa=current.pressure_pa,
+                incipient_composition=current.active_incipient_composition,
+                residual_norm=current_norm,
+                jacobian_condition_number=condition_number,
+                step_norm=step_norm,
+                line_search_factor=alpha,
+                rejected_trial_count=rejected_this_iteration,
+            )
+        )
+    return reject(
+        "Maximum Newton iterations reached without full residual convergence."
+    )
+
+
+def _build_newton_saturation_result(
+    mixture: FluidMixture,
+    temperature_k: float,
+    saturation_kind: SaturationKind,
+    minimum_pressure_pa: float,
+    maximum_pressure_pa: float,
+    binary_interactions: BinaryInteractionMapping | None,
+    binary_interaction_policy: BinaryInteractionPolicy,
+    attempt: SaturationNewtonAttempt,
+    state: _SaturationNewtonSystemEvaluation,
+    estimate: float,
+) -> SaturationPressureResult:
+    """Reconstruct a full-order state and apply the historical physical gates."""
+
+    full_feed = _feed_composition(mixture)
+    _, active_indices = _active_newton_mixture(mixture)
+    active_by_index = dict(
+        zip(active_indices, state.active_incipient_composition, strict=True)
+    )
+    incipient = tuple(
+        active_by_index.get(index, 0.0) for index in range(len(full_feed))
+    )
+    interaction_snapshot = (
+        None if binary_interactions is None else dict(binary_interactions)
+    )
+    provenance = _phase_interaction_provenance(
+        mixture,
+        temperature_k,
+        state.pressure_pa,
+        interaction_snapshot,
+        binary_interaction_policy,
+    )
+    parent_kind, incipient_kind = _phase_kinds(saturation_kind)
+    parent_phase = evaluate_flash_phase(
+        mixture,
+        full_feed,
+        temperature_k,
+        state.pressure_pa,
+        parent_kind,
+        None,
+        interaction_snapshot,
+        binary_interaction_policy,
+        interaction_provenance=provenance,
+    )
+    incipient_phase = evaluate_flash_phase(
+        mixture,
+        incipient,
+        temperature_k,
+        state.pressure_pa,
+        incipient_kind,
+        None,
+        interaction_snapshot,
+        binary_interaction_policy,
+        interaction_provenance=provenance,
+    )
+    if (
+        abs(
+            parent_phase.selected_compressibility_factor
+            - state.parent_phase.selected_compressibility_factor
+        )
+        > 1e-11
+        or abs(
+            incipient_phase.selected_compressibility_factor
+            - state.incipient_phase.selected_compressibility_factor
+        )
+        > 1e-11
+    ):
+        raise ValueError("full-order Newton reconstruction changed the selected root.")
+    direction = 1.0 if saturation_kind is SaturationKind.BUBBLE_POINT else -1.0
+    log_k_values = tuple(
+        0.0
+        if feed_fraction == 0.0
+        else direction * (log(trial_fraction) - log(feed_fraction))
+        for feed_fraction, trial_fraction in zip(full_feed, incipient, strict=True)
+    )
+    k_values = k_values_from_log_values(log_k_values)
+    liquid_log_phi, vapor_log_phi = _phase_log_phi(
+        saturation_kind, parent_phase, incipient_phase
+    )
+    target_log_k = tuple(
+        liquid - vapor
+        for liquid, vapor in zip(liquid_log_phi, vapor_log_phi, strict=True)
+    )
+    maximum_log_k_residual = max(
+        abs(target - current)
+        for fraction, target, current in zip(
+            full_feed, target_log_k, log_k_values, strict=True
+        )
+        if fraction > 0.0
+    )
+    objective = _saturation_objective_from_log_k(
+        full_feed, log_k_values, saturation_kind
+    )
+    sum_residual = fsum(incipient) - 1.0
+    fugacity_residuals = _fugacity_residuals(
+        full_feed, incipient, parent_phase, incipient_phase
+    )
+    maximum_fugacity_residual = max(
+        (abs(value) for value in fugacity_residuals if value is not None),
+        default=0.0,
+    )
+    diagnostics: list[EOSDiagnostic] = []
+    _append_unique_diagnostics(diagnostics, parent_phase.diagnostics)
+    _append_unique_diagnostics(diagnostics, incipient_phase.diagnostics)
+    iteration = SaturationPressureIteration(
+        iteration=max(1, attempt.iteration_count),
+        pressure_pa=state.pressure_pa,
+        log_k_values=log_k_values,
+        k_values=k_values,
+        incipient_composition=incipient,
+        parent_phase=parent_phase,
+        incipient_phase=incipient_phase,
+        acceleration=None,
+        updated_log_k_values=log_k_values,
+        maximum_log_k_residual=maximum_log_k_residual,
+        composition_change=0.0,
+        saturation_objective=objective,
+        incipient_sum_residual=sum_residual,
+        fugacity_equilibrium_residuals=fugacity_residuals,
+        maximum_fugacity_equilibrium_residual=maximum_fugacity_residual,
+        diagnostics=tuple(diagnostics),
+    )
+    evaluation = SaturationPressureEvaluation(
+        saturation_kind=saturation_kind,
+        pressure_pa=state.pressure_pa,
+        status=InnerSaturationStatus.CONVERGED,
+        converged=True,
+        objective=objective,
+        parent_composition=full_feed,
+        incipient_composition=incipient,
+        k_values=k_values,
+        parent_phase=parent_phase,
+        incipient_phase=incipient_phase,
+        fugacity_equilibrium_residuals=fugacity_residuals,
+        maximum_log_k_residual=maximum_log_k_residual,
+        composition_change=0.0,
+        incipient_sum_residual=sum_residual,
+        history=(iteration,),
+        failure_reason=None,
+        diagnostics=tuple(diagnostics),
+    )
+    final_converged = (
+        abs(objective) <= SATURATION_OBJECTIVE_TOLERANCE
+        and maximum_log_k_residual <= INNER_LOG_K_TOLERANCE
+        and abs(sum_residual) <= INCIPIENT_SUM_TOLERANCE
+        and maximum_fugacity_residual <= FUGACITY_EQUILIBRIUM_TOLERANCE
+        and parent_phase.mechanical_classification
+        is MechanicalStabilityClassification.STABLE
+        and incipient_phase.mechanical_classification
+        is MechanicalStabilityClassification.STABLE
+        and isfinite(state.pressure_pa)
+        and minimum_pressure_pa <= state.pressure_pa <= maximum_pressure_pa
+    )
+    active_feed = tuple(value for value in full_feed if value > 0.0)
+    active_incipient = tuple(
+        value
+        for feed_fraction, value in zip(full_feed, incipient, strict=True)
+        if feed_fraction > 0.0
+    )
+    if _newton_is_trivial(
+        active_feed,
+        active_incipient,
+        saturation_kind,
+        state.parent_phase,
+        state.incipient_phase,
+    ):
+        final_converged = False
+    if not final_converged:
+        raise ValueError(
+            "Newton state failed the historical saturation acceptance gates."
+        )
+    return SaturationPressureResult(
+        saturation_kind=saturation_kind,
+        status=SaturationStatus.CONVERGED,
+        feed_mixture=mixture,
+        feed_composition=full_feed,
+        temperature_k=temperature_k,
+        pressure_pa=state.pressure_pa,
+        initial_pressure_estimate_pa=estimate,
+        pressure_bounds_pa=(minimum_pressure_pa, maximum_pressure_pa),
+        bracket_pressures_pa=None,
+        bracket_objective_values=None,
+        parent_composition=full_feed,
+        incipient_composition=incipient,
+        k_values=k_values,
+        parent_phase=parent_phase,
+        incipient_phase=incipient_phase,
+        fugacity_equilibrium_residuals=fugacity_residuals,
+        maximum_fugacity_equilibrium_residual=maximum_fugacity_residual,
+        composition_sum_residual=sum_residual,
+        pressure_residual=objective,
+        pressure_solver_iterations=attempt.iteration_count,
+        pressure_solver_function_calls=attempt.function_evaluations,
+        evaluation_history=(evaluation,),
+        convergence_status=SaturationStatus.CONVERGED,
+        failure_reason=None,
+        diagnostics=tuple(diagnostics),
+        binary_interaction_policy=provenance.binary_interaction_policy,
+        binary_interactions=provenance.binary_interactions,
+        supplied_binary_interaction_pairs=provenance.supplied_binary_interaction_pairs,
+        defaulted_binary_interaction_pairs=provenance.defaulted_binary_interaction_pairs,
+        newton_attempt=attempt,
+    )
+
+
 def calculate_saturation_pressure(
+    mixture: FluidMixture,
+    temperature_k: float,
+    saturation_kind: SaturationKind,
+    minimum_pressure_pa: float = 1_000.0,
+    maximum_pressure_pa: float = 100_000_000.0,
+    binary_interactions: BinaryInteractionMapping | None = None,
+    binary_interaction_policy: BinaryInteractionPolicy = (
+        BinaryInteractionPolicy.DEFAULT_ZERO
+    ),
+    maximum_inner_iterations: int = DEFAULT_MAXIMUM_INNER_ITERATIONS,
+    pressure_search_points: int = DEFAULT_PRESSURE_SEARCH_POINTS,
+    maximum_outer_iterations: int = DEFAULT_MAXIMUM_OUTER_ITERATIONS,
+    *,
+    initial_log_k_values: tuple[float, ...] | None = None,
+    successive_substitution_damping_factor: float = 1.0,
+    successive_substitution_acceleration_enabled: bool = False,
+    saturation_newton_enabled: bool = False,
+    newton_max_iterations: int = DEFAULT_MAXIMUM_NEWTON_ITERATIONS,
+    newton_max_jacobian_condition_number: float = (
+        DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER
+    ),
+    newton_line_search_reduction_factor: float = (
+        DEFAULT_NEWTON_LINE_SEARCH_REDUCTION_FACTOR
+    ),
+    newton_minimum_line_search_factor: float = (
+        DEFAULT_MINIMUM_NEWTON_LINE_SEARCH_FACTOR
+    ),
+    newton_max_backtracking_iterations: int = (
+        DEFAULT_MAXIMUM_NEWTON_BACKTRACKING_ITERATIONS
+    ),
+) -> SaturationPressureResult:
+    """Calculate saturation pressure with an optional local Newton first layer."""
+
+    _validate_newton_controls(
+        saturation_newton_enabled,
+        newton_max_iterations,
+        newton_max_jacobian_condition_number,
+        newton_line_search_reduction_factor,
+        newton_minimum_line_search_factor,
+        newton_max_backtracking_iterations,
+    )
+
+    def historical() -> SaturationPressureResult:
+        return _calculate_saturation_pressure_historical(
+            mixture,
+            temperature_k,
+            saturation_kind,
+            minimum_pressure_pa,
+            maximum_pressure_pa,
+            binary_interactions,
+            binary_interaction_policy,
+            maximum_inner_iterations,
+            pressure_search_points,
+            maximum_outer_iterations,
+            initial_log_k_values=initial_log_k_values,
+            successive_substitution_damping_factor=(
+                successive_substitution_damping_factor
+            ),
+            successive_substitution_acceleration_enabled=(
+                successive_substitution_acceleration_enabled
+            ),
+        )
+
+    if not saturation_newton_enabled:
+        return historical()
+    attempt, state, estimate = _attempt_saturation_newton(
+        mixture,
+        temperature_k,
+        saturation_kind,
+        minimum_pressure_pa,
+        maximum_pressure_pa,
+        binary_interactions,
+        binary_interaction_policy,
+        initial_log_k_values,
+        newton_max_iterations,
+        newton_max_jacobian_condition_number,
+        newton_line_search_reduction_factor,
+        newton_minimum_line_search_factor,
+        newton_max_backtracking_iterations,
+    )
+    if attempt.converged and state is not None and estimate is not None:
+        try:
+            return _build_newton_saturation_result(
+                mixture,
+                temperature_k,
+                saturation_kind,
+                minimum_pressure_pa,
+                maximum_pressure_pa,
+                binary_interactions,
+                binary_interaction_policy,
+                attempt,
+                state,
+                estimate,
+            )
+        except (OverflowError, TypeError, ValueError) as error:
+            attempt = replace(
+                attempt,
+                status=SaturationNewtonStatus.REJECTED,
+                converged=False,
+                failure_reason=f"Newton final reconstruction was rejected: {error}",
+            )
+    return replace(historical(), newton_attempt=attempt)
+
+
+def _calculate_saturation_pressure_historical(
     mixture: FluidMixture,
     temperature_k: float,
     saturation_kind: SaturationKind,

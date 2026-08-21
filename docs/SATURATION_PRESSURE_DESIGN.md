@@ -187,10 +187,32 @@ For a pure component, a valid saturation evaluation requires distinct liquid
 and vapor roots; otherwise the identical one-root fugacity ratio would create a
 spurious zero objective at every single-phase pressure.
 
+## Optional Module 15 Newton layer
+
+`saturation_newton_enabled=False` preserves the exact historical workflow
+above. When enabled, a local square system of active-component logarithmic
+fugacity-equality residuals is attempted before the pressure grid. Its unknowns
+are the `m-1` direct incipient simplex coordinates and `ln(P)`. The analytical
+Jacobian uses Module 13 fixed-root derivatives, including the explicit
+derivative of `-ln(w_i)`, and `numpy.linalg.solve` with a `1e12` condition
+safeguard.
+
+Every step is globalized by deterministic residual-norm backtracking and must
+preserve pressure bounds, the open active simplex, mechanical root identity,
+phase role, and the existing trivial-state exclusion. Full raw equilibrium
+residual convergence is required; a small step never suffices. A converged
+candidate is freshly reconstructed and subjected to all Module 8 physical
+gates. Any unsuitable seed, invalid derivative, singular/ill-conditioned
+Jacobian, rejected line search, root ambiguity, non-convergence, or final-gate
+failure invokes the complete historical solver. See
+`NEWTON_SATURATION_DESIGN.md` for equations, controls, verification, and the
+benchmark.
+
 ## Limitations
 
 This is a deterministic isolated-pressure solver using optional fixed damping,
-optional safeguarded vector-secant acceleration, and finite search bounds.
+optional safeguarded vector-secant acceleration, an optional local safeguarded
+Newton first layer, and finite search bounds.
 Neither numerical control is a convergence guarantee. The solver does not prove that all roots have
 been found, enforce root continuation, trace retrograde branches, identify the
 critical point, or replace experimental validation and authoritative property

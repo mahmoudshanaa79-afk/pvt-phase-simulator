@@ -977,6 +977,149 @@ Only after Module 14 passes may Module 15 use these derivatives inside a
 safeguarded Newton saturation solver. Module 15 and Newton implementation have
 not started.
 
+## Module 15 — Safeguarded Newton Saturation Solver
+
+### Purpose
+
+Add an optional local derivative-based saturation corrector using the Module 13
+fixed-root derivatives after Module 14 independent verification. Preserve the
+complete Module 8 solver as fallback and its exact path when Newton is disabled.
+
+### Science
+
+At fixed temperature and parent composition, `m` active components supply `m`
+logarithmic fugacity-equality equations. The unknowns are `m-1` direct
+incipient-simplex coordinates and `ln(P)`. Bubble calculations use a liquid
+parent and vapor incipient phase; dew calculations reverse those roles.
+Zero-feed components are excluded. Pure fluids specialize to one pressure
+equation between distinct roots.
+
+### Numerical Method
+
+The residual is `ln(z_i)+ln(phi_i^parent)-ln(w_i)-ln(phi_i^incipient)`.
+The pressure Jacobian column is the parent-minus-incipient Module 13
+`dln(phi)/dln(P)` difference. Composition columns include both the incipient
+fixed-root derivative and `-(delta_ik-delta_ir)/w_i`. `numpy.linalg.solve`
+solves the square system. A `1e12` condition limit, finite checks,
+pressure/simplex validation, root correspondence, trivial-state protection,
+and deterministic infinity-norm backtracking globalize each step.
+
+### Software Engineering
+
+The public saturation function is an optional-first-layer wrapper around the
+renamed but arithmetically unchanged historical implementation. With
+`saturation_newton_enabled=False`, it returns directly into the historical
+function and never calls Newton or derivative calculations. Frozen, slotted
+models preserve attempt and iteration evidence. Envelope settings pass the
+same controls to saturation; flash source is unchanged.
+
+### Main Equations / Algorithms
+
+- `q=(u_0,...,u_(m-2),ln(P))`, with the last active component as reference.
+- `R_i=ln(z_i)+ln(phi_i^parent)-ln(w_i)-ln(phi_i^incipient)`.
+- `dR_i/dln(P)=dln(phi_i^parent)/dln(P)-dln(phi_i^incipient)/dln(P)`.
+- `dR_i/du_k=-(delta_ik-delta_ir)/w_i-dln(phi_i^incipient)/du_k`.
+- Solve `J delta_q=-R`; accept only a physical, branch-continuous trial with
+  strict reduction in `||R||_infinity`.
+- Converge only on the full `1e-10` residual, then apply every historical gate.
+
+### Files Changed
+
+- `src/pvt_phase_simulator/eos/saturation_pressure.py`
+- `src/pvt_phase_simulator/eos/phase_envelope.py`
+- `tests/test_newton_saturation.py`
+- `tests/run_newton_saturation_benchmarks.py`
+- `docs/NEWTON_SATURATION_DESIGN.md`
+- `docs/SATURATION_PRESSURE_DESIGN.md`
+- `docs/PHASE_ENVELOPE_DESIGN.md`
+- `docs/EQUATIONS.md`, `docs/README.md`, and `docs/PROJECT_JOURNAL.md`
+
+### Important Functions / Classes
+
+`calculate_saturation_pressure`, `_calculate_saturation_pressure_historical`,
+`_evaluate_saturation_newton_system`, `_attempt_saturation_newton`,
+`_build_newton_saturation_result`, `_root_branch_is_continuous`,
+`_newton_is_trivial`, `SaturationNewtonStatus`,
+`SaturationNewtonIteration`, `SaturationNewtonAttempt`, and the Newton fields
+on `EnvelopeContinuationSettings`.
+
+### Design Decisions
+
+Direct simplex coordinates exactly match Module 13 and keep the ideal
+derivative explicit. Invalid proposals are rejected rather than clipped. Log
+pressure guarantees positivity before bounds. The last active input component
+is the deterministic reference. Standalone starts use Wilson pressure/K values;
+continuation uses predicted log K and the local log-pressure midpoint. Newton,
+vector-secant acceleration, and damping remain separate layers.
+
+### Bugs / Failure Modes Found
+
+An exact-zero normalization comparison initially rejected a valid simplex sum
+that differed from one only through float64 summation order. Near-pure
+Richardson verification also showed visible nonlinear truncation when its step
+was 15% of a very small reference fraction.
+
+### Fixes
+
+Simplex validation now uses the existing `1e-10` mole-fraction tolerance
+without clipping. The near-pure verification step is 2% of the smallest
+independent/reference fraction and retains `h`, `h/2`, and Richardson
+extrapolation. Adversarial tests force every required rejection and fallback.
+
+### Verification
+
+The focused Module 15 suite contains 54 passing tests. It independently checks
+the complete assembled residual Jacobian for binary bubble/dew, ternary
+bubble/dew, pure, near-pure, and permuted cases. It also covers the ideal term,
+CH4/C3 regression, zero fractions, covariance, determinism, real backtracking,
+singular/ill-conditioned/non-finite systems, bounds/simplex rejection, root
+switches, derivative unavailability, trivial collapse, false convergence,
+maximum iterations, poor seeds, accelerated/damped fallback, envelope
+integration, and a continuation-only state.
+
+The 12-case benchmark reports 12 improved, zero tied, zero worsened, and zero
+fallback physical cases using its declared EOS-plus-fugacity work measure. Mean
+reduction among improved cases is `94.9116%`. The continuation-only case used
+one backtracked step after one rejected full step. Failure-mode tests exercise
+fallback. The final full repository run has 814 passing tests in 458.83 seconds. Module
+13 remains 41/41; Module 14 remains 23/23, and its extended report remains 21
+specifications, 774 scalar comparisons, and one documented composition-boundary
+exclusion. Ruff lint, Ruff format checking, strict mypy over 15 source files,
+and compileall pass. The post-edit strict golden comparison reports zero
+physical drift, numerical-path, status, termination, missing, and extra
+changes, with the expected 328 source-commit metadata notices.
+
+### Important Numerical Regression Values
+
+- CH4/C3 60/40 dew, 250 K: historical `575969.5124486194 Pa`; Newton
+  `575969.5124486142 Pa`.
+- Newton CH4/C3 incipient liquid: `(0.03360897298792507,
+  0.9663910270120749)`.
+- Pure methane, 170 K: Newton `2348696.1055850405 Pa`.
+- Continuation-only CH4/C2 bubble, 250 K: `6172720.661334422 Pa`.
+- Golden SHA-256 remains
+  `CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+
+### Limitations
+
+Newton is local and proves neither global convergence, root uniqueness, nor
+branch completeness. It cannot cross unresolved root switches or multiple
+roots, and fallback repeats rejected-attempt cost. No critical solver,
+pseudo-arclength, property database, experimental validation, nonzero
+interaction data, pseudo-components, depletion, separator workflow, or UI
+expansion was added.
+
+### Commit / Provenance
+
+Work began from clean `master` commit
+`afe722f42bf8d2971bad3ffbfe867bd7e36c6a87`. Module 15 is intentionally left
+uncommitted for review; no final commit hash is invented.
+
+### Connection to Next Stage
+
+Development pauses after Module 15 for a major independent Claude audit of the
+complete Modules 10–15 numerical stack before Module 16 begins.
+
 ## Module/Stage X — Name
 
 ### Purpose
