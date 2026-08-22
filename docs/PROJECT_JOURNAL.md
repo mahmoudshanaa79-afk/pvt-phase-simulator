@@ -1510,6 +1510,73 @@ Module 16.1 remains unstaged and uncommitted for this correction pass. After it
 is committed, the evidence is ready for the dedicated Module 16.2 intentional
 golden rebaseline. Module 17 must not begin before that work is reviewed.
 
+## Module 16.2 — Intentional Golden Rebaseline
+
+### Purpose and scientific scope
+
+The pre-Module-16.1 golden master was scientifically stale after the approved
+critical-property and acentric-factor migration. Module 16.2 changes regression
+expectations only: it adopts the already-audited VERIFIED-property numerical
+state without changing property data or thermodynamic mathematics. The golden
+master remains a numerical regression reference, not experimental validation.
+
+### Approval evidence and candidate generation
+
+Module 16.1 commit `b711645fcd6141e5c4ecd02867d4d74b0e9ad1f8`
+established nine VERIFIED and zero PROVISIONAL records and preserved the old
+baseline plus its complete impact manifest. From that clean source commit, the
+normal production generator wrote two separate temporary 328-case candidates.
+Both were byte-identical at SHA-256
+`530C667AA70EF1EA182F4EDB98624A0A9B9908F149354276CDAC44A87EA7D2BE`.
+The verified candidate was adopted without manual numerical edits.
+
+The old 328-case baseline remains recoverable through Git history at SHA-256
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+Its old-to-new reconciliation exactly matches
+`PROPERTY_SOURCE_MIGRATION_GOLDEN_IMPACT.csv`: 1,503 physical fields across
+322 cases and 48 numerical-path fields across 37 cases, comprising 24 inner-
+iteration, nine outer-iteration, and 15 rejected-attempt changes. Status,
+termination, missing, and extra changes are all zero. Case IDs, field paths,
+and per-case counts match with no omitted or unexpected evidence rows.
+
+### Invariants, anchoring, and limitations
+
+The six cases without physical drift remain the expected structured
+`NOT_FOUND` states because they contain no converged pressure, composition, or
+root result fields. Two have only an audited inner-iteration change. The two
+Newton canonical regressions again look up saturation and envelope physics by
+case ID from the new baseline; Newton enablement, tolerances, phase-role checks,
+and physical assertions are unchanged.
+
+The CH4/C2 50/50 bubble state at 260 K remains a documented safe `NOT_FOUND`
+fixed-grid reachability limitation despite an independently located physical
+solution near `6735786.55695833 Pa`. No solver behavior was changed. A-1,
+B-1, B-2, and C-6 remain closed. The property CSVs retain SHA-256
+`C6F6BA9AE9C2F4C7F257BBC09A75DF0D7065255868AA46BF3E8C81AC5A8B9B3A`.
+
+### Files, verification, and provenance plan
+
+Module 16.2 changes the canonical baseline, restores the phase-identity
+baseline lookup, adds `VERIFIED_PROPERTY_GOLDEN_REBASELINE.md`, and updates the
+documentation index and this journal. Strict current-to-canonical comparison,
+golden infrastructure and mutation tests, safety regressions, Modules 13/14,
+the full suite, lint, formatting, mypy, compileall, and a post-change
+deterministic regeneration all pass. Strict comparison reports zero physical,
+path, status, termination, missing, or extra drift. The 19 golden tests and 43
+focused safety/phase-identity tests pass. Module 13 is 41/41; Module 14 is
+23/23, and its extended matrix retains 21 specifications, 774 comparisons, and
+one documented boundary exclusion. The complete repository is 965/965; Ruff
+lint and formatting, mypy over 17 source files, compileall, and diff integrity
+pass. Post-change generation is byte-identical to the canonical baseline at
+SHA-256 `530C667AA70EF1EA182F4EDB98624A0A9B9908F149354276CDAC44A87EA7D2BE`.
+All work remains unstaged and uncommitted for independent review.
+
+Deferred work remains outside this module: the 260 K scan improvement,
+`source_commit` notice-noise cleanup, near-trivial log-K direct pin, structured
+fallback diagnostics, CSV consolidation, and general critical-solver work.
+Module 17 experimental validation was not started and follows only after this
+rebaseline is independently approved and committed.
+
 ## Module/Stage X — Name
 
 ### Purpose
