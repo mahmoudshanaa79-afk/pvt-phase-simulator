@@ -51,7 +51,7 @@ def test_calculate_kappa_for_methane() -> None:
     """Methane kappa should match an independent Decimal reference."""
 
     assert calculate_kappa(ACENTRIC_FACTOR) == pytest.approx(
-        0.39157219968,
+        0.392217407205312,
         abs=1e-14,
     )
 
@@ -62,7 +62,7 @@ def test_calculate_reduced_temperature_for_methane() -> None:
     assert calculate_reduced_temperature(
         TEMPERATURE_K,
         CRITICAL_TEMPERATURE_K,
-    ) == pytest.approx(1.5743073047858942, abs=1e-14)
+    ) == pytest.approx(1.57427425956634, abs=1e-14)
 
 
 def test_calculate_alpha_for_methane() -> None:
@@ -72,7 +72,7 @@ def test_calculate_alpha_for_methane() -> None:
         TEMPERATURE_K,
         CRITICAL_TEMPERATURE_K,
         ACENTRIC_FACTOR,
-    ) == pytest.approx(0.8104699865610172, abs=1e-14)
+    ) == pytest.approx(0.8101834074909085, abs=1e-14)
 
 
 def test_calculate_a_parameter_for_methane() -> None:
@@ -81,7 +81,7 @@ def test_calculate_a_parameter_for_methane() -> None:
     assert calculate_a_parameter(
         CRITICAL_TEMPERATURE_K,
         CRITICAL_PRESSURE_PA,
-    ) == pytest.approx(0.2495708044210156, abs=1e-14)
+    ) == pytest.approx(0.24958128189472518, abs=1e-14)
 
 
 def test_calculate_b_parameter_for_methane() -> None:
@@ -90,7 +90,7 @@ def test_calculate_b_parameter_for_methane() -> None:
     assert calculate_b_parameter(
         CRITICAL_TEMPERATURE_K,
         CRITICAL_PRESSURE_PA,
-    ) == pytest.approx(2.680175485495062e-05, abs=1e-16)
+    ) == pytest.approx(2.6802317444263277e-05, abs=1e-16)
 
 
 def test_calculate_A_parameter_for_methane() -> None:
@@ -110,7 +110,7 @@ def test_calculate_A_parameter_for_methane() -> None:
         TEMPERATURE_K,
         a_parameter,
         alpha,
-    ) == pytest.approx(0.3251021457172964, abs=1e-14)
+    ) == pytest.approx(0.32500083445102946, abs=1e-14)
 
 
 def test_calculate_B_parameter_for_methane() -> None:
@@ -124,7 +124,7 @@ def test_calculate_B_parameter_for_methane() -> None:
         PRESSURE_PA,
         TEMPERATURE_K,
         b_parameter,
-    ) == pytest.approx(0.10745033918942425, abs=1e-14)
+    ) == pytest.approx(0.10745259465414275, abs=1e-14)
 
 
 def test_reduced_temperature_is_one_at_critical_temperature() -> None:
@@ -1003,18 +1003,18 @@ def test_repository_constants_at_nominal_methane_critical_state() -> None:
         z3=1.0,
         z2=-0.9222,
         z1=0.28348147999999995,
-        z0=-0.029049521048,
+        z0=-0.029049521047999995,
     )
     assert calculate_cubic_discriminant(coefficients) == pytest.approx(
-        -1.9574436516123228e-10,
+        -1.9574435822233838e-10,
         abs=1e-20,
     )
-    assert roots == pytest.approx((0.32137902517361217,), abs=1e-14)
+    assert roots == pytest.approx((0.3213790251735892,), abs=1e-14)
     assert calculate_fugacity_coefficient(
         roots[0], parameters.A, parameters.B
-    ) == pytest.approx(0.6426442137959292, abs=1e-14)
+    ) == pytest.approx(0.6426442137959296, abs=1e-14)
     diagnostic = classify_mechanical_stability(roots[0], parameters.A, parameters.B)
-    assert diagnostic.derivative == pytest.approx(-0.01626804444617136, abs=1e-14)
+    assert diagnostic.derivative == pytest.approx(-0.01626804444612162, abs=1e-14)
     assert diagnostic.classification is MechanicalStabilityClassification.STABLE
 
 
@@ -1023,17 +1023,17 @@ def test_repository_constants_at_nominal_methane_critical_state() -> None:
     [
         (
             1.0 - 1e-4,
-            0.457349370170706,
+            0.4573493996793921,
             0.07780778077807782,
-            0.28395267336888547,
-            0.6424853634675094,
+            0.28394918016859736,
+            0.6424853093475581,
         ),
         (
             1.0 + 1e-4,
-            0.4571306656711461,
+            0.4571306361768919,
             0.07779222077792221,
-            0.3359298370107594,
-            0.6427900502577396,
+            0.3359330852177797,
+            0.6427900972104321,
         ),
     ],
 )

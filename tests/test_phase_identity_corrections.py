@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from math import log
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -32,7 +30,7 @@ from pvt_phase_simulator.fluid_models import (
     FluidMixture,
     MixtureComponent,
 )
-from tests.golden_master.core import TOLERANCES, load_csv
+from tests.golden_master.core import TOLERANCES
 
 
 def _mixture(items: tuple[tuple[Component, float], ...]) -> FluidMixture:
@@ -43,7 +41,6 @@ BINARY = _mixture(((METHANE, 0.5), (ETHANE, 0.5)))
 TERNARY = _mixture(((METHANE, 0.5), (ETHANE, 0.3), (PROPANE, 0.2)))
 METHANE_PROPANE = _mixture(((METHANE, 0.6), (PROPANE, 0.4)))
 ZERO_FRACTION = _mixture(((METHANE, 0.5), (PROPANE, 0.0), (ETHANE, 0.5)))
-BASELINE = Path(__file__).parent / "golden_master" / "baseline.csv"
 
 
 def _assert_requested_phase_roles(
@@ -59,10 +56,6 @@ def _assert_requested_phase_roles(
         )
         is True
     )
-
-
-def _baseline_row(case_id: str) -> dict[str, str]:
-    return next(row for row in load_csv(BASELINE) if row["case_id"] == case_id)
 
 
 def test_phase_role_classifier_reuses_the_existing_dead_band() -> None:
@@ -120,7 +113,7 @@ def test_inverted_dew_seed_recovers_the_true_dew_branch(
         saturation_newton_enabled=newton_enabled,
     )
     _assert_requested_phase_roles(result)
-    assert result.pressure_pa == pytest.approx(575_969.5124486194, rel=1e-11)
+    assert result.pressure_pa == pytest.approx(575_360.2360506197, rel=1e-11)
     assert result.pressure_pa != pytest.approx(7_385_216.135, rel=1e-6)
     assert any(
         item.code == INITIAL_LOG_K_PHASE_ROLE_DIAGNOSTIC_CODE
@@ -148,7 +141,7 @@ def test_dew_seed_cannot_return_dew_pressure_as_a_bubble() -> None:
 
 @pytest.mark.parametrize(
     ("mixture", "start_temperature_k", "target_temperature_k"),
-    [(BINARY, 260.0, 285.0), (TERNARY, 280.0, 330.0)],
+    [(BINARY, 259.0, 285.0), (TERNARY, 280.0, 330.0)],
 )
 def test_newton_bubble_trace_stops_before_phase_role_inversion(
     mixture: FluidMixture,
@@ -202,53 +195,84 @@ def test_zero_fraction_and_permutation_preserve_phase_identity() -> None:
 
 
 @pytest.mark.parametrize(
-    ("case_id", "mixture", "temperature_k", "kind"),
+    (
+        "mixture",
+        "temperature_k",
+        "kind",
+        "expected_pressure_pa",
+        "expected_composition",
+        "expected_parent_root",
+        "expected_incipient_root",
+    ),
     [
         (
-            "bubble_ch4_c2_50_50_180k",
             BINARY,
             180.0,
             SaturationKind.BUBBLE_POINT,
+            1_574_030.089958544,
+            (0.9560990430787599, 0.043900956921240054),
+            0.04913788621292951,
+            0.8183011950121142,
         ),
-        ("dew_ch4_c2_50_50_250k", BINARY, 250.0, SaturationKind.DEW_POINT),
         (
-            "dew_ch4_c3_60_40_250k_physical_branch",
+            BINARY,
+            250.0,
+            SaturationKind.DEW_POINT,
+            2_931_792.3491770034,
+            (0.16684769274615177, 0.8331523072538483),
+            0.7261343126340887,
+            0.09213888469853257,
+        ),
+        (
             METHANE_PROPANE,
             250.0,
             SaturationKind.DEW_POINT,
+            575_360.2360506197,
+            (0.033532345169714345, 0.9664676548302855),
+            0.9376453559239746,
+            0.02027276581104361,
         ),
     ],
 )
-def test_newton_matches_selected_canonical_golden_saturation_cases(
-    case_id: str,
+def test_newton_matches_verified_property_saturation_references(
     mixture: FluidMixture,
     temperature_k: float,
     kind: SaturationKind,
+    expected_pressure_pa: float,
+    expected_composition: tuple[float, ...],
+    expected_parent_root: float,
+    expected_incipient_root: float,
 ) -> None:
-    expected = _baseline_row(case_id)
     result = calculate_saturation_pressure(
         mixture, temperature_k, kind, saturation_newton_enabled=True
     )
     _assert_requested_phase_roles(result)
     assert result.pressure_pa == pytest.approx(
-        float(expected["saturation_pressure_pa"]), rel=TOLERANCES["pressure_rel"]
+        expected_pressure_pa, rel=TOLERANCES["pressure_rel"]
     )
     assert result.incipient_composition == pytest.approx(
-        json.loads(expected["incipient_composition"]),
-        abs=TOLERANCES["composition_abs"],
+        expected_composition, abs=TOLERANCES["composition_abs"]
     )
     assert result.parent_phase is not None and result.incipient_phase is not None
     assert result.parent_phase.selected_compressibility_factor == pytest.approx(
-        float(expected["selected_parent_root"]), abs=TOLERANCES["root_abs"]
+        expected_parent_root, abs=TOLERANCES["root_abs"]
     )
     assert result.incipient_phase.selected_compressibility_factor == pytest.approx(
-        float(expected["selected_incipient_root"]), abs=TOLERANCES["root_abs"]
+        expected_incipient_root, abs=TOLERANCES["root_abs"]
     )
 
 
-def test_newton_matches_canonical_golden_envelope_physics() -> None:
-    expected = _baseline_row("bubble_ch4_c2_forward_200_220")
-    expected_points = json.loads(expected["branch_points"])
+def test_newton_matches_verified_property_envelope_physics() -> None:
+    # These references are separate from the intentionally frozen pre-migration
+    # golden master and pin the verified-property numerical behavior.
+    expected_points = (
+        (200.0, 2_640_753.703796712, (0.9146231200818832, 0.08537687991811678)),
+        (205.0, 2_952_121.411823929, (0.9007469746889688, 0.09925302531103122)),
+        (208.5, 3_179_625.574829447, (0.8900634722797583, 0.10993652772024162)),
+        (212.875, 3_474_218.305433198, (0.8755043276750334, 0.1244956723249666)),
+        (218.34375, 3_856_738.3204058604, (0.8552763003447308, 0.14472369965526924)),
+        (220.0, 3_975_343.6321820538, (0.8486744601550964, 0.1513255398449036)),
+    )
     branch = trace_bubble_branch(
         BINARY,
         EnvelopeContinuationSettings(
@@ -259,16 +283,16 @@ def test_newton_matches_canonical_golden_envelope_physics() -> None:
         ),
         200.0,
     )
-    assert branch.termination_reason.value == expected["termination_reason"]
+    assert branch.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     assert len(branch.points) == len(expected_points)
     for point, reference in zip(branch.points, expected_points, strict=True):
         _assert_requested_phase_roles(point.saturation_result)
-        assert point.temperature_k == reference["temperature_k"]
+        assert point.temperature_k == reference[0]
         assert point.pressure_pa == pytest.approx(
-            reference["pressure_pa"], rel=TOLERANCES["pressure_rel"]
+            reference[1], rel=TOLERANCES["pressure_rel"]
         )
         assert point.saturation_result.incipient_composition == pytest.approx(
-            reference["incipient_composition"], abs=TOLERANCES["composition_abs"]
+            reference[2], abs=TOLERANCES["composition_abs"]
         )
 
 
@@ -341,4 +365,4 @@ def test_pure_methane_regression_keeps_distinct_roots() -> None:
         saturation_newton_enabled=True,
     )
     _assert_requested_phase_roles(result)
-    assert result.pressure_pa == pytest.approx(2_348_696.1055850405, rel=1e-11)
+    assert result.pressure_pa == pytest.approx(2_347_774.2603319585, rel=1e-11)

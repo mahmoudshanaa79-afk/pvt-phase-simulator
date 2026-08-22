@@ -72,7 +72,9 @@ app/                             # Reserved Streamlit entry point; no UI yet
 The package includes a `py.typed` marker and exposes inline type information.
 The packaged CSV is the runtime resource; the root CSV is its human-review
 source-tree mirror. Their byte identity is tested. This duplication is an
-intentional current packaging compromise, and the values remain provisional.
+intentional current packaging compromise. The nine production Tc/Pc/omega
+records have verified source metadata; this traceability status is not a claim
+of absolute experimental truth.
 
 ## Calculation flow
 
@@ -104,10 +106,11 @@ genuine roots. It does not choose a globally stable mixture phase.
 
 ## Reference components and provenance
 
-The built-in reference objects are methane, ethane, and propane. Their current
-critical properties and acentric factors are retained from the original
-project without numerical modification. Their metadata is explicitly marked
-`provisional`: their exact authoritative sources still require confirmation.
+The built-in reference objects are methane, ethane, and propane. Their critical
+properties and acentric factors are sourced from Yang and Richter (2025), DOI
+`10.1021/acs.jced.5c00110`, whose supporting table identifies REFPROP as the
+original data source. Their property-level metadata is marked `verified` after
+exact value, provenance, and pressure-conversion checks.
 The strict UTF-8 CSV database stores one row and one provenance record per
 property, with stable IDs, deliberate aliases, explicit units, and deterministic
 ordering. See the [component-property database design](docs/COMPONENT_PROPERTY_DATABASE_DESIGN.md).
@@ -123,7 +126,8 @@ All calculation APIs currently require SI units:
 - compressibility factor, reduced temperature, kappa, alpha, `A`, `B`, mole
   fractions, acentric factors, and fugacity coefficients: dimensionless
 
-No automatic unit conversion is currently performed.
+No automatic runtime unit conversion is currently performed. Primary-source
+pressure conversion evidence (kPa → Pa) is retained in the property database.
 
 ## Root validation and classification
 
@@ -187,8 +191,8 @@ The project does **not** yet implement:
 - pseudo-arclength or demonstrated retrograde continuation
 - reservoir depletion
 - Péneloux volume translation or another EOS
-- authoritatively sourced component-property values (the database
-  infrastructure exists, but its current values remain provisional)
+- experimental authentication and uncertainty quantification beyond the
+  verified bibliographic traceability of component-property values
 - engineering unit conversion functions
 - a Streamlit user interface
 

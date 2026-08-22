@@ -1423,6 +1423,93 @@ Module 17 is experimental validation and was not started. It must not claim an
 authoritative comparison until property provenance is confirmed. Module 16 is
 left unstaged and uncommitted for review.
 
+## Module 16.1 — Verified Property Migration
+
+### Purpose and scientific source
+
+This work replaces the nine provisional methane, ethane, and propane
+Tc/Pc/omega records with exact, selected source values before experimental
+validation. The source is Xiaoxian Yang and Markus Richter, “Effective
+Thermophysical Constants of Thousands of Fluids. I: Critical Temperature,
+Critical Pressure, Critical Density, and Acentric Factor,” *Journal of Chemical
+& Engineering Data* 70(8), 2911–2946 (2025), DOI
+`10.1021/acs.jced.5c00110`. Primary-article Table 5 independently confirms all
+nine values, identifies methane, ethane, and propane by name and CAS RN, and
+cites REFPROP as the original source. The article states that Supporting
+Information Table S3 is the same table with complete names. Production
+identities cite Table 5 without unverified S3 row numbers; this project did not
+directly query REFPROP.
+
+### Exact migration and provenance transition
+
+Methane changed from `(190.56 K, 4599200.0 Pa, 0.011)` to
+`(190.564 K, 4599200.0 Pa, 0.011420)`. Ethane changed from
+`(305.32 K, 4872000.0 Pa, 0.099)` to
+`(305.322 K, 4872200.0 Pa, 0.099500)`. Propane changed from
+`(369.83 K, 4248000.0 Pa, 0.152)` to
+`(369.890 K, 4251200.0 Pa, 0.152100)`. Primary Table 5 reports pressure in kPa;
+conversion evidence records `1 kPa = 1000 Pa`. Exact value, conversion, DOI,
+Table 5 component/CAS identity, and source-chain checks promote all
+nine rows from `PROVISIONAL` to `VERIFIED`. The old values survive only in the
+private `PRE_MODULE_16_1_PROVISIONAL_VALUES` audit fixture and migration report.
+This final correction pass replaces the earlier incorrect MPa provenance claim
+with the primary Table 5 unit and changes no canonical physical-property value.
+
+### Numerical impact and important regressions
+
+The unchanged EOS produces small intentional movement. At 250 K, CH4/C3 60/40
+dew moves from historical `575969.5124486194 Pa` and Newton
+`575969.5124486142 Pa` to `575360.2360506197 Pa` and
+`575360.2360506136 Pa`. Bubble moves from `7385216.135238444 Pa` to
+`7391642.208227274 Pa`. Pure-methane Newton saturation at 170 K moves from
+`2348696.1055850405 Pa` to `2347774.2603319585 Pa`. Pure PR, binary mixing and
+fugacity, stability, flash, saturation, Newton, and envelope comparisons with
+scalar and composition deltas are recorded in
+`PROPERTY_SOURCE_MIGRATION.md`.
+
+### Golden-master impact and invariant verification
+
+The canonical baseline was not regenerated and remains SHA-256
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+Strict old-versus-new comparison keeps all 328 cases and finds 1,503 physical
+field differences across 322 cases, 48 numerical-path fields across 37 cases,
+zero status changes, zero termination changes, and zero missing/extra cases.
+The complete changed-case manifest is
+`PROPERTY_SOURCE_MIGRATION_GOLDEN_IMPACT.csv`.
+
+Mole fractions remain bounded and normalized; converged phase fugacities and
+flash material balances remain within tolerance; roots remain admissible;
+bubble/dew phase ordering and nontrivial multicomponent separation remain
+intact; repeat runs are deterministic. A-1, B-1, B-2, and C-6 remain closed.
+An independent high-precision reference confirms that the verified-property
+CH4/C2 50/50 physical bubble point exists at 260 K near
+`6735786.55695833 Pa`, with roots near `0.2975485` and `0.4256901` and
+separation near `0.12814`; it is not near root coalescence. Production's
+deterministic 81-point logarithmic scan instead returns safe structured
+`NOT_FOUND` because it misses a trustworthy bracket in a narrow 260–260.25 K
+window. States converge immediately below and above. This is a fixed-grid
+bracketing/reachability regression, not a shifted physical boundary.
+
+The binary A-1 continuation regression remains at 259 K because it approaches
+the same near-critical endpoint region, accepts no inverted phase roles, and
+terminates safely as `NEAR_CRITICAL`. A focused 260 K regression now pins the
+known safe `NOT_FOUND` limitation. No solver correction was made in Module
+16.1; a later dedicated numerical module may address reachability.
+
+### Limitations, review gate, and Module 17
+
+The public NIST Chemistry WebBook broadly corroborates Tc/Pc at its displayed
+precision but is a secondary check, not the selected source. `VERIFIED` denotes
+confirmed traceability, not experimental authentication, uncertainty analysis,
+EOS validation, or calibrated binary interactions. Yang and Richter describe
+compiled effective/optimized constants, and `kij=0` remains an assumption.
+
+The final independent audit found no Category A or B numerical defect, and the
+primary Table 5/unit corrections close the pre-rebaseline Category C findings.
+Module 16.1 remains unstaged and uncommitted for this correction pass. After it
+is committed, the evidence is ready for the dedicated Module 16.2 intentional
+golden rebaseline. Module 17 must not begin before that work is reviewed.
+
 ## Module/Stage X — Name
 
 ### Purpose

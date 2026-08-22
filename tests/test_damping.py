@@ -220,7 +220,7 @@ def test_damped_dew_preserves_physical_branch_and_order_invariance() -> None:
     )
     assert forward == repeated
     assert forward.status is SaturationStatus.CONVERGED
-    assert forward.pressure_pa == pytest.approx(575_969.5124486194, rel=1e-11)
+    assert forward.pressure_pa == pytest.approx(575_360.2360506197, rel=1e-11)
     assert reverse.pressure_pa == pytest.approx(forward.pressure_pa, rel=1e-11)
     assert forward.incipient_composition == pytest.approx(
         tuple(reversed(reverse.incipient_composition)), abs=1e-10
@@ -417,7 +417,7 @@ def test_damped_continuation_reaches_continuation_only_state() -> None:
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     assert result.points[-1].temperature_k == 250.0
     assert result.points[-1].pressure_pa == pytest.approx(
-        6_172_720.661334422, rel=1e-11
+        6_174_169.157030562, rel=1e-11
     )
 
 

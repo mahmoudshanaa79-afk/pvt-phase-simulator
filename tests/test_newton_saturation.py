@@ -281,7 +281,7 @@ def test_ch4_c3_dew_stays_on_nontrivial_physical_branch() -> None:
         saturation_newton_enabled=True,
     )
     assert result.newton_attempt is not None and result.newton_attempt.converged
-    assert result.pressure_pa == pytest.approx(575_969.5124486194, rel=1e-11)
+    assert result.pressure_pa == pytest.approx(575_360.2360506197, rel=1e-11)
     assert max(abs(log(value)) for value in result.k_values) > 1e-8
 
 
@@ -693,6 +693,6 @@ def test_continuation_only_state_is_preserved_with_newton_layer() -> None:
     branch = trace_bubble_branch(BINARY, settings, 240.0)
     assert branch.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     assert branch.points[-1].pressure_pa == pytest.approx(
-        6_172_720.661334422, rel=1e-11
+        6_174_169.157030562, rel=1e-11
     )
     assert branch.points[-1].saturation_result.newton_attempt is not None

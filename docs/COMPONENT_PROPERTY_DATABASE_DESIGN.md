@@ -47,8 +47,11 @@ scientific fields are never defaulted.
 - `property`, `value`, and `unit` define one canonical numerical value.
 - `source_status` is `provisional` or `verified`.
 - the remaining fields identify and describe that property's source.
-- `original_unit` and `conversion` reserve explicit conversion evidence. They
-  must be blank in Module 16 because no conversion is needed or implemented.
+- `original_unit` and `conversion` retain explicit source-to-canonical
+  conversion evidence. Module 16.1 accepts only the audited critical-pressure
+  path `kPa` to canonical `Pa`, recorded as `1 kPa = 1000 Pa`. This is
+  provenance validation, not a
+  general runtime unit-conversion engine.
 
 Database order is first component appearance, with contiguous property rows.
 The current order is methane, ethane, propane. Loading preserves it. Database
@@ -76,9 +79,10 @@ substitution, or approximate match.
 | Critical pressure | `critical_pressure` | `Pa` | finite and greater than zero |
 | Acentric factor | `acentric_factor` | `1` | finite |
 
-The retained values already use canonical units. Module 16 therefore activates
-no conversion function in `unit_conversions.py`. Unsupported units and claimed
-conversion metadata are rejected; no undocumented conversion is implied.
+CSV values use canonical units. Primary Table 5 reports critical pressure in
+kPa, so Module 16.1 records and strictly validates its explicit conversion
+evidence. No conversion function is activated in `unit_conversions.py`;
+unsupported conversion claims remain rejected.
 
 ## Provenance and source status
 
@@ -88,11 +92,9 @@ citation text, optional URL/DOI/version, notes, original unit, canonical unit,
 and conversion information. `ComponentPropertyProvenanceSet` attaches the
 three correctly named records to a calculation `Component`.
 
-`provisional` means exact authoritative confirmation is absent. All current
-rows remain provisional and point only to the known pre-Module-16 repository
-location. Citation, DOI, URL, edition, source-record identity, original unit,
-and conversion fields remain blank. No familiar database or publication name
-is inferred.
+`provisional` means exact source confirmation is absent. It remains a supported
+schema state for alternate databases, but no production row remains
+provisional after Module 16.1.
 
 `verified` is the structured provenance-metadata state. It requires a
 meaningful, non-placeholder source name plus at least one non-placeholder
@@ -119,19 +121,22 @@ invalid IDs/properties/statuses/numbers, non-finite values, nonpositive `Tc` or
 inconsistent metadata, duplicate component blocks, and ambiguous aliases. It
 does not silently skip or repair rows.
 
-## Legacy migration and numerical invariance
+## Verified migration and frozen-baseline impact
 
 | Component | Tc (K) | Pc (Pa) | omega | Status |
 |---|---:|---:|---:|---|
-| methane | 190.56 | 4599200.0 | 0.011 | provisional |
-| ethane | 305.32 | 4872000.0 | 0.099 | provisional |
-| propane | 369.83 | 4248000.0 | 0.152 | provisional |
+| methane | 190.564 | 4599200.0 | 0.011420 | verified |
+| ethane | 305.322 | 4872200.0 | 0.099500 | verified |
+| propane | 369.890 | 4251200.0 | 0.152100 | verified |
 
-These exact pre-Module-16 decimal strings are retained. `METHANE`, `ETHANE`,
-and `PROPANE` are compatibility constants obtained from the default database,
-not second Python literals. Tests pin exact float equality and `repr`, pure PR,
-mixture fugacity, flash, historical/Newton bubble and dew, envelope, and
-component-order behavior. The golden baseline is not regenerated.
+The earlier provisional values remain only in the private
+`PRE_MODULE_16_1_PROVISIONAL_VALUES` test fixture and the migration report.
+`METHANE`, `ETHANE`, and `PROPANE` are compatibility constants obtained from
+the default database, not second Python literals. Tests pin exact sourced
+values, provenance, conversions, pure PR, mixture fugacity, flash,
+historical/Newton bubble and dew, envelope, and component-order behavior. The
+pre-migration golden baseline is deliberately not regenerated; see the
+[migration report](PROPERTY_SOURCE_MIGRATION.md).
 
 ## Binary interactions, limitations, and Module 17
 
@@ -139,9 +144,9 @@ No `kij` appears in this CSV. `DEFAULT_ZERO` remains a modelling assumption,
 not experimental evidence; future provenanced interaction data must be
 separate.
 
-Software infrastructure can be verified while property sources remain
-unconfirmed. Authoritative source data are still required for `Tc`, `Pc`, and
-acentric factor for methane, ethane, and propane. A molar-mass source would also
-be required if molar mass is later introduced. Module 17 may add experimental
-validation only after respecting this gate; Module 16 contains no experiments,
-metrics, plots, fitting, or calibration.
+The production `Tc`, `Pc`, and acentric-factor rows now have verified
+traceability to Yang and Richter (2025). This does not establish absolute
+experimental truth. A molar-mass source would still be required if molar mass
+is introduced. Module 17 may add experimental validation only after independent
+review of Module 16.1 and an explicit golden-rebaseline decision; this module
+contains no experiments, fitting, or calibration.

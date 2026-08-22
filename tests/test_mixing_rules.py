@@ -43,18 +43,18 @@ PRESSURE_PA = 10_000_000.0
 
 # Independently calculated with Decimal at 50-digit precision using the published
 # Peng-Robinson equations and the reference data in fluid_models.py.
-METHANE_ALPHA = 0.8104699865610172
-METHANE_A_ALPHA = 0.20226964650512277
-METHANE_B = 2.680175485495062e-05
-ETHANE_ALPHA = 1.0092034269136129
-ETHANE_A_ALPHA = 0.6103718985846066
-ETHANE_B = 4.0537947522064814e-05
-CROSS_A_ALPHA = 0.3513683368822083
-REFERENCE_A_ALPHA_MIX = 0.30162029915065224
-REFERENCE_B_MIX = 3.092261265508488e-05
-REFERENCE_A_MIX = 0.4847855728233867
-REFERENCE_B_DIMENSIONLESS = 0.12397118160336873
-REFERENCE_ROOT = 0.6894757512823003
+METHANE_ALPHA = 0.8101834074909085
+METHANE_A_ALPHA = 0.20220661341141744
+METHANE_B = 2.6802317444263277e-05
+ETHANE_ALPHA = 1.0092199407379314
+ETHANE_A_ALPHA = 0.6103648268555335
+ETHANE_B = 4.053654900412199e-05
+CROSS_A_ALPHA = 0.35131154917523507
+REFERENCE_A_ALPHA_MIX = 0.3015649256421913
+REFERENCE_B_MIX = 3.092258691222089e-05
+REFERENCE_A_MIX = 0.4846965725866849
+REFERENCE_B_DIMENSIONLESS = 0.12397107839820615
+REFERENCE_ROOT = 0.6895984251121764
 
 
 def _methane_ethane_mixture() -> FluidMixture:
@@ -72,8 +72,8 @@ def _reference_component_parameters() -> tuple[PureComponentMixtureParameters, .
             component=METHANE,
             mole_fraction=0.70,
             temperature_k=TEMPERATURE_K,
-            reduced_temperature=TEMPERATURE_K / 190.56,
-            kappa=0.39157219968,
+            reduced_temperature=TEMPERATURE_K / 190.564,
+            kappa=0.392217407205312,
             alpha=METHANE_ALPHA,
             a=METHANE_A_ALPHA / METHANE_ALPHA,
             a_alpha=METHANE_A_ALPHA,
@@ -83,8 +83,8 @@ def _reference_component_parameters() -> tuple[PureComponentMixtureParameters, .
             component=ETHANE,
             mole_fraction=0.30,
             temperature_k=TEMPERATURE_K,
-            reduced_temperature=TEMPERATURE_K / 305.32,
-            kappa=0.52467825408,
+            reduced_temperature=TEMPERATURE_K / 305.322,
+            kappa=0.52542259452,
             alpha=ETHANE_ALPHA,
             a=ETHANE_A_ALPHA / ETHANE_ALPHA,
             a_alpha=ETHANE_A_ALPHA,
@@ -96,21 +96,21 @@ def _reference_component_parameters() -> tuple[PureComponentMixtureParameters, .
 def test_reference_component_properties() -> None:
     assert METHANE.model_dump(exclude={"provenance"}) == {
         "name": "Methane",
-        "critical_temperature_k": 190.56,
+        "critical_temperature_k": 190.564,
         "critical_pressure_pa": 4_599_200.0,
-        "acentric_factor": 0.011,
+        "acentric_factor": 0.011420,
     }
     assert ETHANE.model_dump(exclude={"provenance"}) == {
         "name": "Ethane",
-        "critical_temperature_k": 305.32,
-        "critical_pressure_pa": 4_872_000.0,
-        "acentric_factor": 0.099,
+        "critical_temperature_k": 305.322,
+        "critical_pressure_pa": 4_872_200.0,
+        "acentric_factor": 0.099500,
     }
     assert PROPANE.model_dump(exclude={"provenance"}) == {
         "name": "Propane",
-        "critical_temperature_k": 369.83,
-        "critical_pressure_pa": 4_248_000.0,
-        "acentric_factor": 0.152,
+        "critical_temperature_k": 369.890,
+        "critical_pressure_pa": 4_251_200.0,
+        "acentric_factor": 0.152100,
     }
 
 
@@ -528,9 +528,9 @@ def test_reference_cubic_coefficients_and_root() -> None:
     coefficients = calculate_cubic_coefficients(
         REFERENCE_A_MIX, REFERENCE_B_DIMENSIONLESS
     )
-    assert coefficients.z2 == pytest.approx(-0.8760288183966313, rel=1e-13)
-    assert coefficients.z1 == pytest.approx(0.19073664801224296, rel=1e-13)
-    assert coefficients.z0 == pytest.approx(-0.04282529144512353, rel=1e-13)
+    assert coefficients.z2 == pytest.approx(-0.8760289216017938, rel=1e-13)
+    assert coefficients.z1 == pytest.approx(0.19064793095263005, rel=1e-13)
+    assert coefficients.z0 == pytest.approx(-0.04281423830478053, rel=1e-13)
 
     roots = calculate_mixture_compressibility_roots(
         _methane_ethane_mixture(), TEMPERATURE_K, PRESSURE_PA

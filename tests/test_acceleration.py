@@ -367,7 +367,7 @@ def test_accelerated_methane_propane_dew_preserves_true_branch() -> None:
         successive_substitution_acceleration_enabled=True,
     )
     assert result.status is SaturationStatus.CONVERGED
-    assert result.pressure_pa == pytest.approx(575_969.5124486194, rel=1e-11)
+    assert result.pressure_pa == pytest.approx(575_360.2360506197, rel=1e-11)
     assert any(
         diagnostic.code == TRIVIAL_STATE_DIAGNOSTIC_CODE
         for diagnostic in result.diagnostics
@@ -439,7 +439,7 @@ def test_acceleration_reaches_real_continuation_only_state() -> None:
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     assert result.points[-1].temperature_k == 250.0
     assert result.points[-1].pressure_pa == pytest.approx(
-        6_172_720.661334422, rel=1e-11
+        6_174_169.157030562, rel=1e-11
     )
 
 

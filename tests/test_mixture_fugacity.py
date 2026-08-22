@@ -45,29 +45,29 @@ from pvt_phase_simulator.fluid_models import (
 
 TEMPERATURE_K = 300.0
 PRESSURE_PA = 10_000_000.0
-REFERENCE_ROOT = 0.6894757512823003
-REFERENCE_CROSS_ATTRACTION = 0.3513683368822083
-REFERENCE_METHANE_ATTRACTION_SUM = 0.24699925361824843
-REFERENCE_ETHANE_ATTRACTION_SUM = 0.4290694053929278
-REFERENCE_METHANE_LOG_PHI = -0.16596256167249822
-REFERENCE_METHANE_PHI = 0.8470779467773538
-REFERENCE_ETHANE_LOG_PHI = -0.7659076856102491
-REFERENCE_ETHANE_PHI = 0.4649117456959447
+REFERENCE_ROOT = 0.6895984251121764
+REFERENCE_CROSS_ATTRACTION = 0.35131154917523507
+REFERENCE_METHANE_ATTRACTION_SUM = 0.24693809414056268
+REFERENCE_ETHANE_ATTRACTION_SUM = 0.4290275324793245
+REFERENCE_METHANE_LOG_PHI = -0.16584595542742265
+REFERENCE_METHANE_PHI = 0.8471767271151041
+REFERENCE_ETHANE_LOG_PHI = -0.7658100998536123
+REFERENCE_ETHANE_PHI = 0.4649571166741624
 LOW_PRESSURE_PA = 1.0
-LOW_PRESSURE_ROOT = 0.9999999639185609
-LOW_PRESSURE_METHANE_LOG_PHI = -2.017535811566188e-08
-LOW_PRESSURE_METHANE_PHI = 0.9999999798246421
-LOW_PRESSURE_ETHANE_LOG_PHI = -7.319562804711643e-08
-LOW_PRESSURE_ETHANE_PHI = 0.9999999268043746
+LOW_PRESSURE_ROOT = 0.9999999639274508
+LOW_PRESSURE_METHANE_LOG_PHI = -2.016437262121149e-08
+LOW_PRESSURE_METHANE_PHI = 0.9999999798356276
+LOW_PRESSURE_ETHANE_LOG_PHI = -7.319162852295502e-08
+LOW_PRESSURE_ETHANE_PHI = 0.9999999268083741
 CONSISTENCY_TEST_PRESSURE_PA = 1e-10
 
 # Independent 60-digit Decimal evaluation of the published PR mixing and
 # component-fugacity equations, using the project's decimal input properties.
 LOW_PRESSURE_DECIMAL_LOG_PHI = {
-    100.0: (-2.0175330140590654e-6, -7.319568444391803e-6),
-    1.0: (-2.0175358115661878e-8, -7.319562804711643e-8),
-    0.1: (-2.0175358369979786e-9, -7.319562753441864e-9),
-    1e-3: (-2.0175358397954755e-11, -7.319562747802189e-11),
+    100.0: (-2.0164344631275276e-6, -7.319168488522361e-6),
+    1.0: (-2.016437262121149e-8, -7.319162852295502e-8),
+    0.1: (-2.0164372875664535e-9, -7.319162801057117e-9),
+    1e-3: (-2.0164372903654373e-11, -7.319162795420894e-11),
 }
 
 
@@ -387,15 +387,15 @@ def test_three_component_fugacity_regression_is_unchanged() -> None:
     )[0]
     results = calculate_mixture_fugacity_coefficients(parameters, root)
 
-    assert root == pytest.approx(0.457604183307468, abs=1e-14)
+    assert root == pytest.approx(0.457636568473225, abs=1e-14)
     assert tuple(
         result.log_fugacity_coefficient for result in results
     ) == pytest.approx(
-        (0.017815239519452852, -0.9284362360321922, -1.6962978201699401),
+        (0.018014186106040775, -0.9284113235028244, -1.69617716080607),
         abs=1e-13,
     )
     assert tuple(result.fugacity_coefficient for result in results) == pytest.approx(
-        (1.0179748774861577, 0.39517118191128936, 0.18336110479973672),
+        (1.0181774202601945, 0.39518102674759337, 0.18338323036880208),
         abs=1e-13,
     )
 
@@ -529,7 +529,7 @@ def test_conditioned_low_pressure_fugacity_matches_decimal_reference(
 
 
 def test_low_pressure_branch_is_continuous_at_switch() -> None:
-    pressures = (2_770.0, 2_771.0, 2_772.0, 2_773.0)
+    pressures = (2_771.0, 2_772.0, 2_773.0, 2_774.0)
     roots: list[float] = []
     methane_logs: list[float] = []
     for pressure_pa in pressures:
@@ -722,7 +722,7 @@ def test_root_level_result_reports_marginal_spinodal_candidate() -> None:
     parameters = calculate_peng_robinson_mixture_parameters(
         mixture,
         0.99 * METHANE.critical_temperature_k,
-        0.9333632122923137 * METHANE.critical_pressure_pa,
+        0.9333343074407126 * METHANE.critical_pressure_pa,
     )
     roots = calculate_compressibility_roots(parameters.A_mix, parameters.B_mix)
     marginal = calculate_mixture_root_fugacity_result(parameters, roots[0])
@@ -888,19 +888,19 @@ def test_ternary_independent_reference_and_euler_invariant() -> None:
         interactions,
     )
 
-    assert parameters.a_alpha_mix == pytest.approx(0.44698507942275817, abs=3e-16)
-    assert parameters.b_mix == pytest.approx(3.682545160140038e-05, abs=3e-19)
-    assert parameters.A_mix == pytest.approx(0.71842617483525639, abs=4e-16)
-    assert parameters.B_mix == pytest.approx(0.1476361263204117, abs=2e-16)
-    assert root == pytest.approx(0.45760418330746788, abs=3e-15)
+    assert parameters.a_alpha_mix == pytest.approx(0.44689144275918274, abs=3e-16)
+    assert parameters.b_mix == pytest.approx(3.681866114236866e-05, abs=3e-19)
+    assert parameters.A_mix == pytest.approx(0.7182756753373232, abs=4e-16)
+    assert parameters.B_mix == pytest.approx(0.14760890283709283, abs=2e-16)
+    assert root == pytest.approx(0.457636568473225, abs=3e-15)
     assert tuple(
         result.log_fugacity_coefficient for result in results
     ) == pytest.approx(
-        (0.017815239519453154, -0.92843623603219205, -1.6962978201699417),
+        (0.018014186106040775, -0.9284113235028244, -1.69617716080607),
         abs=3e-14,
     )
     assert tuple(result.fugacity_coefficient for result in results) == pytest.approx(
-        (1.0179748774861579, 0.39517118191128942, 0.18336110479973641),
+        (1.0181774202601945, 0.39518102674759337, 0.18338323036880208),
         abs=3e-14,
     )
 

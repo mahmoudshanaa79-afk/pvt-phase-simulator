@@ -20,9 +20,9 @@ def test_methane_properties() -> None:
     """Methane should contain the expected physical properties."""
 
     assert METHANE.name == "Methane"
-    assert METHANE.critical_temperature_k == 190.56
+    assert METHANE.critical_temperature_k == 190.564
     assert METHANE.critical_pressure_pa == 4_599_200.0
-    assert METHANE.acentric_factor == 0.011
+    assert METHANE.acentric_factor == 0.011420
 
 
 def test_component_rejects_negative_critical_temperature() -> None:
@@ -101,14 +101,14 @@ def test_component_remains_immutable_when_nested_in_a_mixture() -> None:
     with pytest.raises(ValidationError):
         mixture.components[0].component.acentric_factor = 0.5
     assert mixture.components[0].component is METHANE
-    assert METHANE.acentric_factor == 0.011
+    assert METHANE.acentric_factor == 0.011420
 
 
 @pytest.mark.parametrize("component", [METHANE, ETHANE, PROPANE])
-def test_reference_components_retain_honest_provisional_provenance(
+def test_reference_components_expose_verified_traceable_provenance(
     component: Component,
 ) -> None:
-    """Existing values must clearly retain their unverified source status."""
+    """Selected source values must expose their exact traceability state."""
 
     assert component.provenance is not None
     records = (
@@ -116,8 +116,9 @@ def test_reference_components_retain_honest_provisional_provenance(
         component.provenance.critical_pressure,
         component.provenance.acentric_factor,
     )
-    assert all(record.status is PropertySourceStatus.PROVISIONAL for record in records)
-    assert all("source confirmation" in (record.notes or "") for record in records)
+    assert all(record.status is PropertySourceStatus.VERIFIED for record in records)
+    assert all(record.doi == "10.1021/acs.jced.5c00110" for record in records)
+    assert all("REFPROP" in (record.notes or "") for record in records)
 
 
 def test_component_property_provenance_is_immutable() -> None:

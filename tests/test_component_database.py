@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from dataclasses import FrozenInstanceError
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -47,10 +48,22 @@ from pvt_phase_simulator.fluid_models import (
     PropertySourceStatus,
 )
 
-LEGACY_VALUES = {
+PRE_MODULE_16_1_PROVISIONAL_VALUES = {
     "methane": ("Methane", 190.56, 4_599_200.0, 0.011),
     "ethane": ("Ethane", 305.32, 4_872_000.0, 0.099),
     "propane": ("Propane", 369.83, 4_248_000.0, 0.152),
+}
+SOURCED_VALUES = {
+    "methane": ("Methane", 190.564, 4_599_200.0, 0.011420),
+    "ethane": ("Ethane", 305.322, 4_872_200.0, 0.099500),
+    "propane": ("Propane", 369.890, 4_251_200.0, 0.152100),
+}
+SOURCE_REFERENCE_NAME = "Yang & Richter (2025), Journal of Chemical & Engineering Data"
+SOURCE_DOI = "10.1021/acs.jced.5c00110"
+SOURCE_RECORDS = {
+    "methane": "74-82-8",
+    "ethane": "74-84-0",
+    "propane": "74-98-6",
 }
 PROJECT_DATABASE_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "component_properties.csv"
@@ -86,6 +99,11 @@ def _write_database(
         writer = csv.DictWriter(target, fieldnames=header, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _clear_traceability_evidence(row: dict[str, str]) -> None:
+    for field in ("property_source_identity", "citation_text", "url", "doi"):
+        row[field] = ""
 
 
 def test_default_database_loads_all_components_in_stable_order() -> None:
@@ -138,11 +156,11 @@ def test_default_api_returns_immutable_ordered_records() -> None:
     ("component_id", "constant"),
     [("methane", METHANE), ("ethane", ETHANE), ("propane", PROPANE)],
 )
-def test_loaded_values_exactly_equal_pre_module_16_values(
+def test_loaded_values_exactly_equal_verified_source_values(
     component_id: str, constant: object
 ) -> None:
     component = get_component(component_id)
-    name, temperature, pressure, acentric = LEGACY_VALUES[component_id]
+    name, temperature, pressure, acentric = SOURCED_VALUES[component_id]
     assert component.name == name
     assert component.critical_temperature_k == temperature
     assert component.critical_pressure_pa == pressure
@@ -153,11 +171,20 @@ def test_loaded_values_exactly_equal_pre_module_16_values(
     assert component is constant
 
 
-def test_every_property_exposes_units_and_provisional_provenance() -> None:
+def test_pre_module_16_1_provisional_values_remain_auditable() -> None:
+    assert PRE_MODULE_16_1_PROVISIONAL_VALUES == {
+        "methane": ("Methane", 190.56, 4_599_200.0, 0.011),
+        "ethane": ("Ethane", 305.32, 4_872_000.0, 0.099),
+        "propane": ("Propane", 369.83, 4_248_000.0, 0.152),
+    }
+    assert PRE_MODULE_16_1_PROVISIONAL_VALUES != SOURCED_VALUES
+
+
+def test_every_property_exposes_exact_verified_source_provenance() -> None:
     expected = (
-        (ComponentPropertyName.CRITICAL_TEMPERATURE, "K"),
-        (ComponentPropertyName.CRITICAL_PRESSURE, "Pa"),
-        (ComponentPropertyName.ACENTRIC_FACTOR, "1"),
+        (ComponentPropertyName.CRITICAL_TEMPERATURE, "K", "critical temperature"),
+        (ComponentPropertyName.CRITICAL_PRESSURE, "Pa", "critical pressure"),
+        (ComponentPropertyName.ACENTRIC_FACTOR, "1", "acentric factor"),
     )
     for record in list_components():
         assert record.component.provenance is not None
@@ -167,13 +194,43 @@ def test_every_property_exposes_units_and_provisional_provenance() -> None:
             provenance.critical_pressure,
             provenance.acentric_factor,
         )
-        for source, (property_name, unit) in zip(actual, expected, strict=True):
+        cas_number = SOURCE_RECORDS[record.component_id]
+        for source, (property_name, unit, source_description) in zip(
+            actual, expected, strict=True
+        ):
             assert source.property_name is property_name
             assert source.canonical_unit == unit
-            assert source.status is PropertySourceStatus.PROVISIONAL
-            assert source.citation_text is None
-            assert source.doi is None
-            assert "authoritative source confirmation is absent" in (source.notes or "")
+            assert source.status is PropertySourceStatus.VERIFIED
+            assert source.source_reference_name == SOURCE_REFERENCE_NAME
+            assert source.doi == SOURCE_DOI
+            assert source.citation_text is not None
+            assert "Effective Thermophysical Constants" in source.citation_text
+            assert source.property_source_identity is not None
+            assert "Yang & Richter (2025) Table 5" in source.property_source_identity
+            assert record.component.name in source.property_source_identity
+            assert "Table S3 row" not in source.property_source_identity
+            assert cas_number in source.property_source_identity
+            assert source_description in source.property_source_identity
+            assert "originally taken from REFPROP" in source.property_source_identity
+            assert "no direct REFPROP query was made" in (source.notes or "")
+            if property_name is ComponentPropertyName.CRITICAL_PRESSURE:
+                assert source.original_unit == "kPa"
+                assert source.conversion == "1 kPa = 1000 Pa"
+            else:
+                assert source.original_unit is None
+                assert source.conversion is None
+
+
+def test_table_5_pressure_values_convert_exactly_from_kpa_to_canonical_pa() -> None:
+    source_pressures_kpa = {
+        "methane": Decimal("4599.20"),
+        "ethane": Decimal("4872.20"),
+        "propane": Decimal("4251.20"),
+    }
+    for component_id, source_pressure_kpa in source_pressures_kpa.items():
+        component = get_component(component_id)
+        canonical_pressure_pa = source_pressure_kpa * Decimal(1000)
+        assert canonical_pressure_pa == Decimal(str(component.critical_pressure_pa))
 
 
 def test_default_path_does_not_depend_on_working_directory(
@@ -293,16 +350,48 @@ def test_missing_property_is_rejected(tmp_path: Path) -> None:
         load_component_database(path)
 
 
-@pytest.mark.parametrize("field", ["original_unit", "conversion"])
-def test_unimplemented_conversion_metadata_is_rejected(
-    tmp_path: Path, field: str
+@pytest.mark.parametrize("missing_field", ["original_unit", "conversion"])
+def test_conversion_metadata_requires_complete_pair(
+    tmp_path: Path, missing_field: str
 ) -> None:
     rows = _rows()
-    rows[0][field] = "not-identity"
+    rows[1][missing_field] = ""
     path = tmp_path / "conversion.csv"
     _write_database(path, rows)
-    with pytest.raises(ComponentDatabaseError, match="not supported"):
+    with pytest.raises(ComponentDatabaseError, match="must be supplied together"):
         load_component_database(path)
+
+
+@pytest.mark.parametrize(
+    ("row_index", "original_unit", "conversion"),
+    [
+        (0, "K", "identity"),
+        (1, "MPa", "1 kPa = 1000 Pa"),
+        (1, "kPa", "1 MPa = 1000000 Pa"),
+        (1, "kPa", "multiply by 1000"),
+    ],
+)
+def test_unsupported_conversion_metadata_is_rejected(
+    tmp_path: Path,
+    row_index: int,
+    original_unit: str,
+    conversion: str,
+) -> None:
+    rows = _rows()
+    rows[row_index]["original_unit"] = original_unit
+    rows[row_index]["conversion"] = conversion
+    path = tmp_path / "conversion.csv"
+    _write_database(path, rows)
+    with pytest.raises(ComponentDatabaseError, match="unsupported source-unit"):
+        load_component_database(path)
+
+
+def test_supported_pressure_conversion_metadata_is_accepted() -> None:
+    source = (
+        load_component_database().get_component("methane").provenance.critical_pressure  # type: ignore[union-attr]
+    )
+    assert source.original_unit == "kPa"
+    assert source.conversion == "1 kPa = 1000 Pa"
 
 
 @pytest.mark.parametrize("source_name", PROVENANCE_PLACEHOLDER_INPUTS)
@@ -333,6 +422,7 @@ def test_verified_status_rejects_placeholder_free_text_evidence(
     rows = _rows()
     rows[0]["source_status"] = "verified"
     rows[0]["source_reference_name"] = "Synthetic test-only source"
+    _clear_traceability_evidence(rows[0])
     rows[0][field] = placeholder
     path = tmp_path / "source.csv"
     _write_database(path, rows)
@@ -418,6 +508,7 @@ def test_valid_verified_property_accepts_one_traceability_mechanism(
     rows = _rows()
     rows[0]["source_status"] = "verified"
     rows[0]["source_reference_name"] = "  Synthetic test-only source  "
+    _clear_traceability_evidence(rows[0])
     rows[0][field] = f"  {value}  "
     path = tmp_path / "source.csv"
     _write_database(path, rows)

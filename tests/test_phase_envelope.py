@@ -490,8 +490,8 @@ def test_module_8_generated_starts_are_used(
         binary_dew.points[0].correction_source
         is EnvelopeCorrectionSource.STARTING_SATURATION
     )
-    assert binary_bubble.points[0].pressure_pa == pytest.approx(2_640_548.36913065)
-    assert binary_dew.points[0].pressure_pa == pytest.approx(440_070.388255435)
+    assert binary_bubble.points[0].pressure_pa == pytest.approx(2_640_753.703796712)
+    assert binary_dew.points[0].pressure_pa == pytest.approx(439_411.30388776097)
 
 
 def test_supplied_converged_start_is_used_without_mutation() -> None:
@@ -1287,7 +1287,7 @@ def test_continuation_reaches_a_state_isolated_module_8_cannot_find() -> None:
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     point = result.points[-1]
     assert point.temperature_k == pytest.approx(250.0)
-    assert point.pressure_pa == pytest.approx(6_172_720.661334422, rel=1e-11)
+    assert point.pressure_pa == pytest.approx(6_174_169.157030562, rel=1e-11)
     assert point.maximum_active_log_k > 1e-8
     assert point.root_separation > 1e-8
     assert point.composition_separation > 1e-8
@@ -1304,7 +1304,7 @@ def test_ternary_continuation_reaches_an_isolated_not_found_state() -> None:
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     point = result.points[-1]
     assert point.temperature_k == pytest.approx(230.0)
-    assert point.pressure_pa == pytest.approx(5_626_462.905554884, rel=1e-11)
+    assert point.pressure_pa == pytest.approx(5_628_458.262860893, rel=1e-11)
     assert point.maximum_active_log_k > 1e-8
 
 
@@ -1340,9 +1340,9 @@ def test_initial_step_size_does_not_change_the_target_state(step: float) -> None
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
     point = result.points[-1]
     assert point.temperature_k == pytest.approx(220.0)
-    assert point.pressure_pa == pytest.approx(3_974_616.958989909, rel=1e-11)
+    assert point.pressure_pa == pytest.approx(3_975_343.6321820538, rel=1e-11)
     assert point.saturation_result.incipient_composition == pytest.approx(
-        (0.848549034, 0.151450966), abs=1e-9
+        (0.848674460, 0.151325540), abs=1e-9
     )
 
 

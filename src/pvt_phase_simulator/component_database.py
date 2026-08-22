@@ -47,6 +47,8 @@ _CANONICAL_UNITS: Final = {
     ComponentPropertyName.CRITICAL_PRESSURE: "Pa",
     ComponentPropertyName.ACENTRIC_FACTOR: "1",
 }
+_PRESSURE_SOURCE_UNIT: Final = "kPa"
+_PRESSURE_CONVERSION_EVIDENCE: Final = "1 kPa = 1000 Pa"
 
 
 class ComponentDatabaseError(ValueError):
@@ -191,10 +193,19 @@ def _parse_provenance(
     property_name: ComponentPropertyName,
     row_number: int,
 ) -> ComponentPropertyProvenance:
-    if row["original_unit"] or row["conversion"]:
+    original_unit = _optional(row["original_unit"])
+    conversion = _optional(row["conversion"])
+    if (original_unit is None) != (conversion is None):
         raise ComponentDatabaseError(
-            f"Row {row_number}: converted source values are not supported by "
-            "Module 16; value and unit must already be canonical."
+            f"Row {row_number}: original_unit and conversion must be supplied together."
+        )
+    if original_unit is not None and (
+        property_name is not ComponentPropertyName.CRITICAL_PRESSURE
+        or original_unit != _PRESSURE_SOURCE_UNIT
+        or conversion != _PRESSURE_CONVERSION_EVIDENCE
+    ):
+        raise ComponentDatabaseError(
+            f"Row {row_number}: unsupported source-unit conversion evidence."
         )
     try:
         status = PropertySourceStatus(row["source_status"])
@@ -213,9 +224,9 @@ def _parse_provenance(
             doi=_optional(row["doi"]),
             edition_or_version=_optional(row["edition_or_version"]),
             notes=_optional(row["notes"]),
-            original_unit=_optional(row["original_unit"]),
+            original_unit=original_unit,
             canonical_unit=row["unit"],
-            conversion=_optional(row["conversion"]),
+            conversion=conversion,
         )
     except ValueError as error:
         raise ComponentDatabaseError(
