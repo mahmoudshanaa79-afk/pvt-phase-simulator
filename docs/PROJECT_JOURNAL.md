@@ -1328,6 +1328,101 @@ unstaged and uncommitted for review. After Module 15.2 is committed, perform one
 final targeted Claude re-audit of B-2 and C-6. Only after explicit approval may
 Module 16 begin.
 
+## Module 16 — Provenanced Component-Property Database
+
+### Purpose and science
+
+Module 16 creates the traceable property-data boundary required before
+experimental validation. Peng–Robinson uses critical temperature for reduced-
+temperature attraction behavior, critical pressure to scale attraction and
+co-volume, and acentric factor in the alpha correlation. Molar mass is not used
+and was not populated from the old header-only scaffold. No value, citation,
+DOI, source record ID, experimental dataset, or `kij` was invented.
+
+### Data and provenance architecture
+
+`data/component_properties.csv` now uses a strict property-row schema.
+Canonical IDs are methane, ethane, and propane; aliases are deliberate and
+collision checked. Canonical units are K, Pa, and `1`. Values are finite, with
+positive `Tc` and `Pc`. All values were already canonical, so no conversion API
+was added; unsupported units and conversion claims fail explicitly.
+
+Every property has a frozen `ComponentPropertyProvenance` with its own status,
+source fields, citation/identifier fields, optional URL/DOI/version, notes, and
+unit/conversion evidence. `verified` requires a meaningful non-placeholder
+source plus non-placeholder citation/identity evidence or a structurally valid
+HTTP(S) URL/canonical DOI identifier; malformed supplied structured identifiers
+are rejected. This is a software traceability state, not independent scientific
+authentication. Current rows remain `provisional`, point only to their known
+pre-Module-16 repository origin, and state that authoritative confirmation is
+absent.
+
+The review CSV has a byte-identical source-package copy so the existing wheel
+backend includes the runtime resource. A test prevents these temporary
+packaging compatibility copies from diverging. The default path is module-
+relative and independent of the working directory.
+
+### Loader behavior and integration
+
+`load_component_database`, `get_component`, `resolve_component`, and
+`list_components` return ordered immutable typed objects. Exact header/width,
+UTF-8/CSV syntax, IDs, properties, units, statuses, numbers, physical minimums,
+completeness, block continuity, metadata consistency, source gates, and aliases
+are validated. Failures are explicit; lookup is exact/case-insensitive, never
+fuzzy or substituted.
+
+Database records convert into the existing `Component` EOS model. `METHANE`,
+`ETHANE`, and `PROPANE` remain compatibility objects loaded from CSV, removing
+Python numerical duplicates. Caller mixture order remains untouched. Pure data
+remain separate from interactions: `DEFAULT_ZERO` `kij` is a modelling
+assumption, not validated property data.
+
+### Existing provisional-data migration
+
+Exact legacy floats are retained: methane
+`(190.56 K, 4599200.0 Pa, 0.011)`, ethane
+`(305.32 K, 4872000.0 Pa, 0.099)`, and propane
+`(369.83 K, 4248000.0 Pa, 0.152)`. Tests cover exact equality/`repr`, source
+metadata, aliases, ordering, malformed data, alternate paths, pure PR,
+fugacity, flash, historical/Newton saturation, and envelope behavior. The
+frozen baseline is not regenerated.
+
+### Files and verification
+
+Production work adds `component_models.py`, `component_database.py`, and the
+packaged CSV; updates `fluid_models.py` and `unit_conversions.py`; populates the
+root CSV; and adds focused tests, a design document, index, overview, and this
+journal entry. The 42 focused database tests and all 898 repository tests pass.
+Module 13 remains 41/41 and Module 14 remains 23/23; its extended matrix still
+contains 21 specifications, 774 comparisons, and one documented boundary
+exclusion. A built and separately installed wheel resolves the packaged
+database outside the repository working directory. Ruff lint/format, strict
+mypy, compileall, and `git diff --check` pass.
+
+The strict golden comparator reports zero physical drift, numerical-path
+changes, status/termination changes, missing cases, and extra cases. Its only
+output is the already documented 328 `source_commit` metadata notices. The
+baseline remains unchanged at SHA-256
+`CBDA39461C9F5B839EF59F60710DF4558C5A588B6C1C90913ECADF099356A27D`.
+
+### Limitations, audit backlog, and next stage
+
+**SOFTWARE INFRASTRUCTURE VERIFIED** does not mean **PHYSICAL PROPERTY SOURCES
+AUTHORITATIVELY CONFIRMED**. Exact sources remain required for `Tc`, `Pc`, and
+acentric factor for each component. Molar mass and its source are required if a
+future calculation introduces molar mass.
+
+The deferred numerical backlog remains unchanged: D-1 directly pin the near-
+trivial log-K term; D-2 replace fallback substring matching with a structured
+diagnostic; D-3 revisit the near-critical margin as component scope widens and
+document phase-role diagnostic precedence; collapse golden `source_commit`
+noise; and consider the branch-failure line-search fast exit. None was mixed
+into Module 16.
+
+Module 17 is experimental validation and was not started. It must not claim an
+authoritative comparison until property provenance is confirmed. Module 16 is
+left unstaged and uncommitted for review.
+
 ## Module/Stage X — Name
 
 ### Purpose

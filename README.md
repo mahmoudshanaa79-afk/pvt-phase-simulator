@@ -45,9 +45,13 @@ The equations and their implementation mapping are documented in
 
 ```text
 src/pvt_phase_simulator/
-├── fluid_models.py              # Components, provenance, and mixtures
+├── component_models.py          # Immutable component and provenance models
+├── component_database.py        # Strict ordered CSV loader and lookup API
+├── data/
+│   └── component_properties.csv # Packaged runtime property resource
+├── fluid_models.py              # Mixtures and database-backed compatibility objects
 ├── physical_constants.py        # SI gas constant
-├── unit_conversions.py          # Reserved; no conversion API yet
+├── unit_conversions.py          # Explicitly unsupported conversion boundary
 └── eos/
     ├── peng_robinson.py         # Pure-fluid parameters, roots, and fugacity
     ├── mixing_rules.py          # Fixed-composition classical mixing rules
@@ -59,12 +63,16 @@ src/pvt_phase_simulator/
     └── phase_envelope.py        # Natural-temperature branch continuation
 tests/                           # Independent references and validation tests
 docs/                            # Scientific documentation
-data/                            # Future property-database scaffold
+data/
+└── component_properties.csv     # Human-review/source-tree property mirror
 notebooks/                       # Exploration scaffold
 app/                             # Reserved Streamlit entry point; no UI yet
 ```
 
 The package includes a `py.typed` marker and exposes inline type information.
+The packaged CSV is the runtime resource; the root CSV is its human-review
+source-tree mirror. Their byte identity is tested. This duplication is an
+intentional current packaging compromise, and the values remain provisional.
 
 ## Calculation flow
 
@@ -99,14 +107,10 @@ genuine roots. It does not choose a globally stable mixture phase.
 The built-in reference objects are methane, ethane, and propane. Their current
 critical properties and acentric factors are retained from the original
 project without numerical modification. Their metadata is explicitly marked
-`provisional`: they are standard approximate engineering values whose exact
-source still requires confirmation. They must not be treated as an
-authoritative property database.
-
-`ComponentPropertyProvenance` can store source title, author or organization,
-edition/version, table/section/record, retrieval date, notes, and verification
-status. Scientific values remain separate from citation metadata so the same
-model can support a future versioned CSV or TOML database.
+`provisional`: their exact authoritative sources still require confirmation.
+The strict UTF-8 CSV database stores one row and one provenance record per
+property, with stable IDs, deliberate aliases, explicit units, and deterministic
+ordering. See the [component-property database design](docs/COMPONENT_PROPERTY_DATABASE_DESIGN.md).
 
 ## Units
 
@@ -183,7 +187,8 @@ The project does **not** yet implement:
 - pseudo-arclength or demonstrated retrograde continuation
 - reservoir depletion
 - Péneloux volume translation or another EOS
-- an authoritative versioned property database
+- authoritatively sourced component-property values (the database
+  infrastructure exists, but its current values remain provisional)
 - engineering unit conversion functions
 - a Streamlit user interface
 

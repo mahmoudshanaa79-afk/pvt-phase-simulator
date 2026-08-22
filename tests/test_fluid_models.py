@@ -8,6 +8,7 @@ from pvt_phase_simulator.fluid_models import (
     METHANE,
     PROPANE,
     Component,
+    ComponentPropertyName,
     ComponentPropertyProvenance,
     FluidMixture,
     MixtureComponent,
@@ -110,28 +111,25 @@ def test_reference_components_retain_honest_provisional_provenance(
     """Existing values must clearly retain their unverified source status."""
 
     assert component.provenance is not None
-    assert component.provenance.status is PropertySourceStatus.PROVISIONAL
-    assert "source confirmation" in (component.provenance.notes or "")
+    records = (
+        component.provenance.critical_temperature,
+        component.provenance.critical_pressure,
+        component.provenance.acentric_factor,
+    )
+    assert all(record.status is PropertySourceStatus.PROVISIONAL for record in records)
+    assert all("source confirmation" in (record.notes or "") for record in records)
 
 
 def test_component_property_provenance_is_immutable() -> None:
     """Citation records cannot be mutated after attachment to a component."""
 
     provenance = ComponentPropertyProvenance(
-        source_title="Local verified reference",
-        author_or_organization="Example organization",
-        edition_or_version="1",
-        table_section_or_record="Table 1",
+        property_name=ComponentPropertyName.CRITICAL_TEMPERATURE,
+        source_reference_name="Local verified reference",
+        property_source_identity="Table 1",
+        canonical_unit="K",
         notes="Test-only citation metadata.",
         status=PropertySourceStatus.VERIFIED,
     )
-    component = Component(
-        name="Test component",
-        critical_temperature_k=200.0,
-        critical_pressure_pa=5_000_000.0,
-        acentric_factor=0.1,
-        provenance=provenance,
-    )
-    assert component.provenance is provenance
     with pytest.raises(ValidationError):
-        provenance.source_title = "Changed"
+        provenance.source_reference_name = "Changed"
