@@ -5,7 +5,8 @@ building auditable petroleum-fluid thermodynamics calculations. The current
 work implements the Peng–Robinson equation of state for pure fluids,
 fixed-composition mixtures, phase-stability trials, a stability-gated
 two-phase flash foundation, fixed-temperature saturation pressures, and
-natural-temperature phase-envelope branch continuation. It
+natural-temperature phase-envelope branch continuation, and an opt-in
+pseudo-arclength continuation mode with turning-point diagnostics. It
 emphasizes explicit units, immutable inputs, traceable assumptions, numerical
 conditioning, and independently specified
 regression cases.
@@ -37,6 +38,9 @@ regression cases.
 - Fixed-composition bubble/dew branch tracing with continuation-seeded log-K
   correction, secant prediction, adaptive temperature steps, local pressure
   searches, branch-identity checks, and near-critical warning termination.
+- Opt-in pseudo-arclength bubble/dew continuation using a dimensionless
+  composition/`ln(P)`/`ln(T)` state, SVD tangents, a safeguarded augmented
+  Newton corrector, adaptive arclength steps, and geometric turning indicators.
 - Experimental validation against 40 reference-quality methane/ethane and
   methane/propane VLE states, including explicit solver-coverage and
   multiple-dew-branch diagnostics with no fitting.
@@ -65,7 +69,8 @@ src/pvt_phase_simulator/
     ├── phase_stability.py       # TPD trials and conditional fallback starts
     ├── flash.py                 # Stability-gated two-phase flash foundation
     ├── saturation_pressure.py   # Fixed-temperature bubble/dew pressure
-    └── phase_envelope.py        # Natural-temperature branch continuation
+    ├── phase_envelope.py        # Natural-temperature branch continuation
+    └── pseudo_arclength.py      # Opt-in geometric branch continuation
 tests/                           # Independent references and validation tests
 docs/                            # Scientific documentation
 data/
@@ -105,6 +110,9 @@ of absolute experimental truth.
 12. Trace neighboring saturation states in temperature using the previous
     pressure and log-K state, then correct through narrow Module 8 pressure
     searches. Rejected steps and termination evidence remain explicit.
+13. When explicitly requested, trace the same saturation manifold with an SVD
+    tangent and weighted pseudo-arclength constraint while preserving the
+    existing phase-role, triviality, fixed-root, and near-critical safeguards.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.
@@ -193,7 +201,9 @@ The project does **not** yet implement:
 - exhaustive/global phase-stability certification beyond the bounded
   Wilson-plus-fallback Michelsen-style trials
 - exact critical-point or critical-locus solving
-- pseudo-arclength or demonstrated retrograde continuation
+- exact critical-point continuation or a supported-fluid temperature-fold
+  regression (the pseudo-arclength core has generic-fold and CH4/C3
+  pressure-turning evidence)
 - reservoir depletion
 - Péneloux volume translation or another EOS
 - experimental authentication and uncertainty quantification beyond the
@@ -204,9 +214,10 @@ The project does **not** yet implement:
 The current flash and saturation inner solves use undamped successive
 substitution. Saturation calculations search only the requested finite pressure
 interval and can return `NOT_FOUND` or `INCONCLUSIVE`; they do not establish a
-globally complete phase diagram. Envelope tracing uses natural temperature
-continuation and may terminate near folds or indistinguishable phase states;
-near-critical diagnostics are not exact critical points. Pure-fluid stable-root
+globally complete phase diagram. Envelope tracing defaults to natural
+temperature continuation. The opt-in pseudo-arclength mode can cross regular
+geometric turns but still terminates at root-role loss or indistinguishable
+phase states; near-critical diagnostics are not exact critical points. Pure-fluid stable-root
 selection must not be generalized to multicomponent global phase stability.
 
 Passing tests demonstrates consistency with the documented equations and

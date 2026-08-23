@@ -1725,6 +1725,151 @@ transcription, pairing, units, metrics, uncertainty, no cherry-picking, no
 fitting, and wording before commit. Module 18 has not started and follows only
 after review and Module 17 finalization.
 
+## Module 18 — Pseudo-Arclength Continuation
+
+### Purpose
+
+Module 18 adds opt-in geometric phase-envelope continuation for regular folds
+where temperature or pressure ceases to be a monotonic local coordinate. The
+historical Module 9 natural-temperature engine remains the default and is not
+modified. The new method is not permitted to continue through loss of phase
+identity or to claim an exact critical point; Module 20 remains responsible for
+critical solving.
+
+### Architecture inspected
+
+Module 9 stores accepted points as frozen wrappers around complete saturation
+results. Its previous-state/secant predictor advances temperature, the
+corrector performs local and expanded Module 8 pressure searches, and branch
+jumps are screened by predictor error, composition, pressure, selected roots,
+phase role, and fixed-root continuity. Retry evidence distinguishes numerical
+failure, branch loss, trivial collapse, and near-critical identity loss.
+
+Module 15 represents a local saturation state with `m-1` direct incipient
+simplex coordinates and `ln(P)`. Its full `m` fugacity-equality residuals use
+analytical composition and log-pressure columns, conditioned Newton solves,
+backtracking, phase-role checks, root continuity, and the audited Module 15.2
+trivial-state predicate. Module 13 supplies analytical fixed-root fugacity
+derivatives with respect to composition, pressure, log pressure, and
+temperature, returning explicit non-applicability near multiple roots. Module
+18 composes these APIs instead of introducing a new thermodynamic model.
+
+### Mathematical state, scaling, and tangent
+
+The pseudo state is `u=[w_1,...,w_(m-1),ln(P),ln(T)]`; it has `m+1`
+dimensionless coordinates. The final incipient fraction is reconstructed as
+one minus the independent-coordinate sum. The physical system has `m`
+fugacity equations. The extra weighted hyperplane equation makes the augmented
+system square.
+
+Identity weights are the default because composition, `ln(P)`, and `ln(T)` are
+all dimensionless. Positive diagonal weights remain configurable and are used
+consistently in normalization, orientation, prediction, and correction. The
+temperature Jacobian column applies the exact chain rule
+`dF/dln(T)=T*dF/dT`. No derivative crosses a root-selection switch.
+
+A full SVD extracts the single null vector satisfying `J_F t≈0`, which is
+normalized to `t^T W t=1`. Unsupported nullity is rejected. The initial sign is
+aligned with a secant between two trusted production saturation states; later
+signs enforce `t_new^T W t_previous>0`. A deterministic largest-component
+fallback exists only when neither secant nor previous tangent is supplied.
+
+### Predictor and augmented corrector
+
+The predictor is `u_pred=u_k+delta_s*t_k`. The corrector solves the physical
+residuals plus `t_k^T W (u-u_pred)=0`, with augmented Jacobian rows
+`[dF/du; t_k^T W]`. It uses a condition-number ceiling, finite-state checks,
+Newton solves, and residual-decreasing backtracking. Trial compositions must be
+strictly interior and normalized; pressure and temperature remain positive,
+and pressure remains bounded.
+
+### Physical safeguards and near-critical behavior
+
+Bubble states retain liquid-parent/vapor-incipient root order; dew states retain
+the inverse. The existing phase-role deadband and fixed-root continuity checks
+remain authoritative. Module 15.2 trivial collapse is rejected with its
+pure/effectively-pure behavior preserved. Near-critical thresholds come from
+`EnvelopeContinuationSettings`: multicomponent termination requires at least
+two severe composition/log-K/root indicators; a pure active state uses root
+separation alone. Pseudo-arclength may pass a regular turn, but it stops at
+phase-role loss, trivial collapse, or coalescence.
+
+### Step-size adaptation and diagnostics
+
+Default initial/minimum/maximum dimensionless steps are 0.02/0.001/0.08. A
+corrector taking at most four iterations grows the next step by 1.25. A hard or
+failed correction halves it; failed steps retry up to the configured bound.
+Crossing the minimum returns a structured
+`MINIMUM_ARCLENGTH_STEP_REACHED`. Frozen results store points, tangents,
+predictors, step history, corrector iterations, equilibrium evaluations,
+accepted/rejected counts, increases/reductions, pressure/temperature turning
+counts, termination, and initialization source.
+
+### Generic fold demonstration
+
+The isolated test uses `F(x,y)=x-y^2=0`, starting at `(1,-1)` and
+`(0.81,-0.9)`. Sixteen steps of 0.12 produce 18 states and pass from `y=-1` to
+`y=+0.56035`. The sequence crosses the fold between `y=-0.06164` and
+`y=+0.05923`; the x-tangent reverses while every consecutive tangent preserves
+orientation. Maximum manifold error is below `1e-11`; correctors take two or
+three iterations and no continuation step is rejected.
+
+### EOS equivalence and work metrics
+
+On the monotonic 50/50 CH4/C2 bubble branch, initialization at 200/202 K plus
+three pseudo steps reaches 205.35798 K. Independent production saturation
+solutions at every pseudo temperature agree within maximum relative pressure,
+composition, and selected-root errors `8.93e-15`, `6.67e-15`, and `8.22e-15`.
+The trace accepts three steps, rejects zero, records corrector iterations
+`(2,2,2)`, 23 equilibrium evaluations, three step increases, and no reduction.
+These are representative work metrics, not a universal runtime comparison.
+
+### Physical fold search and retained regression
+
+The reproducible search tool covers CH4/C2 and CH4/C3 at methane fractions
+0.2/0.5/0.8 plus ternary 0.6/0.3/0.1 and 0.3/0.3/0.4 feeds. Bubble and dew
+branches run in both initial temperature directions: 32 zero-kij traces, up to
+25 points each, with starts at 180–210 K and 0.001–100 MPa bounds. No property,
+interaction, or experimental-data tuning is used.
+
+A regular pressure maximum is found on the 50/50 CH4/C3 bubble branch. Pressure
+rises from 3.396 MPa at 210 K to 8.805 MPa at 308.456 K, then falls to
+8.737 MPa at 316.726 K. The pressure tangent changes from +0.0747517 to
+-0.258157 while temperature tangent remains positive from +0.366715 to
++0.277437. Fugacity residual remains `1.26e-9`, root separation `0.06958`,
+composition separation `0.05687`, and liquid/vapor roles remain correct after
+the turn. The exploratory continuation later stops near 320.86 K under the
+authoritative near-critical policy. No temperature tangent reversal is found;
+the generic curve remains the formal temperature-like fold proof.
+
+### Module 17 distinction
+
+Multiple dew roots at fixed `(T,y)` in Module 17 are not automatically a fold
+of a fixed-overall-composition envelope. Module 18 uses that evidence only as
+motivation to examine CH4/C3. Experimental pressure never replaces a
+production or pseudo-arclength prediction.
+
+### Regression compatibility, files, and limitations
+
+The new production module is `eos/pseudo_arclength.py`; the historical
+`phase_envelope.py`, saturation solver, derivative implementation, EOS,
+properties, golden baseline, and Module 17 artifacts are unchanged. Focused
+tests cover state scaling, tangent mathematics, orientation mutation,
+predictor, constraint, augmented Jacobian, safeguarded correction, generic
+fold traversal, adaptation, minimum step, composition, phase roles, triviality,
+near-critical stopping, opt-in isolation, EOS equivalence, physical pressure
+turning, work evidence, and determinism. `tools/run_module18_fold_search.py`
+reproduces the bounded physical search.
+
+Limitations are the verified three-component set, zero-kij assumption, bounded
+search, local fixed-root differentiability, interior active-simplex treatment,
+and lack of an exact critical solver or global branch certificate. The identity
+scaling is dimensionally valid but not claimed universally optimal. An
+independent adversarial review must examine the formulation, scaling, tangent,
+orientation, augmented Jacobian, fold evidence, phase identity, critical
+safety, adaptation, and default-path immutability before commit. Module 19 is
+not started and follows only after that review and Module 18 finalization.
+
 ## Module/Stage X — Name
 
 ### Purpose
