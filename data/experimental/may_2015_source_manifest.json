@@ -1,0 +1,72 @@
+{
+  "source_id": "may_et_al_2015_thermoml",
+  "citation": "E. F. May, J. Y. Guo, J. H. Oakley, T. J. Hughes, B. F. Graham, K. N. Marsh, and S. H. Huang, Reference Quality Vapor-Liquid Equilibrium Data for the Binary Systems Methane + Ethane, + Propane, + Butane and, + 2-Methylpropane, at Temperatures from (203 to 273) K and Pressures to 9 MPa, J. Chem. Eng. Data 2015, 60(12), 3606-3620.",
+  "doi": "10.1021/acs.jced.5b00610",
+  "archive_name": "NIST ThermoML",
+  "thermoml_page_url": "https://trc.nist.gov/ThermoML/10.1021/acs.jced.5b00610.html",
+  "thermoml_json_url": "https://trc.nist.gov/ThermoML/10.1021/acs.jced.5b00610.json",
+  "access_date": "2026-08-22",
+  "raw_json_sha256": "77630E90DB70BB6AABFDFA520F61F14CEE5076ECE0265754140A25F771659662",
+  "normalized_csv_sha256": "04ED00B661A90222583F591855A6847580E9A173F0A7BBCC185E02E9C71407BD",
+  "raw_snapshot_retained": false,
+  "raw_snapshot_policy": "The NIST JSON was inspected and hashed but is not redistributed because the archive page does not state a redistribution license. The normalized numerical facts, exact URL and SHA-256, pairing provenance, and deterministic extractor are retained. Ordinary validation is fully offline.",
+  "pressure_measurement_method": "Closed cell (Static) method",
+  "vapor_composition_measurement_method": "Chromatography",
+  "confidence_level_percent": 95.0,
+  "source_pressure_unit": "kPa",
+  "canonical_pressure_unit": "Pa",
+  "pressure_conversion": "1 kPa = 1000 Pa",
+  "normalized_point_counts": {
+    "ch4_c2": 17,
+    "ch4_c3": 23
+  },
+  "thermoml_compound_mapping": [
+    {
+      "thermoml_number": 1,
+      "name": "methane",
+      "formula": "CH4",
+      "inchikey": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+      "cas_available_in_thermoml": false,
+      "production_cross_reference_cas": "74-82-8"
+    },
+    {
+      "thermoml_number": 2,
+      "name": "ethane",
+      "formula": "C2H6",
+      "inchikey": "OTMSDBZUPAUEDD-UHFFFAOYSA-N",
+      "cas_available_in_thermoml": false,
+      "production_cross_reference_cas": "74-84-0"
+    },
+    {
+      "thermoml_number": 3,
+      "name": "propane",
+      "formula": "C3H8",
+      "inchikey": "ATUOYWHBWRKTHZ-UHFFFAOYSA-N",
+      "cas_available_in_thermoml": false,
+      "production_cross_reference_cas": "74-98-6"
+    }
+  ],
+  "selected_datasets": [
+    {
+      "system_id": "ch4_c2",
+      "pressure_dataset_number": 1,
+      "vapor_dataset_number": 2,
+      "point_count": 17
+    },
+    {
+      "system_id": "ch4_c3",
+      "pressure_dataset_number": 3,
+      "vapor_dataset_number": 4,
+      "point_count": 23
+    }
+  ],
+  "uncertainty_availability": {
+    "pressure": "Per-point 95% expanded uncertainty supplied in ThermoML and normalized from kPa to Pa.",
+    "temperature": "No numerical uncertainty value supplied in the selected ThermoML records.",
+    "liquid_composition": "No numerical uncertainty value supplied in the selected ThermoML records.",
+    "vapor_composition": "Per-point heavy-component 95% expanded uncertainty supplied in ThermoML; the complementary methane fraction has the same absolute uncertainty."
+  },
+  "source_anomalies": [
+    "The selected CH4+C3 ThermoML data include 273.48 K and 283.38 K points although the article title and abstract state a 203 to 273 K range. The 0.48 K excess is plausibly consistent with a rounded title range; 283.38 K is the material discrepancy. Both temperatures occur independently in paired pressure and vapor-composition observations, so neither is an extractor pairing artifact. Both points are retained rather than silently discarded."
+  ]
+}

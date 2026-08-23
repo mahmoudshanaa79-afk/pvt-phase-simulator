@@ -1,0 +1,191 @@
+{
+  "interpretation": {
+    "dew_branch_diagnostics": "Retrospective validation-only scan; the experimental pressure identifies the nearest already-existing PR root but never replaces the production prediction.",
+    "production_selected_metrics": "Prospective outputs of the unchanged production solver."
+  },
+  "normalized_csv_sha256": "04ED00B661A90222583F591855A6847580E9A173F0A7BBCC185E02E9C71407BD",
+  "source_anomaly_sensitivity_283_38_k": {
+    "bubble": {
+      "aard_shift_when_excluded_percentage_points": -0.053038278107787606,
+      "bias_shift_when_excluded_percentage_points": 0.05361445968818335,
+      "excluded_aard_percent": 0.9807666332366116,
+      "excluded_bias_percent": -0.969243001628693,
+      "excluded_rms_relative_percent": 1.1911291512609965,
+      "excluded_success_count": 19,
+      "included_aard_percent": 1.0338049113443992,
+      "included_bias_percent": -1.0228574613168764,
+      "included_rms_relative_percent": 1.2474942514800351,
+      "included_success_count": 20,
+      "rms_shift_when_excluded_percentage_points": -0.05636510021903862
+    },
+    "dew": {
+      "aard_shift_when_excluded_percentage_points": 2.201480888209616,
+      "bias_shift_when_excluded_percentage_points": -2.0664955079113554,
+      "excluded_aard_percent": 38.86971885863611,
+      "excluded_bias_percent": -37.92482119654825,
+      "excluded_rms_relative_percent": 44.787032110686084,
+      "excluded_success_count": 6,
+      "included_aard_percent": 36.668237970426496,
+      "included_bias_percent": -35.858325688636896,
+      "included_rms_relative_percent": 42.40217430079411,
+      "included_success_count": 7,
+      "rms_shift_when_excluded_percentage_points": 2.384857809891976
+    }
+  },
+  "source_id": "may_et_al_2015_thermoml",
+  "source_point_count": 40,
+  "systems": [
+    {
+      "dew_branch_diagnostics": {
+        "failed_no_root_found_in_scan_count": 0,
+        "failed_root_demonstrated_count": 2,
+        "multiple_root_state_count": 4,
+        "nearest_available_root_all_states": {
+          "aard_percent": 5.03158158845209,
+          "bias_percent": -2.0103772980348005,
+          "count": 17,
+          "maximum_absolute_relative_percent": 25.850018506256962,
+          "mean_absolute_error_pa": 291926.17593966186,
+          "rms_relative_percent": 8.518170332965926
+        },
+        "nearest_available_root_production_successful_states": {
+          "aard_percent": 5.112453121993826,
+          "bias_percent": -2.3101014597891147,
+          "count": 15,
+          "maximum_absolute_relative_percent": 25.850018506256962,
+          "mean_absolute_error_pa": 295495.2785733833,
+          "rms_relative_percent": 8.9227496778253
+        },
+        "production_failure_count": 2,
+        "production_intermediate_root_count": 0,
+        "production_lower_root_count": 2,
+        "production_single_root_count": 13,
+        "production_success_count": 15,
+        "production_unmatched_root_count": 0,
+        "production_upper_root_count": 0,
+        "single_root_state_count": 13,
+        "states_examined": 17,
+        "zero_root_state_count": 0
+      },
+      "experimental_state_fugacity_residual": {
+        "count": 17,
+        "maximum": 0.06560598699214559,
+        "mean": 0.014538222720505856,
+        "rms": 0.019967137191102335
+      },
+      "production_selected_bubble_metrics": {
+        "composition_maximum_absolute_component_error": 0.008813395774289176,
+        "composition_mean_absolute_component_error": 0.0037091200128458565,
+        "composition_uncertainty_available_count": 11,
+        "composition_within_one_uncertainty_count": 10,
+        "composition_within_two_uncertainties_count": 11,
+        "failure_count": 6,
+        "pressure_aard_percent": 0.454690272936386,
+        "pressure_bias_percent": -0.2902490453707504,
+        "pressure_maximum_absolute_relative_percent": 1.4302143942514662,
+        "pressure_mean_absolute_error_pa": 22191.23154053439,
+        "pressure_rms_relative_percent": 0.6957623241073989,
+        "pressure_uncertainty_available_count": 11,
+        "pressure_within_one_uncertainty_count": 10,
+        "pressure_within_two_uncertainties_count": 11,
+        "source_count": 17,
+        "success_count": 11
+      },
+      "production_selected_dew_metrics": {
+        "composition_maximum_absolute_component_error": 0.18938747494145863,
+        "composition_mean_absolute_component_error": 0.03902500301144884,
+        "composition_uncertainty_available_count": null,
+        "composition_within_one_uncertainty_count": null,
+        "composition_within_two_uncertainties_count": null,
+        "failure_count": 2,
+        "pressure_aard_percent": 6.045523060713735,
+        "pressure_bias_percent": -4.646066590639891,
+        "pressure_maximum_absolute_relative_percent": 25.85001850624154,
+        "pressure_mean_absolute_error_pa": 355947.236133196,
+        "pressure_rms_relative_percent": 9.84725988020644,
+        "pressure_uncertainty_available_count": 15,
+        "pressure_within_one_uncertainty_count": 8,
+        "pressure_within_two_uncertainties_count": 13,
+        "source_count": 17,
+        "success_count": 15
+      },
+      "system_id": "ch4_c2"
+    },
+    {
+      "dew_branch_diagnostics": {
+        "failed_no_root_found_in_scan_count": 2,
+        "failed_root_demonstrated_count": 14,
+        "multiple_root_state_count": 20,
+        "nearest_available_root_all_states": {
+          "aard_percent": 10.710867888242271,
+          "bias_percent": 3.173931657162104,
+          "count": 21,
+          "maximum_absolute_relative_percent": 37.74032763483425,
+          "mean_absolute_error_pa": 515078.68656186305,
+          "rms_relative_percent": 15.35763608169251
+        },
+        "nearest_available_root_production_successful_states": {
+          "aard_percent": 13.517855671281982,
+          "bias_percent": 1.5701065143686042,
+          "count": 7,
+          "maximum_absolute_relative_percent": 37.74032763483425,
+          "mean_absolute_error_pa": 577933.2718011101,
+          "rms_relative_percent": 19.433548163052375
+        },
+        "production_failure_count": 16,
+        "production_intermediate_root_count": 0,
+        "production_lower_root_count": 6,
+        "production_single_root_count": 1,
+        "production_success_count": 7,
+        "production_unmatched_root_count": 0,
+        "production_upper_root_count": 0,
+        "single_root_state_count": 1,
+        "states_examined": 23,
+        "zero_root_state_count": 2
+      },
+      "experimental_state_fugacity_residual": {
+        "count": 23,
+        "maximum": 0.18643183585093626,
+        "mean": 0.03251195903266776,
+        "rms": 0.05193279239203605
+      },
+      "production_selected_bubble_metrics": {
+        "composition_maximum_absolute_component_error": 0.0070409087742087095,
+        "composition_mean_absolute_component_error": 0.002288596846905229,
+        "composition_uncertainty_available_count": 20,
+        "composition_within_one_uncertainty_count": 20,
+        "composition_within_two_uncertainties_count": 20,
+        "failure_count": 3,
+        "pressure_aard_percent": 1.0338049113443992,
+        "pressure_bias_percent": -1.0228574613168764,
+        "pressure_maximum_absolute_relative_percent": 2.301713731338678,
+        "pressure_mean_absolute_error_pa": 59644.43854087686,
+        "pressure_rms_relative_percent": 1.2474942514800351,
+        "pressure_uncertainty_available_count": 20,
+        "pressure_within_one_uncertainty_count": 11,
+        "pressure_within_two_uncertainties_count": 15,
+        "source_count": 23,
+        "success_count": 20
+      },
+      "production_selected_dew_metrics": {
+        "composition_maximum_absolute_component_error": 0.5100612078291445,
+        "composition_mean_absolute_component_error": 0.22488983468365503,
+        "composition_uncertainty_available_count": null,
+        "composition_within_one_uncertainty_count": null,
+        "composition_within_two_uncertainties_count": null,
+        "failure_count": 16,
+        "pressure_aard_percent": 36.668237970426496,
+        "pressure_bias_percent": -35.858325688636896,
+        "pressure_maximum_absolute_relative_percent": 69.34850660325354,
+        "pressure_mean_absolute_error_pa": 2390110.907199142,
+        "pressure_rms_relative_percent": 42.40217430079411,
+        "pressure_uncertainty_available_count": 7,
+        "pressure_within_one_uncertainty_count": 1,
+        "pressure_within_two_uncertainties_count": 1,
+        "source_count": 23,
+        "success_count": 7
+      },
+      "system_id": "ch4_c3"
+    }
+  ]
+}

@@ -1577,6 +1577,154 @@ fallback diagnostics, CSV consolidation, and general critical-solver work.
 Module 17 experimental validation was not started and follows only after this
 rebaseline is independently approved and committed.
 
+## Module 17 — Experimental VLE Validation
+
+### Purpose and scientific boundary
+
+Module 17 adds the first external experimental test of the unchanged production
+Peng–Robinson model. Earlier modules verify equations, derivatives, numerical
+paths, properties, and regression stability; this module validates predictions
+against measured reality. The verified `Tc/Pc/omega`, unchanged EOS and solver
+defaults, and `kij=0` are used. There is no fitting, tolerance tuning, or
+error-based point removal.
+
+### Selected source and extraction
+
+The source is May et al., *J. Chem. Eng. Data* 2015, 60(12), 3606–3620, DOI
+`10.1021/acs.jced.5b00610`, from the NIST ThermoML page and JSON archive.
+Inspection confirmed citation identity, authors, compound mappings, methods,
+units, uncertainties, and counts. The selected systems are compound 1 methane
+with compound 2 ethane and compound 3 propane: 17 and 23 paired states.
+
+Pressure and vapor-composition observations are separate ThermoML datasets.
+The extractor validates their schemas and joins unique records by system,
+temperature, and liquid methane mole fraction, never array index. Every row
+retains both dataset and source-row identities; duplicate, missing, ambiguous,
+or unpairable observations fail loudly. Source kPa is converted exactly to Pa;
+K and mole fraction require no numerical conversion. The normalized CSV hash is
+`04ED00B661A90222583F591855A6847580E9A173F0A7BBCC185E02E9C71407BD`.
+
+The inspected JSON hash is
+`77630E90DB70BB6AABFDFA520F61F14CEE5076ECE0265754140A25F771659662`.
+It is not redistributed because no redistribution license is stated. The
+normalized facts, exact URLs/hash, manifest, row provenance, and extractor
+provide offline reproducibility. ThermoML-recorded 273.48 K and 283.38 K CH4+C3
+points lie above the title's stated upper temperature. The former is plausibly
+a rounded-range effect; the latter is material. Both occur independently in
+paired pressure and vapor observations and are retained transparently.
+
+### Validation methods and uncertainty
+
+Each state drives a production bubble calculation from `(T,x)` and dew
+calculation from `(T,y)`. A direct check evaluates
+`max_i |ln(f_i^L/f_i^V)|` at measured `(T,P,x,y)`, using the minimum liquid and
+maximum vapor roots. Results preserve status, failure reason, errors, iteration
+metadata, roots, diagnostics, and fugacity residuals.
+
+ThermoML supplies per-point 95% expanded pressure and vapor-heavy-composition
+uncertainty. The complementary methane fraction has the same absolute
+uncertainty. Numerical temperature and liquid-composition uncertainty are
+absent, so dew composition uncertainty scoring is unavailable rather than
+fabricated. Signed normalized residuals and within-1U/2U counts use explicit
+successful, uncertainty-bearing denominators.
+
+### Metrics and results
+
+Metrics are explicitly pressure MAE, AARD, RMS relative error, maximum absolute
+relative error, signed bias, componentwise composition MAE/maximum, and direct
+fugacity-residual mean/RMS/maximum.
+
+CH4+C2 bubble succeeds for 11/17: AARD 0.454690%, RMS 0.695762%, maximum
+relative error 1.430214%, vapor-composition MAE 0.00370912, and maximum
+0.00881340. Dew succeeds for 15/17: AARD 6.045523%, RMS 9.847260%, maximum
+25.850019%, liquid-composition MAE 0.03902500, and maximum 0.18938747. The
+measured-state residual mean/RMS/maximum is
+0.01453822/0.01996714/0.06560599.
+
+CH4+C3 bubble succeeds for 20/23: AARD 1.033805%, RMS 1.247494%, maximum
+relative error 2.301714%, vapor-composition MAE 0.00228860, and maximum
+0.00704091. Dew succeeds for 7/23: AARD 36.668238%, RMS 42.402174%, maximum
+69.348507%, liquid-composition MAE 0.22488983, and maximum 0.51006121. The
+measured-state residual mean/RMS/maximum is
+0.03251196/0.05193279/0.18643184.
+
+The worst CH4+C2 converged state is dew point `may2015_ch4_c2_013`, predicted
+1.7798 MPa low with 0.18939 maximum composition error. The worst CH4+C3 state is
+dew point `may2015_ch4_c3_015`, predicted 5.7698 MPa low with 0.51006 maximum
+composition error. CH4+C2 has six bubble and two dew `NOT_FOUND` results;
+CH4+C3 has three bubble `NOT_FOUND`, fourteen dew `INCONCLUSIVE`, and two dew
+`NOT_FOUND` results. Every point is accounted for.
+
+Upper-pressure-half AARD exceeds lower-half AARD for both directions and
+systems, qualitatively matching the paper's reported better PR behavior at low
+pressure. Bubble composition error stays below 0.00882 without a consistent
+pressure trend. Dew composition error rises with pressure among converged
+states, but CH4+C3 interpretation is selection-sensitive because sixteen dew
+calculations fail.
+
+### Independent-audit correction: multiple dew branches
+
+The first independent Module 17 audit conditionally approved the source,
+pairing, units, uncertainty treatment, metrics, artifacts, and baselines but
+identified finding B-1: the original narrative could make large
+production-selected CH4+C3 dew errors sound like unconditional PR model error.
+An additive validation-only branch scan now separates two concepts. The
+production-selected prediction remains exactly what the unchanged saturation
+solver returns. The branch-landscape diagnostic scans 0.05--15 MPa in fixed
+0.05 MPa increments, refines trustworthy dew-objective sign changes, applies
+existing convergence, root-role, and non-triviality gates, deduplicates roots,
+and orders them by pressure.
+
+CH4+C2 has zero/one/multiple-root counts 0/13/4; its 15 production successes
+classify as 13 single and two lower roots. CH4+C3 counts are 2/1/20; its seven
+production successes classify as one single and six lower roots. No successful
+production root is unmatched. The nearest experimental root is explicitly
+retrospective evidence and never replaces the production pressure.
+
+Audit cases 014, 015, and 023 reproduce lower production roots at approximately
+2.931, 2.550, and 5.840 MPa and alternative upper roots at 7.773, 8.159, and
+7.702 MPa. Their production pressure errors remain -63.10%, -69.35%, and
+-23.46%; nearest-root diagnostic errors are -2.14%, -1.94%, and +0.94%.
+Point 001 catches an invalid always-upper rule because its lower root is nearer;
+point 003 has the upper root nearer. The landscape therefore supplies no new
+prospective selection heuristic.
+
+Both CH4+C2 dew failures and 14 CH4+C3 failures have demonstrated diagnostic PR
+roots that production does not reach. Only CH4+C3 points 020 and 021 have no
+valid root found in the documented scan; this is not a claim that no PR solution
+exists. The 16/18 result reframes those failures primarily as current
+reachability/branch-selection evidence, without changing their exclusion from
+successful-production metrics.
+
+The 283.38 K sensitivity was recomputed. Excluding it shifts CH4+C3 bubble AARD
+from 1.033805% to 0.980767% (-0.053038 percentage points), while the
+production-selected dew successful-subset AARD moves from 36.668238% to
+38.869719% (+2.201481 points). Removing the anomaly does not improve the
+problematic dew result, so retention is not favorable cherry-picking. Direct
+measured-state fugacity residual summaries remain unchanged and continue to
+separate thermodynamic inconsistency from outer root-search behavior.
+
+No production saturation or EOS code, solver control, property, interaction
+parameter, source state, or golden baseline changed. Another independent audit
+of branch discovery and interpretation is required before commit.
+
+### Software engineering, tests, and limitations
+
+Frozen experimental models remain separate from production fluid models. The
+loader enforces hashes, schema, units, mapping, conversion, closure, ranges,
+unique identities, ordering, and counts. Tests cover provenance, normalization,
+source-order-independent pairing, metric formulas, failure accounting,
+determinism, and full point accounting. Mutations cover wrong units, swapped
+liquid/vapor data, duplicate IDs/keys, missing pressure, invalid fractions,
+incorrect mapping, and unpairable observations.
+
+Coverage is limited to two binaries, one source, its sampled domain, and
+`kij=0`. Metrics exclude failed solves and require their failure counts. No T or
+liquid-x uncertainty is available. Independent review must check identity,
+transcription, pairing, units, metrics, uncertainty, no cherry-picking, no
+fitting, and wording before commit. Module 18 has not started and follows only
+after review and Module 17 finalization.
+
 ## Module/Stage X — Name
 
 ### Purpose

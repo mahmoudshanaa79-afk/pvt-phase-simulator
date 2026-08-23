@@ -37,9 +37,14 @@ regression cases.
 - Fixed-composition bubble/dew branch tracing with continuation-seeded log-K
   correction, secant prediction, adaptive temperature steps, local pressure
   searches, branch-identity checks, and near-critical warning termination.
+- Experimental validation against 40 reference-quality methane/ethane and
+  methane/propane VLE states, including explicit solver-coverage and
+  multiple-dew-branch diagnostics with no fitting.
 
 The equations and their implementation mapping are documented in
 [`docs/EQUATIONS.md`](docs/EQUATIONS.md).
+The first experimental comparison and its limitations are documented in
+[`docs/EXPERIMENTAL_VALIDATION.md`](docs/EXPERIMENTAL_VALIDATION.md).
 
 ## Package structure
 
