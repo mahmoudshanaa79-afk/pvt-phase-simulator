@@ -9,6 +9,7 @@
 - [Module 16.2 verified-property golden rebaseline](VERIFIED_PROPERTY_GOLDEN_REBASELINE.md)
 - [Module 17 experimental VLE validation](EXPERIMENTAL_VALIDATION.md)
 - [Module 18 pseudo-arclength continuation](PSEUDO_ARCLENGTH_CONTINUATION.md)
+- [Module 19 mixture criticality derivatives](CRITICALITY_DERIVATIVES.md)
 - [Module 6 phase-stability and fallback design](PHASE_STABILITY_DESIGN.md)
 - [Module 7 two-phase flash design](FLASH_DESIGN.md)
 - [Module 8 saturation-pressure design](SATURATION_PRESSURE_DESIGN.md)

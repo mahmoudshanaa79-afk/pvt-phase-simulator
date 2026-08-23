@@ -1870,6 +1870,147 @@ orientation, augmented Jacobian, fold evidence, phase identity, critical
 safety, adaptation, and default-path immutability before commit. Module 19 is
 not started and follows only after that review and Module 18 finalization.
 
+## Module 19 — Criticality Derivatives
+
+### Purpose and scope
+
+Module 19 supplies local mixture-criticality mathematics for a future Module 20
+solver. It evaluates the Gibbs/TPD composition curvature and its higher-order
+soft-mode derivative at a specified `T`, `P`, composition, and fixed PR root.
+It does not iterate temperature or pressure, solve a critical point, change the
+EOS, or use phase coalescence as the derivative condition.
+
+### Architecture inspected and reused
+
+Module 5's `evaluate_feed_phase_reference` evaluates all mechanically stable
+feed roots and selects the lowest residual-Gibbs homogeneous parent;
+`calculate_tangent_plane_distance` supplies an independent local scalar.
+`mixture_fugacity.py` evaluates component `ln(phi_i)` on any genuine supplied
+root. Module 13's `calculate_fixed_root_mixture_fugacity_derivatives` provides
+analytical direct-simplex composition columns and structured non-applicability
+near multiple roots. The active-simplex reductions and branch-continuity rules
+in Modules 15 and 18 establish the relevant safety policy. Module 19 composes
+these APIs in a new file and modifies none of them.
+
+### Thermodynamic derivation and Hessian
+
+For reference component `r`, direct coordinates use `w_j=x_j`, `j != r`, and
+`x_r=1-sum(w)`. The reduced chemical-potential gradient is
+`q_j=ln(x_j phi_j)-ln(x_r phi_r)`. Its analytical Jacobian is
+
+```text
+H_w[j,k] = delta_jk/x_j + 1/x_r
+           + dln(phi_j)/dw_k - dln(phi_r)/dw_k.
+```
+
+No audited first fugacity derivative is replaced by a finite difference.
+
+### Tangent basis and transformation
+
+The deterministic physical basis starts with columns `e_j-e_n`, applies
+reduced QR, and signs each column so the first numerically tied
+largest-magnitude entry is positive. Thus `1^T Q=0` and `Q^T Q=I`. For an
+arbitrary direct reference basis `C_r`, `M=(C_r^T C_r)^-1 C_r^T Q` maps
+orthonormal coordinates into direct coordinates, and `H=M^T H_w M`. Focused
+tests verify both identities to float64 precision, the quadratic-form mapping,
+two reference choices, and component-permutation invariants.
+
+### Symmetry, eigenmode, uniqueness, and orientation
+
+The raw defect `max(abs(H-H^T))` is stored before symmetrization. Defects no
+larger than `1e-8*max(1,max(abs(H)))` permit `eigh` of the symmetric part;
+larger defects return `SYMMETRY_UNRELIABLE`. Representative binary defects are
+zero and the regular ternary defect is `2.22e-16`. Mutation tests accept tiny
+noise and reject a large antisymmetric perturbation.
+
+`lambda_min` is the smallest algebraic eigenvalue, not a determinant. Its
+normalized tangent vector `v` maps to `d=Qv`, with zero sum and unit norm. For
+dimension greater than one, the gap `lambda_2-lambda_1` must exceed
+`1e-8*max(1,max(abs(lambda)))`; otherwise `CRITICAL_MODE_DEGENERATE` is
+returned. Binary mixtures need no gap test. A previous physical direction
+controls sign through a positive dot product; otherwise the same deterministic
+largest-component rule is used.
+
+### Cubic derivative, boundary handling, and root continuity
+
+The cubic derivative is `C=dkappa/ds` at zero for
+`kappa(s)=d^T H(x+s*d)d`. The base `d` is held fixed: no perturbed eigenvector
+is computed. The initial step is `min(1e-3,0.25*h_boundary)`, where
+`h_boundary=min_i(x_i/abs(d_i))`. Centered estimates use
+
+```text
+D(h)   = [kappa(h)-kappa(-h)]/(2h)
+D(h/2) = [kappa(h/2)-kappa(-h/2)]/h
+C_R    = [4D(h/2)-D(h)]/3.
+```
+
+The frozen diagnostic records both steps, four curvatures and roots, the two
+raw derivatives, extrapolate, error indicator, and reductions. Invalid
+compositions are rejected rather than clipped. At every sample, cubic-root
+count, ordered mechanical classifications, unambiguous closest continuation,
+indexed branch, and Module 13 applicability must be preserved. Failure halves
+the step; persistent failure is structured non-applicability. A trace active
+component makes the ideal curvature exceed `1e5` while all samples stay
+positive and finite. Synthetic root-switch attacks verify recovery and final
+rejection.
+
+### APIs and result structure
+
+The immutable result includes full and active component mapping, inactive
+indices, state, root and policy, basis, direct and tangent Hessians, symmetry
+evidence, spectrum, `lambda_min`, tangent and physical directions, mode gap,
+`C`, Richardson diagnostics, applicability, status, and reason. The explicit
+fixed-root API is primary. A convenience API reuses Module 5's stable parent.
+The residual API returns `(lambda_min,C)` only from applicable evaluations and
+never invokes a solver.
+
+### Synthetic, PR, and independent verification
+
+The ideal-mixture model exactly recovers
+`H_w[j,k]=delta_jk/x_j+1/x_r`, positive definiteness, and a
+permutation-invariant spectrum. For
+`g(s)=a*s^2/2+b*s^3/6+c*s^4/24`, the generic machinery recovers `a` and `b`,
+including `a=b=0,c>0`. Adversarial tests cover mode degeneracy, symmetry,
+direction sign, boundary reduction, persistent branch failure, inactive
+reduction, and determinism.
+
+For regular CH4/C2, CH4/C3, and CH4/C2/C3 states, an independent Richardson
+Jacobian of the reduced chemical-potential gradient verifies `H`. A distinct
+five-point stencil verifies `C`. The fixed-root TPD expansion error decreases
+at `epsilon=2e-3,1e-3,5e-4`. Component permutations preserve spectra,
+`lambda_min`, aligned physical direction, and `abs(C)`; first- and last-reference
+direct constructions yield the same orthonormal invariants.
+
+Worst Hessian differences are `6.52e-11` absolute and `1.66e-9` relative in
+the CH4/C3 case. The independent five-point cubic check differs by `1.89e-11`
+absolute and `3.77e-11` relative. TPD expansion errors are `7.98e-12`,
+`4.99e-13`, and `3.11e-14`. Halving the cubic base step from `2e-3` to `1e-3`
+reduces its Richardson error indicator from `2.40e-6` to `6.00e-7`.
+
+At 280 K, 3 MPa, and CH4/C2/C3 composition 0.5/0.3/0.2, the representative
+spectrum is `(2.3158179770,4.1235683652)`, the oriented physical direction is
+`(0.8049652960,-0.5209020475,-0.2840632485)`, and
+`C=0.5032413494`. The 50/50 CH4/C3 Module 18 diagnostic path softens plausibly:
+between 210 K and the existing near-critical stop near 320.855 K, parent/
+incipient root separation falls from `0.63353` to `0.01175` and stable-parent
+`lambda_min` falls from `1.41812` to `0.00147945`. This is not a critical-state
+claim and no monotonic rule is imposed.
+
+### Files, limitations, review, and Module 20 connection
+
+The new production file is `eos/criticality.py`; focused tests are isolated in
+`test_criticality.py`. Documentation is in `CRITICALITY_DERIVATIVES.md`, with
+README indexes updated. Existing production files, properties, `kij`, Module
+17 artifacts, Module 18 behavior, and the golden baseline are unchanged.
+
+Limitations are local float64 fixed-root differentiability, an active open
+simplex, a numerical derivative of an analytical Hessian, explicit rejection
+of root ambiguity/coalescence and non-unique soft modes, and validation limited
+to the verified CH4/C2/C3 property set with default-zero interactions. Module
+19 requires an independent mathematical audit before commit. Module 20 may
+later solve `(lambda_min,C)=(0,0)` in `ln(P),ln(T)` at fixed overall
+composition; no part of that solve exists here.
+
 ## Module/Stage X — Name
 
 ### Purpose

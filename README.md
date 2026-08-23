@@ -6,7 +6,8 @@ work implements the Peng–Robinson equation of state for pure fluids,
 fixed-composition mixtures, phase-stability trials, a stability-gated
 two-phase flash foundation, fixed-temperature saturation pressures, and
 natural-temperature phase-envelope branch continuation, and an opt-in
-pseudo-arclength continuation mode with turning-point diagnostics. It
+  pseudo-arclength continuation mode with turning-point diagnostics, and local
+  mixture-criticality derivative analysis. It
 emphasizes explicit units, immutable inputs, traceable assumptions, numerical
 conditioning, and independently specified
 regression cases.
@@ -41,6 +42,10 @@ regression cases.
 - Opt-in pseudo-arclength bubble/dew continuation using a dimensionless
   composition/`ln(P)`/`ln(T)` state, SVD tangents, a safeguarded augmented
   Newton corrector, adaptive arclength steps, and geometric turning indicators.
+- Local mixture-criticality derivative analysis using orthonormal
+  composition-tangent Gibbs curvature, a unique soft eigenmode, and a
+  safeguarded fixed-direction cubic derivative. This evaluates specified
+  states; it does not locate critical points.
 - Experimental validation against 40 reference-quality methane/ethane and
   methane/propane VLE states, including explicit solver-coverage and
   multiple-dew-branch diagnostics with no fitting.
@@ -113,6 +118,9 @@ of absolute experimental truth.
 13. When explicitly requested, trace the same saturation manifold with an SVD
     tangent and weighted pseudo-arclength constraint while preserving the
     existing phase-role, triviality, fixed-root, and near-critical safeguards.
+14. At a specified mixture state and explicit or stable parent root, optionally
+    evaluate the orthonormal Gibbs-stability Hessian, soft composition mode,
+    and fixed-direction cubic derivative. No temperature/pressure solve occurs.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.
@@ -219,6 +227,10 @@ temperature continuation. The opt-in pseudo-arclength mode can cross regular
 geometric turns but still terminates at root-role loss or indistinguishable
 phase states; near-critical diagnostics are not exact critical points. Pure-fluid stable-root
 selection must not be generalized to multicomponent global phase stability.
+The local criticality API is restricted to fixed, differentiable cubic-root
+branches and the active open simplex; it reports root ambiguity, mode
+degeneracy, excessive Hessian antisymmetry, and unavailable symmetric
+perturbations instead of crossing them.
 
 Passing tests demonstrates consistency with the documented equations and
 regression cases; it does not replace experimental validation, calibrated
