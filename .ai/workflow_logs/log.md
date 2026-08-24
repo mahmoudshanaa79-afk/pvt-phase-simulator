@@ -4,17 +4,30 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | 20 — Mixture critical-point solver | HIGH | (pre-orchestration) | 1090 pass | YES | criticality mathematics + solver convergence certification | CONDITIONALLY APPROVED | C-1, C-2, C-3 | — | correction pass |
 | 2 | 20 — correction pass | HIGH | (pre-orchestration) | 1098 pass | YES | verify C-1/C-2/C-3 closure | **APPROVED** | none | `b03050c` | proceed |
-| 3 | 21 — Scientific plotting | MEDIUM | (pre-orchestration) | pending verify | NO | additive plotting only; no science file, data, or golden touched | — | — | `36d9584` | batch to milestone |
+| 3 | 21 — Scientific plotting | MEDIUM | (pre-orchestration) | **1137 pass** | NO | additive plotting only; no science file, data, or golden touched | — | — | `36d9584` | batch to milestone |
+| 4 | Orchestration adoption | LOW | n/a | n/a | NO | workflow metadata only | — | — | `39821c3` | await next work package |
 
 ## Orchestration adopted
 
 Adopted at HEAD `36d9584`. Modules 20 and 21 predate orchestration; their records
 above are reconstructed from git and from the two audits actually performed.
 
-## Blocking issue
+## Builder slot — RESOLVED
 
-**Codex worker unavailable on this machine** — no `codex` CLI, no MCP server, no
-configured worker. This is an enumerated human-escalation condition in the
-orchestration spec. The builder slot has no automated occupant, so the
-build/audit separation that the spec exists to protect cannot currently be
-realised end-to-end. Awaiting human decision on the builder path.
+Codex CLI 0.149.1 installed and authenticated via ChatGPT. Smoke-tested
+non-interactively at `36d9584`: exit 0, correct HEAD and file count, report
+captured via `--output-last-message`. All three roles are now fillable and the
+loop can run end-to-end.
+
+## Verification notes
+
+- **Module 21 local verification:** full suite **1137 passed**, exit 0, at HEAD
+  `36d9584` (1098 from Module 20 plus 39 new plotting cases). Diff is additive
+  only; `criticality.py`, `critical_point.py`, `peng_robinson.py`,
+  `mixing_rules.py`, `mixture_fugacity.py`, `phase_stability.py`, `flash.py`,
+  `saturation_pressure.py`, `phase_envelope.py`, `pseudo_arclength.py`,
+  `derivatives.py`, `data/` and the golden baseline are all unchanged.
+- **Stale documentation:** the Module 21 journal entry still states it "remains
+  unstaged and uncommitted pending independent scientific-visualization
+  review", but it is committed at `36d9584`. Text is stale, not a defect;
+  correct on next touch.
