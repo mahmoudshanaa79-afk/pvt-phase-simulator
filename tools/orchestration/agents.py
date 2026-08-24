@@ -197,6 +197,10 @@ def run_codex(
         input=work_order.read_text(encoding="utf-8"),
         capture_output=True,
         text=True,
+        # Windows would otherwise encode stdin with the locale codepage, which
+        # mangles non-ASCII prompt text into bytes the agent rejects.
+        encoding="utf-8",
+        errors="replace",
         check=False,
         timeout=config.codex.timeout_seconds,
     )
@@ -259,6 +263,9 @@ def run_claude_audit(
         input=prompt.read_text(encoding="utf-8"),
         capture_output=True,
         text=True,
+        # Same locale-codepage hazard as the builder transport.
+        encoding="utf-8",
+        errors="replace",
         check=False,
         timeout=config.claude.timeout_seconds,
     )

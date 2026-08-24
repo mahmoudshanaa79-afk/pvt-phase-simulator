@@ -772,6 +772,37 @@ class TestAuditorBudget:
         assert state.claude_cost_unknown_runs == 0
 
 
+class TestTransportEncoding:
+    """Regression: a live run failed because Windows encoded stdin as cp1252."""
+
+    @pytest.mark.parametrize("runner", ["codex", "claude"])
+    def test_agent_stdin_is_utf8(self, config, monkeypatch, runner) -> None:
+        captured: dict[str, object] = {}
+
+        class FakeCompleted:
+            returncode = 0
+            stdout = '{"result": "ok"}'
+            stderr = ""
+
+        def fake_run(command, **kwargs):
+            captured.update(kwargs)
+            return FakeCompleted()
+
+        monkeypatch.setattr(agents.subprocess, "run", fake_run)
+        monkeypatch.setattr(agents, "_resolve", lambda agent, name: "agent-exe")
+        # Non-ASCII is what broke the real run: em dash, arrow, Greek.
+        prompt = config.repo / "p.md"
+        prompt.write_text("audit — λ → C, 7.86 K", encoding="utf-8")
+        if runner == "codex":
+            agents.run_codex(config, prompt, stem="enc")
+        else:
+            agents.run_claude_audit(config, prompt, stem="enc")
+        assert captured.get("encoding") == "utf-8", (
+            "subprocess stdin must be pinned to UTF-8; the platform locale "
+            "codepage corrupts non-ASCII prompt text"
+        )
+
+
 def test_orchestrator_cli_help_runs() -> None:
     result = subprocess.run(
         [sys.executable, str(TOOLS / "orchestrator.py"), "--help"],

@@ -1,12 +1,12 @@
 {
   "project": "pvt-phase-simulator",
   "phase": "post-roadmap",
-  "workflow_status": "IDLE",
+  "workflow_status": "HUMAN_ACTION_REQUIRED",
   "last_scientific_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
   "last_independent_audit_commit": "f71ef10",
   "work_packages_since_audit": 0,
-  "current_work_package": null,
-  "current_risk": null,
+  "current_work_package": "final_release_doc_cleanup",
+  "current_risk": "LOW",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
@@ -37,12 +37,29 @@
   "planned_scope_complete": true,
   "codex_correction_cycles": 0,
   "claude_reaudit_cycles": 0,
-  "last_error": null,
+  "claude_cost_usd_this_package": 0.0,
+  "claude_cost_unknown_runs": 0,
+  "last_error": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260824-223343-final_release_doc_cleanup-report.md.",
   "history": [
     {
       "from": "IDLE",
       "to": "IDLE",
       "reason": "migrated to validated schema at orchestrator upgrade"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning final_release_doc_cleanup"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260824-223343-final_release_doc_cleanup-report.md."
     }
   ]
 }
