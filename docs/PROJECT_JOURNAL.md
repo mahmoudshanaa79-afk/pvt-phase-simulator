@@ -2011,6 +2011,162 @@ to the verified CH4/C2/C3 property set with default-zero interactions. Module
 later solve `(lambda_min,C)=(0,0)` in `ln(P),ln(T)` at fixed overall
 composition; no part of that solve exists here.
 
+## Module 20 — Mixture Critical-Point Solver
+
+### Purpose and architecture inspected
+
+Module 20 solves the reviewed Module 19 local conditions
+`(lambda_min,C)=(0,0)` in T and P for one fixed composition. Architecture review
+covered Module 19's stable-root and orientation APIs, Module 18's separate
+pseudo-arclength continuation, Module 15's conditioning/backtracking policy,
+Module 5 homogeneous-parent selection, structured status models, SI units, and
+active-component reduction. No Module 19 mathematics or historical solver path
+is duplicated or modified.
+
+### Residual contract, variables, scaling, and orientation
+
+The state order is `q=(ln(T),ln(P))`; physical candidates are recovered with
+`exp`. Composition is immutable. Each evaluation calls
+`calculate_stable_root_mixture_criticality`, requires `APPLICABLE`, and extracts
+the raw dimensionless signed pair `(lambda_min,C)`. The determinant, phase
+coalescence, and `abs(C)` are never substituted.
+
+Fixed diagonal scales are explicit: configured values or initial magnitudes
+with unit lower floors. Raw and scaled residuals are retained. The first soft
+direction uses Module 19's deterministic sign; every Jacobian and trial
+evaluation receives the current accepted direction and must have positive dot
+product with it. Only accepted iterations advance this orientation reference.
+
+### Jacobian and nonlinear safeguards
+
+The residual Jacobian in `(ln(T),ln(P))` uses central differences at `h` and
+`h/2` plus Richardson extrapolation, starting at `h=1e-3`. Non-applicable or
+invalid symmetric samples halve the step up to eight times. A separate
+five-point stencil at the 50/50 CH4/C3 320 K, 8.5 MPa seed differs by at most
+`6.63e-6` absolute and `2.91e-8` relative.
+
+The scaled 2x2 Newton system is solved only when finite and below condition
+number `1e10`. Proposed changes are limited to `0.15` in `ln(T)` and `0.35` in
+`ln(P)`. Backtracking factors `1,1/2,...` must strictly reduce
+`0.5*||r_scaled||^2`, remain within configured T/P bounds, preserve orientation,
+and yield applicable Module 19 diagnostics. Failures remain structured; no
+penalty residual, least-squares giant step, or blind external solver success is
+accepted.
+
+### Initialization, certification, and result model
+
+The primary API requires explicit T/P seeds. A separate user-bounded diagnostic
+grid reports low-residual candidates without solving or changing composition.
+Success requires `abs(lambda)<=1e-7`, `abs(C)<=1e-6`, and scaled norm `<=1e-6`.
+The final state is reevaluated twice from scratch and must reproduce identical
+raw residuals/direction while retaining Module 19 applicability, symmetry,
+fixed-root support, and a normalized zero-sum physical direction.
+
+The immutable result stores status, T/P, fixed composition, raw/scaled
+residuals, direction, complete final Module 19 evidence, work counts, compact
+iteration history, Jacobian conditions, initialization source, and reason. A
+quartic field is reserved but remains `None`; higher-order stabilization is not
+used as a residual and remains a review limitation.
+
+### Synthetic and adversarial verification
+
+Known linear and nonlinear fields converge to their exact roots. Tests pin log
+coordinate ordering and chain factors, independent five-point Jacobians,
+deterministic stencil reduction, scaling, singular-Jacobian rejection, real
+backtracking, bounds, non-applicable trials, both-residual convergence,
+spinodal false-positive rejection, orientation sign continuity, fresh final
+revalidation, determinism, permutation/reference invariance, active reduction,
+and pure-component exclusion. These tests kill column swaps, missing log-chain
+factors, `lambda`-only or `abs(C)` acceptance, uncontrolled eigenvector flips,
+non-improving steps, missing bounds, composition changes, and hidden fitting.
+
+### First PR candidate and iteration evidence
+
+The predictive case is 50/50 methane/propane with `kij=0`. A bounded inspection
+of the existing Module 18/19 near-critical region supplied the explicit seed
+320 K and 8.5 MPa. Three accepted full steps give
+
+```text
+T_c = 321.5829183194 K
+P_c = 8534443.2361 Pa
+lambda_min = 5.40149e-10
+C = 1.11022e-10
+scaled norm = 5.51441e-10
+d = (0.7071067811865472,-0.7071067811865475)
+```
+
+Residual norms are `0.941224`, `0.0450968`, `3.19484e-4`, and `5.51441e-10`;
+Jacobian conditions are `61.50`, `57.49`, and `57.54`. Seeds 325 K/9 MPa,
+315 K/8 MPa, and 330 K/10 MPa converge to the same T/P within `1e-5 K` and
+`0.2 Pa` in 3, 4, and 4 accepted steps. The widest seed backtracks once. Poor
+or out-of-bounds seeds terminate structurally.
+
+### Independent crossing, spinodal rejection, and invariance
+
+A fresh Module 19 call reproduces the final result exactly. Perturbing T by
+±0.05 K or P by ±5 kPa crosses both signed residual surfaces. The existing
+320.855 K trace endpoint has small `lambda≈0.00148` but `C≈-0.667` and is not
+critical. Reversed component order and both valid binary reference choices
+recover the same critical T/P within the stated tolerances. An appended zero
+fraction maps to a zero direction component; a single active component is
+rejected as outside mixture-critical scope.
+
+### Supporting phase-coalescence evidence and limitations
+
+The independent Module 18 50/50 CH4/C3 bubble trace stops near 320.8551 K and
+8.57685 MPa with root separation `0.0117546`, composition separation
+`0.00939846`, and `max|ln(K)|=0.0189758`. These are supporting trends only;
+the critical certificate remains the two Gibbs conditions plus applicability.
+The phase-boundary and critical solvers remain separate.
+
+Validation currently covers methane/ethane/propane properties, with the first
+solved regression on CH4/C3 and default-zero `kij`. No properties, EOS,
+interaction coefficients, experimental artifacts, or historical solvers are
+changed. No fitting or Module 17 calibration occurs. Quartic regularity,
+uncertainty propagation, broader-component validation, global basin proofs,
+and critical-locus continuation remain outside scope.
+
+### Files, review, and connection to Module 21
+
+Production is isolated in `eos/critical_point.py`; focused tests are in
+`test_critical_point.py`; detailed design is in `CRITICAL_POINT_SOLVER.md`.
+Module 20 remains unstaged and uncommitted pending independent adversarial
+review of orientation, scaling, Jacobians, convergence, spinodal rejection,
+applicability, final certification, seed sensitivity, invariance, interpretation,
+and absence of fitting. Module 21 has not started.
+
+### First independent audit and correction pass
+
+The first independent Module 20 audit was conditionally approving: it found no
+Category A or B defects, independently reproduced the 50/50 CH4/C3 result at
+`321.58291831086 K` and `8,534,443.23488 Pa`, and identified three Category C
+hardening items. The production physics and central result were not challenged.
+
+The correction pass closes those three items only. First, a large fixed cubic
+scale now has an adversarial regression proving that the raw `abs(C)` gate is
+independent of the scaled norm. Second, the Richardson error matrix must pass
+an entrywise `1e-6 + 2e-4*max(1,abs(richardson),abs(refined))` convergence gate;
+unresolved complete stencils halve from `h=1e-3` up to eight times and then fail
+structurally. Aliasing and persistently oscillatory synthetic fields pin both
+acceptance and exhaustion behavior. Third, every T/P stencil and line-search
+sample must preserve the base evaluation's ordered PR root topology and unique
+selected-root continuation. A 200 K Maxwell-locus regression rejects all nine
+mixed liquid/vapor stencil attempts as `ROOT_CONTINUITY`.
+
+The selected solve remains `321.5829183194 K`, `8,534,443.2361 Pa`, with
+`lambda_min=5.40149e-10` and `C=1.11022e-10`. Its accepted states and Jacobian
+samples have one stable physical root throughout. The independently identified
+294.178237 K, 7 MPa spinodal-like control retains `lambda_min=6.61e-9` but
+`C=-11.5191` and is not accepted.
+
+The audit also recorded a pre-existing Category D phase-stability weakness in
+which near-critical TPD candidates may collapse to a trivial solution. It is
+not part of Module 20's critical certificate, `phase_stability.py` is unchanged,
+and the item remains explicitly deferred. Module 19, historical thermodynamic
+code, properties, interactions, golden data, and Module 17 artifacts remain
+outside this correction pass. A second and final independent Module 20 audit is
+required before commit.
+
 ## Module/Stage X — Name
 
 ### Purpose

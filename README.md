@@ -5,9 +5,10 @@ building auditable petroleum-fluid thermodynamics calculations. The current
 work implements the Peng–Robinson equation of state for pure fluids,
 fixed-composition mixtures, phase-stability trials, a stability-gated
 two-phase flash foundation, fixed-temperature saturation pressures, and
-natural-temperature phase-envelope branch continuation, and an opt-in
-  pseudo-arclength continuation mode with turning-point diagnostics, and local
-  mixture-criticality derivative analysis. It
+natural-temperature phase-envelope branch continuation, an opt-in
+pseudo-arclength continuation mode with turning-point diagnostics, local
+mixture-criticality derivatives, and a safeguarded fixed-composition mixture
+critical-point solver. It
 emphasizes explicit units, immutable inputs, traceable assumptions, numerical
 conditioning, and independently specified
 regression cases.
@@ -46,6 +47,10 @@ regression cases.
   composition-tangent Gibbs curvature, a unique soft eigenmode, and a
   safeguarded fixed-direction cubic derivative. This evaluates specified
   states; it does not locate critical points.
+- A fixed-composition mixture critical-point solver in `ln(T)`/`ln(P)` using
+  signed Gibbs soft-mode residuals, numerically converged and root-branch-
+  continuous Richardson Jacobians, bounded Newton steps, backtracking, and
+  fresh final certification.
 - Experimental validation against 40 reference-quality methane/ethane and
   methane/propane VLE states, including explicit solver-coverage and
   multiple-dew-branch diagnostics with no fitting.
@@ -75,7 +80,9 @@ src/pvt_phase_simulator/
     ├── flash.py                 # Stability-gated two-phase flash foundation
     ├── saturation_pressure.py   # Fixed-temperature bubble/dew pressure
     ├── phase_envelope.py        # Natural-temperature branch continuation
-    └── pseudo_arclength.py      # Opt-in geometric branch continuation
+    ├── pseudo_arclength.py      # Opt-in geometric branch continuation
+    ├── criticality.py           # Local mixture criticality derivatives
+    └── critical_point.py        # Safeguarded fixed-composition critical solve
 tests/                           # Independent references and validation tests
 docs/                            # Scientific documentation
 data/
@@ -121,6 +128,9 @@ of absolute experimental truth.
 14. At a specified mixture state and explicit or stable parent root, optionally
     evaluate the orthonormal Gibbs-stability Hessian, soft composition mode,
     and fixed-direction cubic derivative. No temperature/pressure solve occurs.
+15. For an explicitly seeded fixed mixture, optionally solve the simultaneous
+    signed soft-curvature and cubic conditions in `ln(T)` and `ln(P)`, with
+    bounds, orientation continuity, backtracking, and final revalidation.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.
@@ -208,8 +218,7 @@ The project does **not** yet implement:
 - accelerated, damped, or globally convergent flash algorithms
 - exhaustive/global phase-stability certification beyond the bounded
   Wilson-plus-fallback Michelsen-style trials
-- exact critical-point or critical-locus solving
-- exact critical-point continuation or a supported-fluid temperature-fold
+- critical-locus continuation or a supported-fluid temperature-fold
   regression (the pseudo-arclength core has generic-fold and CH4/C3
   pressure-turning evidence)
 - reservoir depletion
@@ -231,6 +240,11 @@ The local criticality API is restricted to fixed, differentiable cubic-root
 branches and the active open simplex; it reports root ambiguity, mode
 degeneracy, excessive Hessian antisymmetry, and unavailable symmetric
 perturbations instead of crossing them.
+The critical-point solver inherits those local restrictions, requires an
+explicit seed and finite bounds, and currently has physical regression evidence
+only for the verified methane/propane binary with default-zero interactions. A
+positive quartic regularity diagnostic and global basin certification remain
+outside the current result.
 
 Passing tests demonstrates consistency with the documented equations and
 regression cases; it does not replace experimental validation, calibrated
