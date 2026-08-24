@@ -1,9 +1,9 @@
 {
   "project": "pvt-phase-simulator",
-  "phase": "post-roadmap",
+  "phase": "release-ready",
   "workflow_status": "IDLE",
-  "last_scientific_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
-  "last_independent_audit_commit": "f71ef10",
+  "last_scientific_commit": "cb82425",
+  "last_independent_audit_commit": "89fdcbe464b6dec814a1f315959cb9160ecfc57d",
   "work_packages_since_audit": 0,
   "current_work_package": "final_release_doc_cleanup",
   "current_risk": "LOW",
@@ -12,24 +12,17 @@
   "blocking_findings": [],
   "safe_defer_findings": [
     {
-      "id": "FINAL-D-1",
-      "category": "D",
-      "location": "docs/README.md + src/pvt_phase_simulator/eos/phase_stability.py",
-      "summary": "Near-critical false stability (7.86 K band at P=Pc) disclosed only generically; recommend naming the near-critical trivial-solution collapse and band width.",
-      "blocks_release": false
-    },
-    {
-      "id": "FINAL-D-2",
-      "category": "D",
-      "location": "docs/PROJECT_JOURNAL.md Module 21 section",
-      "summary": "Journal states Module 21 remains unstaged/uncommitted, but it is committed at 36d9584 and now audited. Append a closing line; do not rewrite history.",
-      "blocks_release": false
-    },
-    {
       "id": "M20-D-1",
       "category": "D",
       "location": "src/pvt_phase_simulator/eos/critical_point.py",
-      "summary": "Root-continuity sub-checks mutually redundant; diagnostic-quality only, no false convergence.",
+      "summary": "Root-continuity sub-checks are mutually redundant; diagnostic-quality only, no false convergence.",
+      "blocks_release": false
+    },
+    {
+      "id": "FINAL-D-1-residual",
+      "category": "D",
+      "location": "src/pvt_phase_simulator/eos/phase_stability.py",
+      "summary": "Near-critical trivial-solution collapse remains present in code; now explicitly documented in README. Behavioural fix is separate future work.",
       "blocks_release": false
     }
   ],
@@ -90,6 +83,49 @@
       "from": "LOCAL_VERIFY",
       "to": "IDLE",
       "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning final_release_doc_cleanup"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "IDLE",
+      "reason": "manually stopped"
     }
-  ]
+  ],
+  "release_state": {
+    "original_modules_1_to_21": "COMPLETE",
+    "final_whole_project_audit": "APPROVED",
+    "final_documentation_findings": "CLOSED (FINAL-D-1, FINAL-D-2 at cb82425)",
+    "blocking_findings": "NONE",
+    "project_release_state": "READY",
+    "optional_extensions": "NOT STARTED - awaiting explicit human scope decision"
+  }
 }
