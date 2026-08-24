@@ -1,0 +1,41 @@
+{
+  "project": "pvt-phase-simulator",
+  "current_module": null,
+  "current_phase": "development",
+  "last_completed_module": "21",
+  "last_completed_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
+  "last_independent_audit_commit": "b03050c",
+  "last_independent_audit_module": "20",
+  "last_independent_audit_verdict": "APPROVED",
+  "modules_since_last_independent_audit": 1,
+  "audit_required": false,
+  "audit_reason": null,
+  "pending_findings": [],
+  "safe_defer_findings": [
+    {
+      "id": "M20-D-1",
+      "category": "D",
+      "location": "src/pvt_phase_simulator/eos/critical_point.py :: _validate_root_continuity",
+      "summary": "Root-continuity sub-checks are mutually redundant; no single layer is individually pinned by a test.",
+      "evidence": "Across a 145-seed sweep: removing the unique-continuation check produced 0 behavioural differences; removing the selected-index check changed only the failure message; removing line-search continuity downgraded one seed's diagnosis. No mutation produced a false convergence.",
+      "blocks_progression": false,
+      "reconsider_at": "final project audit"
+    },
+    {
+      "id": "M20-D-2",
+      "category": "D",
+      "location": "src/pvt_phase_simulator/eos/phase_stability.py",
+      "summary": "Pre-existing near-critical false-stable band ~7.86 K below Tc at P=Pc from trivial-solution collapse.",
+      "evidence": "Independent 80-digit global TPD scan gives min TPD -5.42e-04 at Tc-6 K (split at w1=0.595) while analyze_mixture_phase_stability reports 'stable'. Probe validated on 5/5 known two-phase states.",
+      "blocks_progression": false,
+      "reconsider_at": "final project audit"
+    }
+  ],
+  "blocked": false,
+  "worker_availability": {
+    "codex": "AVAILABLE - codex-cli 0.149.1, authenticated via ChatGPT, invoked with: codex exec -s workspace-write -C <repo> --output-last-message <file>",
+    "claude_auditor": "AVAILABLE - main thread and subagents",
+    "local_quality_gates": "AVAILABLE - pytest, ruff, mypy, compileall, git, hashes"
+  },
+  "orchestration_adopted_at": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439"
+}
