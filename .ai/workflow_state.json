@@ -1,7 +1,7 @@
 {
   "project": "pvt-phase-simulator",
   "phase": "post-roadmap",
-  "workflow_status": "HUMAN_ACTION_REQUIRED",
+  "workflow_status": "IDLE",
   "last_scientific_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
   "last_independent_audit_commit": "f71ef10",
   "work_packages_since_audit": 0,
@@ -39,7 +39,7 @@
   "claude_reaudit_cycles": 0,
   "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
-  "last_error": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260824-223343-final_release_doc_cleanup-report.md.",
+  "last_error": null,
   "history": [
     {
       "from": "IDLE",
@@ -60,6 +60,11 @@
       "from": "CODEX_RUNNING",
       "to": "HUMAN_ACTION_REQUIRED",
       "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260824-223343-final_release_doc_cleanup-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "IDLE",
+      "reason": "manually stopped"
     }
   ]
 }
