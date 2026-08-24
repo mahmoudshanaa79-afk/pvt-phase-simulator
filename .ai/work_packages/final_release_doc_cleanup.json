@@ -1,0 +1,55 @@
+{
+  "name": "final_release_doc_cleanup",
+  "objective": "Close the two non-blocking documentation findings from the final whole-project audit. Documentation only: change no code, test, tolerance, baseline, or data.\n\nFINAL-D-1 (README.md): the near-critical phase-stability weakness is currently disclosed only in general terms ('no exhaustive/global phase-stability certification'). Add one or two sentences naming the specific mechanism - trivial-solution collapse in the stability trials near a mixture critical point - so a reader knows the failure is localized and predictable rather than merely theoretical. Cite the independent final audit's OBSERVED example: an approximately 7.86 K false-stable band below the audited 50/50 methane/propane critical temperature at P = Pc. You MUST present this as an observed regression example for that one audited mixture, NOT as a universal width. Do not imply the band width generalizes to other fluids, compositions, or pressures. State that near-critical stability classifications require caution. Do NOT modify phase_stability.py or any other source file.\n\nFINAL-D-2 (docs/PROJECT_JOURNAL.md): the Module 21 section still states the module 'remains unstaged and uncommitted pending independent scientific-visualization review'. APPEND a short closing entry recording that Module 21 was committed at 36d9584, was included in the final whole-repository independent audit, and is accepted as part of the completed original 21-module roadmap. Do NOT rewrite, delete, or edit the historical 'pending review' wording - the journal is chronological and its history must remain intact.",
+  "risk": "LOW",
+  "allowed_files": [
+    "README.md",
+    "docs/PROJECT_JOURNAL.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "tests",
+    "data",
+    "tests/golden_master/baseline.csv",
+    "docs/validation"
+  ],
+  "scientific_invariants": [
+    "No source file changes: src/ is untouched.",
+    "No test, tolerance, or baseline changes.",
+    "Golden master, property CSV, and Module 17 artifacts remain byte-identical.",
+    "Full scientific suite still reports 1137 passed.",
+    "FINAL-D-1 wording must not present the 7.86 K band as universal across fluids.",
+    "FINAL-D-2 must append to the journal without rewriting the historical entry.",
+    "No claim is added that the repository does not implement."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [],
+  "status": "PENDING",
+  "notes": "Ready to run but intentionally NOT executed as part of the automation-infrastructure package. Run with: python tools/orchestrator.py run --package final_release_doc_cleanup"
+}

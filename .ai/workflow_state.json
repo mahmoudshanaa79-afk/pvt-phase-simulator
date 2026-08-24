@@ -1,16 +1,15 @@
 {
   "project": "pvt-phase-simulator",
-  "current_module": null,
-  "current_phase": "final_release_approved",
-  "last_completed_module": "21",
-  "last_completed_commit": "39821c3",
+  "phase": "post-roadmap",
+  "workflow_status": "IDLE",
+  "last_scientific_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
   "last_independent_audit_commit": "f71ef10",
-  "last_independent_audit_module": "FINAL (1-21)",
-  "last_independent_audit_verdict": "APPROVED - ORIGINAL 21-MODULE PROJECT IS READY FOR FINAL RELEASE",
-  "modules_since_last_independent_audit": 0,
+  "work_packages_since_audit": 0,
+  "current_work_package": null,
+  "current_risk": null,
   "audit_required": false,
   "audit_reason": null,
-  "pending_findings": [],
+  "blocking_findings": [],
   "safe_defer_findings": [
     {
       "id": "FINAL-D-1",
@@ -34,40 +33,16 @@
       "blocks_release": false
     }
   ],
-  "blocked": false,
-  "worker_availability": {
-    "codex": "AVAILABLE - codex-cli 0.149.1, authenticated via ChatGPT, invoked with: codex exec -s workspace-write -C <repo> --output-last-message <file>",
-    "claude_auditor": "AVAILABLE - main thread and subagents",
-    "local_quality_gates": "AVAILABLE - pytest, ruff, mypy, compileall, git, hashes"
-  },
-  "orchestration_adopted_at": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
-  "module_21_verification": {
-    "suite": "1137 passed",
-    "exit": 0,
-    "at_commit": "36d9584",
-    "risk": "MEDIUM",
-    "audited": false,
-    "note": "batched to next milestone audit"
-  },
-  "project_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
-  "project_complete": true,
-  "last_completed_scientific_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
-  "optional_post_roadmap_extensions": {
-    "status": "NOT STARTED - out of original scope, not defects, must not begin before final release approval",
-    "items": [
-      "pseudocomponents",
-      "reservoir depletion",
-      "separator simulation",
-      "Streamlit application"
-    ]
-  },
-  "deferred_findings_for_final_reconsideration": [
-    "near-critical false-stability in phase_stability.py",
-    "Module 20 root-continuity sub-check test granularity",
-    "unevaluated quartic critical regularity",
-    "absence of global critical basin certification",
-    "zero/default kij and lack of calibration",
-    "limited verified component scope",
-    "lack of uncertainty propagation"
+  "planned_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
+  "planned_scope_complete": true,
+  "codex_correction_cycles": 0,
+  "claude_reaudit_cycles": 0,
+  "last_error": null,
+  "history": [
+    {
+      "from": "IDLE",
+      "to": "IDLE",
+      "reason": "migrated to validated schema at orchestrator upgrade"
+    }
   ]
 }

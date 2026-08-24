@@ -1,0 +1,4 @@
+# Transient orchestrator run artifacts. Audit records and work orders are
+# committed deliberately; live locks and pycache are not.
+orchestrator.lock
+__pycache__/

@@ -1,0 +1,109 @@
+{
+  "project": "pvt-phase-simulator",
+  "ai_dir": ".ai",
+  "agents": {
+    "codex": {
+      "executable": "codex",
+      "search_names": [
+        "codex",
+        "codex.cmd"
+      ],
+      "search_paths": [
+        "C:/Users/user/AppData/Roaming/npm/codex.cmd"
+      ],
+      "args": [],
+      "timeout_seconds": 5400
+    },
+    "claude": {
+      "executable": "",
+      "search_names": [
+        "claude",
+        "claude.cmd"
+      ],
+      "search_paths": [
+        "C:/Users/user/AppData/Roaming/Claude/claude-code/*/claude.exe"
+      ],
+      "args": [],
+      "timeout_seconds": 5400
+    }
+  },
+  "limits": {
+    "max_codex_correction_cycles": 3,
+    "max_claude_reaudit_cycles": 3,
+    "max_agent_runtime_minutes": 90,
+    "audit_batch_size": 5,
+    "max_claude_cost_usd_per_run": 5.0,
+    "max_claude_cost_usd_per_work_package": 15.0,
+    "_cost_note": "Passed to Claude as --max-budget-usd (native enforcement) and tracked cumulatively by the orchestrator across audit and re-audit cycles. Defaults are conservative: a real audit of this repo has cost well under $1, so $5/run allows headroom and $15/package covers the 3 permitted audit cycles. Cost is never estimated; unreported runs fall back to the cycle limits. Exhaustion yields HUMAN_ACTION_REQUIRED, never silent spend."
+  },
+  "fast_verification_commands": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q",
+      "--no-header",
+      "-x"
+    ]
+  ],
+  "verification_commands": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src"
+    ]
+  ],
+  "protected_artifacts": {
+    "tests/golden_master/baseline.csv": "530C667AA70EF1EA182F4EDB98624A0A9B9908F149354276CDAC44A87EA7D2BE",
+    "data/component_properties.csv": "C6F6BA9AE9C2F4C7F257BBC09A75DF0D7065255868AA46BF3E8C81AC5A8B9B3A",
+    "docs/validation/module17_vle_validation.csv": "B14728D51AAC06AF38FC4F4E5F408942B253FEBE32D3E12EC26E9623CFA42482",
+    "docs/validation/module17_vle_validation_summary.json": "5B120B77BF05567FCC6A0EE0D0054C6D1DEBA35FE26A7C837352C92017D24870"
+  },
+  "module17_normalized_csv_sha256": "04ED00B661A90222583F591855A6847580E9A173F0A7BBCC185E02E9C71407BD",
+  "protected_paths": [
+    "tests/golden_master/baseline.csv",
+    "data/component_properties.csv",
+    "docs/validation"
+  ],
+  "high_risk_paths": [
+    "src/pvt_phase_simulator/eos",
+    "src/pvt_phase_simulator/component_database.py",
+    "src/pvt_phase_simulator/component_models.py",
+    "src/pvt_phase_simulator/experimental_validation.py",
+    "src/pvt_phase_simulator/fluid_models.py",
+    "src/pvt_phase_simulator/physical_constants.py",
+    "data",
+    "tests/golden_master"
+  ],
+  "browser_fallback_enabled": false,
+  "browser_fallback_note": "Claude in Chrome is NOT used to reach Claude. Claude Code CLI is the transport. Browser automation is reserved for third-party surfaces with no API/CLI and requires explicit human confirmation."
+}
