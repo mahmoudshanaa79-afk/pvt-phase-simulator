@@ -1,15 +1,15 @@
 {
   "project": "pvt-phase-simulator",
   "current_module": null,
-  "current_phase": "development",
+  "current_phase": "final_project_audit",
   "last_completed_module": "21",
   "last_completed_commit": "39821c3",
   "last_independent_audit_commit": "b03050c",
   "last_independent_audit_module": "20",
   "last_independent_audit_verdict": "APPROVED",
   "modules_since_last_independent_audit": 1,
-  "audit_required": false,
-  "audit_reason": null,
+  "audit_required": true,
+  "audit_reason": "FINAL WHOLE-PROJECT AUDIT",
   "pending_findings": [],
   "safe_defer_findings": [
     {
@@ -45,5 +45,26 @@
     "risk": "MEDIUM",
     "audited": false,
     "note": "batched to next milestone audit"
-  }
+  },
+  "project_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
+  "project_complete": true,
+  "last_completed_scientific_commit": "36d9584baf8ff77e1e79ad5f9ad91d0eb9fd4439",
+  "optional_post_roadmap_extensions": {
+    "status": "NOT STARTED - out of original scope, not defects, must not begin before final release approval",
+    "items": [
+      "pseudocomponents",
+      "reservoir depletion",
+      "separator simulation",
+      "Streamlit application"
+    ]
+  },
+  "deferred_findings_for_final_reconsideration": [
+    "near-critical false-stability in phase_stability.py",
+    "Module 20 root-continuity sub-check test granularity",
+    "unevaluated quartic critical regularity",
+    "absence of global critical basin certification",
+    "zero/default kij and lack of calibration",
+    "limited verified component scope",
+    "lack of uncertainty propagation"
+  ]
 }
