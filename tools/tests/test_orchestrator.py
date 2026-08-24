@@ -772,6 +772,38 @@ class TestAuditorBudget:
         assert state.claude_cost_unknown_runs == 0
 
 
+class TestCommandResolution:
+    """Regression: a live run crashed on a relative executable path."""
+
+    def test_relative_executable_is_resolved_against_repo(self, config) -> None:
+        from orchestration.verify import _resolve_command
+
+        target = config.repo / "bin" / "tool.exe"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("", encoding="utf-8")
+        resolved = _resolve_command(config, ("bin/tool.exe", "-m", "x"))
+        assert Path(resolved[0]).is_absolute()
+        assert Path(resolved[0]) == target
+        assert resolved[1:] == ["-m", "x"]
+
+    def test_absolute_and_bare_names_are_left_alone(self, config) -> None:
+        from orchestration.verify import _resolve_command
+
+        assert _resolve_command(config, ("git", "status")) == ["git", "status"]
+        absolute = str(Path(sys.executable))
+        assert _resolve_command(config, (absolute, "-c", "pass"))[0] == absolute
+
+    def test_missing_executable_fails_gracefully(self, config) -> None:
+        """A bad command must fail the gate, not crash the orchestrator."""
+
+        from orchestration.verify import run_command
+
+        result = run_command(config, ("definitely-not-a-real-binary-xyz",))
+        assert result.exit_code == 127
+        assert not result.ok
+        assert "could not execute" in result.stderr
+
+
 class TestTransportEncoding:
     """Regression: a live run failed because Windows encoded stdin as cp1252."""
 

@@ -108,13 +108,32 @@ def _exclude_orchestrator_artifacts(
     )
 
 
+def _resolve_command(config: OrchestratorConfig, command: tuple[str, ...]) -> list[str]:
+    """Make a relative executable absolute against the repository root.
+
+    Windows resolves a relative program path against the *calling* process's
+    working directory, not the ``cwd`` passed to ``subprocess.run``, so a
+    configured command like ``.venv/Scripts/python.exe`` would not be found.
+    """
+
+    if not command:
+        return []
+    head, *rest = command
+    candidate = Path(head)
+    if not candidate.is_absolute():
+        local = config.repo / candidate
+        if local.exists():
+            return [str(local), *rest]
+    return list(command)
+
+
 def run_command(
     config: OrchestratorConfig, command: tuple[str, ...], timeout: int | None = None
 ) -> CommandResult:
     started = _now()
     try:
         completed = subprocess.run(
-            list(command),
+            _resolve_command(config, command),
             cwd=str(config.repo),
             capture_output=True,
             text=True,
@@ -128,6 +147,17 @@ def run_command(
             ended=_now(),
             stdout=completed.stdout,
             stderr=completed.stderr,
+        )
+    except OSError as error:
+        # A missing or unrunnable command is a verification failure, not an
+        # orchestrator crash: record it and let the gate fail normally.
+        return CommandResult(
+            command=command,
+            exit_code=127,
+            started=started,
+            ended=_now(),
+            stdout="",
+            stderr=f"could not execute {command[0]!r}: {error}",
         )
     except subprocess.TimeoutExpired as error:
         return CommandResult(
