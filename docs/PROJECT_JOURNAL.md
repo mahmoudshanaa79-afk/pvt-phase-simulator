@@ -2250,6 +2250,12 @@ The two safe-defer items remain untouched: individual redundant Module 20 root-
 continuity sub-checks are not each mutation-pinned, and the pre-existing
 near-critical phase-stability false-stability band remains separate work.
 
+### Module 21 closing status
+
+Module 21 was committed at `36d9584`, was included in the final whole-repository
+independent audit, and is accepted as part of the completed original 21-module
+roadmap.
+
 ## Module/Stage X — Name
 
 ### Purpose

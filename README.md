@@ -234,6 +234,14 @@ The project does **not** yet implement:
 - engineering unit conversion functions
 - a Streamlit user interface
 
+Near a mixture critical point, the bounded stability trials can collapse to the
+trivial solution and falsely classify a state as stable. In the independently
+audited 50/50 methane/propane regression at `P = Pc`, this produced an observed
+false-stable band of approximately 7.86 K below that mixture's audited critical
+temperature; this width is specific to that audited example and must not be
+generalized to other fluids, compositions, or pressures, so near-critical
+stability classifications require caution.
+
 The current flash and saturation inner solves use undamped successive
 substitution. Saturation calculations search only the requested finite pressure
 interval and can return `NOT_FOUND` or `INCONCLUSIVE`; they do not establish a
