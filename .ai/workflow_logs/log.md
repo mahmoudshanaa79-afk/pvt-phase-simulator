@@ -31,3 +31,4 @@ loop can run end-to-end.
   unstaged and uncommitted pending independent scientific-visualization
   review", but it is committed at `36d9584`. Text is stale, not a defect;
   correct on next touch.
+| 5 | FINAL whole-repository audit (Modules 1–21) | HIGH | n/a | 1137 pass | YES | FINAL PROJECT TRIGGER — original roadmap complete | **APPROVED — READY FOR FINAL RELEASE** | none blocking (2 Category D) | `f71ef10` | release |

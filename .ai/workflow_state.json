@@ -1,34 +1,37 @@
 {
   "project": "pvt-phase-simulator",
   "current_module": null,
-  "current_phase": "final_project_audit",
+  "current_phase": "final_release_approved",
   "last_completed_module": "21",
   "last_completed_commit": "39821c3",
-  "last_independent_audit_commit": "b03050c",
-  "last_independent_audit_module": "20",
-  "last_independent_audit_verdict": "APPROVED",
-  "modules_since_last_independent_audit": 1,
-  "audit_required": true,
-  "audit_reason": "FINAL WHOLE-PROJECT AUDIT",
+  "last_independent_audit_commit": "f71ef10",
+  "last_independent_audit_module": "FINAL (1-21)",
+  "last_independent_audit_verdict": "APPROVED - ORIGINAL 21-MODULE PROJECT IS READY FOR FINAL RELEASE",
+  "modules_since_last_independent_audit": 0,
+  "audit_required": false,
+  "audit_reason": null,
   "pending_findings": [],
   "safe_defer_findings": [
     {
-      "id": "M20-D-1",
+      "id": "FINAL-D-1",
       "category": "D",
-      "location": "src/pvt_phase_simulator/eos/critical_point.py :: _validate_root_continuity",
-      "summary": "Root-continuity sub-checks are mutually redundant; no single layer is individually pinned by a test.",
-      "evidence": "Across a 145-seed sweep: removing the unique-continuation check produced 0 behavioural differences; removing the selected-index check changed only the failure message; removing line-search continuity downgraded one seed's diagnosis. No mutation produced a false convergence.",
-      "blocks_progression": false,
-      "reconsider_at": "final project audit"
+      "location": "docs/README.md + src/pvt_phase_simulator/eos/phase_stability.py",
+      "summary": "Near-critical false stability (7.86 K band at P=Pc) disclosed only generically; recommend naming the near-critical trivial-solution collapse and band width.",
+      "blocks_release": false
     },
     {
-      "id": "M20-D-2",
+      "id": "FINAL-D-2",
       "category": "D",
-      "location": "src/pvt_phase_simulator/eos/phase_stability.py",
-      "summary": "Pre-existing near-critical false-stable band ~7.86 K below Tc at P=Pc from trivial-solution collapse.",
-      "evidence": "Independent 80-digit global TPD scan gives min TPD -5.42e-04 at Tc-6 K (split at w1=0.595) while analyze_mixture_phase_stability reports 'stable'. Probe validated on 5/5 known two-phase states.",
-      "blocks_progression": false,
-      "reconsider_at": "final project audit"
+      "location": "docs/PROJECT_JOURNAL.md Module 21 section",
+      "summary": "Journal states Module 21 remains unstaged/uncommitted, but it is committed at 36d9584 and now audited. Append a closing line; do not rewrite history.",
+      "blocks_release": false
+    },
+    {
+      "id": "M20-D-1",
+      "category": "D",
+      "location": "src/pvt_phase_simulator/eos/critical_point.py",
+      "summary": "Root-continuity sub-checks mutually redundant; diagnostic-quality only, no false convergence.",
+      "blocks_release": false
     }
   ],
   "blocked": false,
