@@ -51,6 +51,9 @@ regression cases.
   signed Gibbs soft-mode residuals, numerically converged and root-branch-
   continuous Richardson Jacobians, bounded Newton steps, backtracking, and
   fresh final certification.
+- Reusable Plotly visualizations for phase envelopes, phase compositions,
+  pseudo-arclength traces, experimental validation, criticality residuals, and
+  nonlinear-solver diagnostics, with explicit status and unit semantics.
 - Experimental validation against 40 reference-quality methane/ethane and
   methane/propane VLE states, including explicit solver-coverage and
   multiple-dew-branch diagnostics with no fitting.
@@ -71,6 +74,7 @@ src/pvt_phase_simulator/
 ├── fluid_models.py              # Mixtures and database-backed compatibility objects
 ├── physical_constants.py        # SI gas constant
 ├── unit_conversions.py          # Explicitly unsupported conversion boundary
+├── plotting.py                  # Pure Plotly scientific visualizations
 └── eos/
     ├── peng_robinson.py         # Pure-fluid parameters, roots, and fugacity
     ├── mixing_rules.py          # Fixed-composition classical mixing rules
@@ -131,6 +135,8 @@ of absolute experimental truth.
 15. For an explicitly seeded fixed mixture, optionally solve the simultaneous
     signed soft-curvature and cubic conditions in `ln(T)` and `ln(P)`, with
     bounds, orientation continuity, backtracking, and final revalidation.
+16. Convert precomputed phase behavior, validation, criticality, and nonlinear-
+    solver results into reusable Plotly figures without changing thermodynamics.
 
 The mixture fugacity API deliberately accepts stable, unstable, or marginal
 genuine roots. It does not choose a globally stable mixture phase.

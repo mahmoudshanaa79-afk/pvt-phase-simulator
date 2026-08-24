@@ -2167,6 +2167,89 @@ code, properties, interactions, golden data, and Module 17 artifacts remain
 outside this correction pass. A second and final independent Module 20 audit is
 required before commit.
 
+## Module 21 — Scientific Plotting
+
+### Purpose and architecture inspected
+
+Module 21 adds presentation and scientific-diagnostic figures for the existing
+phase-behavior engine. Architecture review covered the immutable results from
+fixed-temperature saturation, natural phase-envelope continuation,
+pseudo-arclength continuation, Module 17 validation, Module 19/20 diagnostic
+scans, and the Module 20 critical solver. Visualization is isolated in the
+package-level `plotting.py`; no EOS or solver module is changed.
+
+### Plotly and figure APIs
+
+Plotly was retained as the existing interactive visualization dependency. Pure
+renderers return `plotly.graph_objects.Figure` and have no Streamlit, browser,
+network, file-writing, or global-template side effects. Adapters consume
+structured source results directly or convert them once into immutable plotting
+records. Computation and rendering remain separate.
+
+The API covers P-T phase envelopes, liquid/vapor composition and binary x-y
+views, pseudo-arclength P-T and diagnostic figures, Module 17 pressure and
+composition parity/error/status figures, explicitly separate retrospective
+dew-root diagnostics, criticality residual contours, Module 20 convergence and
+conditioning histories, and the nonlinear critical-solver path.
+
+### Units, status, and scientific identity
+
+Pressure remains Pa internally and has one display conversion policy: Pa,
+kPa, MPa, or bar with exact divisors 1, `1e3`, `1e6`, and `1e5`. MPa is the
+default. Composition is either mole fraction or explicitly labelled mol percent.
+
+Bubble and dew branches have distinct line dashes and marker symbols, so color
+is not the only identity channel. Failed points never join converged lines.
+Near-critical, branch-lost, phase-role-lost, trivial-state, pressure-turning,
+and temperature-turning diagnostics retain separate labels. A turning point is
+explicitly not called critical.
+
+Only a `CONVERGED` Module 20 result is shown as a certified critical point. The
+approved zero-kij 50/50 methane/propane marker is
+`321.5829183194 K`, `8.53444323606381 MPa`; hover data retain composition,
+`lambda_min`, and C. Failed critical results have no critical marker.
+
+### Validation and criticality figures
+
+The canonical 40-row Module 17 result artifact has one centralized adapter.
+Parity plots contain production-selected predictions only and use a dynamic
+`y=x` range. Relative pressure error retains
+`100*(P_pred-P_exp)/P_exp`. Exact dew status/root/failure classifications remain
+visible. Retrospective nearest-root values are rendered only by a separate
+function labelled `not production prediction`.
+
+The criticality map accepts precomputed rectangular samples. The signed
+`lambda_min` array supplies the spinodal contour and the signed C array supplies
+the cubic contour; the approved critical point may be overlaid at their local
+intersection. Rendering never silently launches a large diagnostic scan. This
+figure makes `lambda_min=0 != critical point` visually explicit.
+
+### Solver diagnostics and verification
+
+Module 20 residual magnitude and conditioning figures use logarithmic axes with
+absolute-value labels for signed quantities. The accepted Newton T-P trace is
+labelled a nonlinear solver trajectory, not a phase boundary.
+
+Synthetic tests pin exact pressure factors, bubble/dew identity, critical
+overlay policy, status markers, composition units, contour array identity,
+dynamic parity, error sign, invalid inputs, input immutability, deterministic
+JSON, and absence of solver calls from pure rendering. Real regressions use an
+existing CH4/C2 envelope, all 40 Module 17 results, a small CH4/C3 criticality
+scan, the approved Module 20 state, and a Module 18 trace. Screenshot/pixel
+goldens are deliberately avoided.
+
+### Limitations, review, and deferred backlog
+
+Figures visualize supplied evidence; they do not prove global phase-diagram
+completeness. Contour fidelity depends on grid resolution. No automatic export,
+image dependency, final Streamlit application, reservoir depletion, separator,
+or pseudocomponent implementation is included. Module 21 remains unstaged and
+uncommitted pending independent scientific-visualization review.
+
+The two safe-defer items remain untouched: individual redundant Module 20 root-
+continuity sub-checks are not each mutation-pinned, and the pre-existing
+near-critical phase-stability false-stability band remains separate work.
+
 ## Module/Stage X — Name
 
 ### Purpose
