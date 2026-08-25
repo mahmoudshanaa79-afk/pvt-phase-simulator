@@ -772,6 +772,38 @@ class TestAuditorBudget:
         assert state.claude_cost_unknown_runs == 0
 
 
+class TestAgentResolution:
+    """Regression: a transient miss escalated a good run to HUMAN_ACTION_REQUIRED."""
+
+    def test_transient_miss_is_retried(self, monkeypatch) -> None:
+        from orchestration.config import AgentConfig
+
+        calls = {"n": 0}
+
+        def flaky(self):
+            calls["n"] += 1
+            return None if calls["n"] < 3 else "agent-exe"
+
+        monkeypatch.setattr(AgentConfig, "resolve", flaky)
+        monkeypatch.setattr(agents.time, "sleep", lambda *_: None)
+        assert agents._resolve(AgentConfig(executable="x"), "Test") == "agent-exe"
+        assert calls["n"] == 3
+
+    def test_persistent_miss_still_raises_with_search_paths(self, monkeypatch) -> None:
+        from orchestration.config import AgentConfig
+
+        monkeypatch.setattr(AgentConfig, "resolve", lambda self: None)
+        monkeypatch.setattr(agents.time, "sleep", lambda *_: None)
+        config = AgentConfig(executable="", search_paths=("C:/nope/*/x.exe",))
+        with pytest.raises(agents.AgentUnavailable) as excinfo:
+            agents._resolve(config, "Test")
+        message = str(excinfo.value)
+        # The original failure was hard to diagnose because search_paths was
+        # omitted from the message.
+        assert "search_paths" in message and "C:/nope" in message
+        assert "3 attempts" in message
+
+
 class TestCommandResolution:
     """Regression: a live run crashed on a relative executable path."""
 

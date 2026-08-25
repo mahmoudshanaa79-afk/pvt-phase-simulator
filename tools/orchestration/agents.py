@@ -13,7 +13,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from .config import AgentConfig, OrchestratorConfig
 
@@ -127,14 +127,26 @@ def blocking_findings(payload: dict[str, Any]) -> list[dict[str, Any]]:
 # --------------------------------------------------------------------- runner
 
 
+#: Transient resolution misses happen when an agent CLI is mid-auto-update and
+#: its versioned directory is briefly incomplete. Retry before escalating: a
+#: momentary miss must not discard an otherwise-good run.
+RESOLVE_ATTEMPTS: Final = 3
+RESOLVE_BACKOFF_SECONDS: Final = 2.0
+
+
 def _resolve(agent: AgentConfig, name: str) -> str:
-    executable = agent.resolve()
-    if executable is None:
-        raise AgentUnavailable(
-            f"{name} CLI not found (executable={agent.executable!r}, "
-            f"search_names={list(agent.search_names)})"
-        )
-    return executable
+    for attempt in range(RESOLVE_ATTEMPTS):
+        executable = agent.resolve()
+        if executable is not None:
+            return executable
+        if attempt < RESOLVE_ATTEMPTS - 1:
+            time.sleep(RESOLVE_BACKOFF_SECONDS * (attempt + 1))
+    raise AgentUnavailable(
+        f"{name} CLI not found after {RESOLVE_ATTEMPTS} attempts "
+        f"(executable={agent.executable!r}, "
+        f"search_names={list(agent.search_names)}, "
+        f"search_paths={list(agent.search_paths)})"
+    )
 
 
 def agent_available(agent: AgentConfig) -> tuple[bool, str]:
