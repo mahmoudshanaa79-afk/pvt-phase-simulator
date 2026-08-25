@@ -1,12 +1,12 @@
 {
   "project": "pvt-phase-simulator",
-  "phase": "release-ready",
+  "phase": "post-v1.0-extensions",
   "workflow_status": "IDLE",
-  "last_scientific_commit": "cb82425",
-  "last_independent_audit_commit": "89fdcbe464b6dec814a1f315959cb9160ecfc57d",
+  "last_scientific_commit": "da5594f",
+  "last_independent_audit_commit": "da5594f",
   "work_packages_since_audit": 0,
-  "current_work_package": "final_release_doc_cleanup",
-  "current_risk": "LOW",
+  "current_work_package": null,
+  "current_risk": null,
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
@@ -24,13 +24,20 @@
       "location": "src/pvt_phase_simulator/eos/phase_stability.py",
       "summary": "Near-critical trivial-solution collapse remains present in code; now explicitly documented in README. Behavioural fix is separate future work.",
       "blocks_release": false
+    },
+    {
+      "id": "STREAMLIT-D-1",
+      "category": "D",
+      "location": "tests/test_app_adapters.py, app/streamlit_app.py",
+      "summary": "No test imports app.streamlit_app or app.styles, so the entrypoint has no import/type regression guard. Auditor also claimed the gates omit app/, but the package's required_tests do run 'mypy src app' and 'compileall src app' (both exit 0 in the recorded verification); only the import smoke test is genuinely missing.",
+      "blocks_release": false
     }
   ],
   "planned_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
   "planned_scope_complete": true,
   "codex_correction_cycles": 0,
   "claude_reaudit_cycles": 0,
-  "claude_cost_usd_this_package": 0.0,
+  "claude_cost_usd_this_package": 2.1170143999999995,
   "claude_cost_unknown_runs": 0,
   "last_error": null,
   "history": [
@@ -118,14 +125,87 @@
       "from": "APPROVED",
       "to": "IDLE",
       "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_full_application"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "PLANNING",
+      "reason": "planning streamlit_full_application"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CORRECTION_REQUIRED",
+      "reason": "local verification failed"
+    },
+    {
+      "from": "CORRECTION_REQUIRED",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 1"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "REAUDIT_PENDING",
+      "reason": "targeted re-audit 1"
+    },
+    {
+      "from": "REAUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Claude Code CLI not found (executable='', search_names=['claude', 'claude.cmd'])"
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "IDLE",
+      "reason": "manually stopped"
     }
   ],
   "release_state": {
     "original_modules_1_to_21": "COMPLETE",
     "final_whole_project_audit": "APPROVED",
-    "final_documentation_findings": "CLOSED (FINAL-D-1, FINAL-D-2 at cb82425)",
-    "blocking_findings": "NONE",
-    "project_release_state": "READY",
-    "optional_extensions": "NOT STARTED - awaiting explicit human scope decision"
+    "optional_extensions": "streamlit_full_application COMMITTED at da5594f (audited APPROVED)",
+    "blocking_findings": "NONE"
   }
 }
