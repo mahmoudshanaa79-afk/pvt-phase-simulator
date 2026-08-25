@@ -137,6 +137,8 @@ def run_command(
             cwd=str(config.repo),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=timeout or config.limits.max_agent_runtime_minutes * 60,
         )

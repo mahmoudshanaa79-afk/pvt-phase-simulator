@@ -1,5 +1,8 @@
 """Read-only git inspection plus a deliberately narrow commit helper.
 
+Every subprocess here pins UTF-8: the platform locale codepage cannot decode
+diff bytes from files containing non-ASCII content.
+
 Repository facts come from here, never from the workflow state file. The
 orchestrator is forbidden from running history-rewriting or destructive git
 commands; those are enumerated and refused rather than merely avoided.
@@ -46,6 +49,8 @@ def git(repo: Path, *args: str, check: bool = True) -> str:
         cwd=str(repo),
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if check and result.returncode != 0:
@@ -132,6 +137,8 @@ def diff_check(repo: Path) -> tuple[bool, str]:
         cwd=str(repo),
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     return result.returncode == 0, result.stdout + result.stderr
@@ -164,6 +171,8 @@ def commit_paths(repo: Path, paths: list[str], message: str) -> str:
         cwd=str(repo),
         input=message,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=True,
     )

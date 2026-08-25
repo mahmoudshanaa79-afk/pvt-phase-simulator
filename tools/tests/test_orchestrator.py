@@ -772,6 +772,50 @@ class TestAuditorBudget:
         assert state.claude_cost_unknown_runs == 0
 
 
+class TestSubprocessEncoding:
+    """Every subprocess in the package must pin UTF-8.
+
+    A live audit crashed decoding git diff output with the platform codepage;
+    this guards the whole package rather than one call site.
+    """
+
+    def test_no_call_site_omits_encoding(self) -> None:
+        import re
+
+        package = TOOLS / "orchestration"
+        offenders = []
+        for path in sorted(package.glob("*.py")):
+            src = path.read_text(encoding="utf-8")
+            for match in re.finditer(r"subprocess\.run\(", src):
+                index, depth = match.end(), 1
+                while index < len(src) and depth:
+                    if src[index] == "(":
+                        depth += 1
+                    elif src[index] == ")":
+                        depth -= 1
+                    index += 1
+                if "encoding=" not in src[match.start() : index]:
+                    line = src[: match.start()].count(chr(10)) + 1
+                    offenders.append(f"{path.name}:{line}")
+        assert not offenders, f"subprocess.run without encoding=: {offenders}"
+
+    def test_git_reads_non_ascii_diff(self, repo: Path) -> None:
+        from orchestration.gitops import git
+
+        (repo / "unicode.txt").write_text("lambda → 7.86 K — ✓\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "u"], cwd=repo, check=True)
+        (repo / "unicode.txt").write_text("lambda → 8.00 K — ✗\n", encoding="utf-8")
+        out = git(repo, "diff")
+        assert out  # would raise UnicodeDecodeError under the locale codepage
+
+    def test_clip_tolerates_missing_text(self) -> None:
+        from orchestration.prompts import _clip
+
+        assert _clip(None, 10) == "(unavailable)"
+        assert _clip("", 10) == "(unavailable)"
+
+
 class TestAgentResolution:
     """Regression: a transient miss escalated a good run to HUMAN_ACTION_REQUIRED."""
 

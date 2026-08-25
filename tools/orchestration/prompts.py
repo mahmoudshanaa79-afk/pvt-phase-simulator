@@ -80,7 +80,9 @@ AUDITOR_RULES = textwrap.dedent(
 ).strip()
 
 
-def _clip(text: str, limit: int) -> str:
+def _clip(text: str | None, limit: int) -> str:
+    if not text:
+        return "(unavailable)"
     if len(text) <= limit:
         return text
     return text[:limit] + f"\n… [truncated, {len(text) - limit} more characters]"
@@ -171,7 +173,7 @@ def build_audit_prompt(
             if base_commit
             else git(config.repo, "diff")
         )
-    except RuntimeError:
+    except (RuntimeError, OSError, ValueError):
         full_diff = "(diff unavailable)"
 
     protected = "\n".join(
