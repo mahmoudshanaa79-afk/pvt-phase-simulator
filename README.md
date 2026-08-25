@@ -63,6 +63,21 @@ The equations and their implementation mapping are documented in
 The first experimental comparison and its limitations are documented in
 [`docs/EXPERIMENTAL_VALIDATION.md`](docs/EXPERIMENTAL_VALIDATION.md).
 
+## Streamlit application
+
+An optional Streamlit frontend now provides Overview, Phase Envelope, Critical
+Point, Validation, and Diagnostics views for the verified methane, ethane, and
+propane scope. It calls the existing scientific APIs and Module 21 Plotly
+figures without changing the v1.0 engine.
+
+```powershell
+.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
+```
+
+Input validation, explicit calculation actions, stale-result handling, failure
+semantics, supported views, and limitations are documented in
+[`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md).
+
 ## Package structure
 
 ```text
@@ -92,7 +107,7 @@ docs/                            # Scientific documentation
 data/
 └── component_properties.csv     # Human-review/source-tree property mirror
 notebooks/                       # Exploration scaffold
-app/                             # Reserved Streamlit entry point; no UI yet
+app/                             # Optional Streamlit application surface
 ```
 
 The package includes a `py.typed` marker and exposes inline type information.
@@ -232,7 +247,6 @@ The project does **not** yet implement:
 - experimental authentication and uncertainty quantification beyond the
   verified bibliographic traceability of component-property values
 - engineering unit conversion functions
-- a Streamlit user interface
 
 Near a mixture critical point, the bounded stability trials can collapse to the
 trivial solution and falsely classify a state as stable. In the independently
