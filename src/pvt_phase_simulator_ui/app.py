@@ -19,6 +19,18 @@ from pvt_phase_simulator_ui.state import initialize_session, store_result
 PAGES_DIRECTORY = Path(__file__).with_name("pages")
 
 
+@st.cache_data(show_spinner=False, max_entries=16)
+def _cached_flash(inputs: ScientificInputs) -> object:
+    """Cache an unchanged submitted case without changing its calculations."""
+
+    _, result = run_validated_flash(
+        inputs.composition_mol_percent,
+        inputs.temperature_k,
+        inputs.pressure_mpa,
+    )
+    return result
+
+
 def _input_form() -> tuple[ScientificInputs | None, bool]:
     with st.sidebar:
         st.subheader("Fluid inputs")
@@ -116,19 +128,17 @@ def run_app() -> None:
                 icon=":material/monitoring:",
             ),
         ],
-        position="top",
+        position="sidebar",
     )
     page.run()
     if run_flash:
         assert inputs is not None
         with st.sidebar.status("Running production flash…", expanded=True) as status:
+            status.write("Evaluating stability and phase split for the submitted case.")
+            status.caption("An unchanged submitted case reuses the bounded UI cache.")
             try:
-                run_inputs, result = run_validated_flash(
-                    inputs.composition_mol_percent,
-                    inputs.temperature_k,
-                    inputs.pressure_mpa,
-                )
-                store_result(session(), "flash", result, run_inputs)
+                result = _cached_flash(inputs)
+                store_result(session(), "flash", result, inputs)
                 status.update(label="Flash complete", state="complete", expanded=False)
             except (ValueError, ArithmeticError) as error:
                 session()["flash_startup_error"] = str(error)

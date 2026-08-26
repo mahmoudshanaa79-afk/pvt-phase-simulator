@@ -46,6 +46,7 @@ from pvt_phase_simulator_ui.adapters import (
     load_module17_records,
     location_relative_to_envelope,
     status_text,
+    validation_pressure_error_summary,
 )
 from pvt_phase_simulator_ui.context import session
 from pvt_phase_simulator_ui.state import get_result, result_is_stale, store_result
@@ -62,8 +63,52 @@ def _optional(value: float | None, digits: int = 6) -> str:
     return "Unavailable" if value is None else f"{value:.{digits}g}"
 
 
-def _scientific(value: float | None) -> str:
-    return "Unavailable" if value is None else f"{value:.6e}"
+def _full_precision(value: float | None) -> str:
+    return "Unavailable" if value is None else repr(float(value))
+
+
+def _action_requirement(inputs: ScientificInputs | None) -> None:
+    if inputs is None:
+        st.caption(":material/lock: Submit RUN FLASH to enable this action.")
+
+
+def _wide_chart(figure: Any, *, key: str | None = None) -> None:
+    st.plotly_chart(figure, width="stretch", height=500, key=key)
+
+
+def _square_chart(figure: Any, *, key: str) -> None:
+    with st.container(horizontal_alignment="center"):
+        st.plotly_chart(figure, width=680, height=640, key=key)
+
+
+def _annotate_missing_envelope_branches(
+    figure: Any, result: PhaseEnvelopeResult
+) -> Any:
+    missing = tuple(
+        branch
+        for branch in (result.bubble_branch, result.dew_branch)
+        if not branch.points
+    )
+    for index, branch in enumerate(missing):
+        branch_name = status_text(branch.branch_kind)
+        reason = status_text(branch.termination_reason)
+        figure.add_annotation(
+            x=0.01,
+            y=0.99 - 0.1 * index,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="top",
+            showarrow=False,
+            align="left",
+            text=(
+                f"{branch_name} branch not plotted — {reason}: "
+                f"{branch.termination_message}"
+            ),
+            borderpad=5,
+            bgcolor="rgba(255,255,255,0.9)",
+        )
+    return figure
 
 
 def _stale(name: str, inputs: ScientificInputs | None) -> bool:
@@ -106,7 +151,7 @@ def _composition_table(result: TwoPhaseFlashResult) -> None:
         pd.DataFrame(rows, index=COMPONENT_NAMES).T,
         width="stretch",
         column_config={
-            name: st.column_config.NumberColumn(name, format="%.8g mol %")
+            name: st.column_config.NumberColumn(name, format="%.6g mol %")
             for name in COMPONENT_NAMES
         },
     )
@@ -134,7 +179,7 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
             ),
             (
                 "Single-phase root",
-                _optional(view.single_phase_z, 10),
+                _full_precision(view.single_phase_z),
                 "Z, dimensionless",
             ),
         ]
@@ -144,25 +189,25 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
         component_rows.append(
             {
                 "Component": name,
-                "K value": (
+                "K value": _full_precision(
                     None if view.final_k_values is None else view.final_k_values[index]
                 ),
-                "Equilibrium residual": (
+                "Equilibrium residual": _full_precision(
                     view.equilibrium_residuals[index]
                     if index < len(view.equilibrium_residuals)
                     else None
                 ),
-                "Material-balance residual": (
+                "Material-balance residual": _full_precision(
                     view.material_balance_residuals[index]
                     if index < len(view.material_balance_residuals)
                     else None
                 ),
-                "Liquid fugacity coefficient": (
+                "Liquid fugacity coefficient": _full_precision(
                     None
                     if result.liquid_phase is None
                     else result.liquid_phase.component_fugacity_coefficients[index]
                 ),
-                "Vapor fugacity coefficient": (
+                "Vapor fugacity coefficient": _full_precision(
                     None
                     if result.vapor_phase is None
                     else result.vapor_phase.component_fugacity_coefficients[index]
@@ -173,16 +218,6 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
         pd.DataFrame(component_rows),
         hide_index=True,
         width="stretch",
-        column_config={
-            column: st.column_config.NumberColumn(format="%.6e")
-            for column in (
-                "K value",
-                "Equilibrium residual",
-                "Material-balance residual",
-                "Liquid fugacity coefficient",
-                "Vapor fugacity coefficient",
-            )
-        },
     )
     phase_rows = []
     for name, phase in (("Liquid", result.liquid_phase), ("Vapor", result.vapor_phase)):
@@ -194,7 +229,7 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
                     "Mechanical class": _value(phase.mechanical_classification),
                     "Root policy": _value(phase.root_selection.trial_kind),
                     "Candidate roots": ", ".join(
-                        f"{root.compressibility_factor:.8g}"
+                        repr(float(root.compressibility_factor))
                         for root in phase.root_selection.candidates
                     ),
                 }
@@ -229,21 +264,21 @@ def render_overview(inputs: ScientificInputs | None) -> None:
                 icon=":material/error:",
             )
     state_columns = st.columns(4, vertical_alignment="center")
-    state_columns[0].metric("Temperature", f"{view.temperature_k:.8g} K")
-    state_columns[1].metric("Pressure", f"{view.pressure_pa / PA_PER_MPA:.10g} MPa")
+    state_columns[0].metric("Temperature", f"{view.temperature_k:.6g} K")
+    state_columns[1].metric("Pressure", f"{view.pressure_pa / PA_PER_MPA:.6g} MPa")
     state_columns[2].metric("Model", "Peng-Robinson")
     state_columns[3].metric("Interactions", "kij = 0")
     phase_columns = st.columns(4, vertical_alignment="center")
     phase_columns[0].metric("Vapor fraction", _optional(view.vapor_fraction))
     phase_columns[1].metric("Liquid fraction", _optional(view.liquid_fraction))
-    phase_columns[2].metric("Vapor Z", _optional(view.vapor_z, 10))
-    phase_columns[3].metric("Liquid Z", _optional(view.liquid_z, 10))
+    phase_columns[2].metric("Vapor Z", _optional(view.vapor_z))
+    phase_columns[3].metric("Liquid Z", _optional(view.liquid_z))
     if view.vapor_fraction is not None and view.liquid_fraction is not None:
         st.caption("Engineering phase split · liquid / vapor")
         phase_split_bar(view.vapor_fraction, view.liquid_fraction)
     if view.single_phase_z is not None:
         st.info(
-            f"Single-phase selected root: Z = {view.single_phase_z:.10g}. "
+            f"Single-phase selected root: Z = {view.single_phase_z:.6g}. "
             "It is not relabelled as a liquid or vapor root."
         )
     st.subheader("Source-provided phase compositions")
@@ -264,14 +299,16 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             st.json(asdict(result))
 
 
+@st.cache_data(show_spinner=False, max_entries=8)
 def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
+    start_temperature_k = inputs.temperature_k - 30.0
     settings = EnvelopeContinuationSettings(
-        target_temperature_k=inputs.temperature_k + 50.0,
+        target_temperature_k=inputs.temperature_k + 30.0,
         initial_temperature_step_k=5.0,
         maximum_points=15,
     )
     return calculate_phase_envelope(
-        inputs.mixture(), settings, settings, inputs.temperature_k, inputs.temperature_k
+        inputs.mixture(), settings, settings, start_temperature_k, start_temperature_k
     )
 
 
@@ -290,6 +327,12 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     ):
         assert inputs is not None
         with st.status("Tracing bubble and dew branches…", expanded=True) as status:
+            status.write(
+                "Cold-starting below the operating point, then continuing both "
+                "branches through its temperature."
+            )
+            status.write("Typical first run: about 20–30 seconds.")
+            status.caption("An unchanged submitted case reuses the bounded UI cache.")
             try:
                 result = _calculate_envelope(inputs)
                 store_result(session(), "envelope", result, inputs)
@@ -297,6 +340,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             except (ValueError, ArithmeticError) as error:
                 status.update(label="Envelope trace failed", state="error")
                 st.error(f"Phase-envelope calculation could not start: {error}")
+    _action_requirement(inputs)
     raw = get_result(session(), "envelope")
     if raw is None:
         st.info("No calculated envelope is available.", icon=":material/info:")
@@ -308,14 +352,17 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     )
     if result_is_stale(session(), "critical", inputs):
         critical = None
-    st.plotly_chart(
-        plot_phase_envelope(
+    _wide_chart(
+        _annotate_missing_envelope_branches(
+            plot_phase_envelope(
+                result,
+                pressure_unit=PressureUnit.MPA,
+                critical_point=critical,
+                metadata={"model": "Peng-Robinson EOS; kij=0"},
+            ),
             result,
-            pressure_unit=PressureUnit.MPA,
-            critical_point=critical,
-            metadata={"model": "Peng-Robinson EOS; kij=0"},
         ),
-        width="stretch",
+        key="phase_envelope_chart",
     )
     _status_rows(
         [
@@ -323,13 +370,15 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                 "Bubble branch",
                 status_text(result.bubble_branch.termination_reason),
                 f"{len(result.bubble_branch.points)} accepted; "
-                f"{len(result.bubble_branch.rejected_attempts)} rejected",
+                f"{len(result.bubble_branch.rejected_attempts)} rejected; "
+                f"{result.bubble_branch.termination_message}",
             ),
             (
                 "Dew branch",
                 status_text(result.dew_branch.termination_reason),
                 f"{len(result.dew_branch.points)} accepted; "
-                f"{len(result.dew_branch.rejected_attempts)} rejected",
+                f"{len(result.dew_branch.rejected_attempts)} rejected; "
+                f"{result.dew_branch.termination_message}",
             ),
         ]
     )
@@ -351,7 +400,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     )
     if st.button("SHOW PHASE COMPOSITIONS", icon=":material/show_chart:"):
         try:
-            st.plotly_chart(
+            _wide_chart(
                 plot_phase_compositions(
                     result,
                     branch=branch,
@@ -359,12 +408,13 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                     display=CompositionDisplay.MOL_PERCENT,
                     pressure_unit=PressureUnit.MPA,
                 ),
-                width="stretch",
+                key="phase_compositions_chart",
             )
         except ValueError as error:
             st.info(f"Phase-composition figure unavailable: {error}")
 
 
+@st.cache_data(show_spinner=False, max_entries=8)
 def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
     return solve_mixture_critical_point(
         inputs.mixture(),
@@ -374,6 +424,7 @@ def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
     )
 
 
+@st.cache_data(show_spinner=False, max_entries=8)
 def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
     return scan_mixture_criticality(
         inputs.mixture(),
@@ -391,8 +442,9 @@ def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
 def render_critical_point(inputs: ScientificInputs | None) -> None:
     st.header("Critical point")
     st.caption(
-        "Certification requires CriticalPointStatus.CONVERGED; a spinodal or "
-        "lambda_min = 0 is insufficient."
+        "Certification requires solver convergence on both criticality conditions. "
+        "A zero minimum stability eigenvalue alone identifies a spinodal condition, "
+        "not a critical point."
     )
     with st.container(horizontal=True):
         run_solver = st.button(
@@ -406,6 +458,7 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
             disabled=inputs is None,
             icon=":material/grid_on:",
         )
+    _action_requirement(inputs)
     if run_solver:
         assert inputs is not None
         with st.status("Solving production critical conditions…") as status:
@@ -436,9 +489,9 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
         if view.certified:
             st.success("CERTIFIED CRITICAL POINT", icon=":material/verified:")
             certified = st.columns(2)
-            certified[0].metric("Tc", f"{cast(float, view.temperature_k):.10g} K")
+            certified[0].metric("Tc", f"{cast(float, view.temperature_k):.6g} K")
             certified[1].metric(
-                "Pc", f"{cast(float, view.pressure_pa) / PA_PER_MPA:.10g} MPa"
+                "Pc", f"{cast(float, view.pressure_pa) / PA_PER_MPA:.6g} MPa"
             )
         else:
             st.error(
@@ -452,22 +505,22 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                 ("Iterations", str(view.iterations), "Solver iterations"),
                 (
                     "lambda_min",
-                    _scientific(result.lambda_min),
+                    _full_precision(result.lambda_min),
                     "Dimensionless critical residual",
                 ),
                 (
                     "C",
-                    _scientific(result.cubic_coefficient),
+                    _full_precision(result.cubic_coefficient),
                     "Critical cubic coefficient",
                 ),
                 (
                     "Scaled residual",
-                    _scientific(result.scaled_residual_norm),
+                    _full_precision(result.scaled_residual_norm),
                     "Dimensionless",
                 ),
                 (
                     "Jacobian conditioning",
-                    _scientific(
+                    _full_precision(
                         result.jacobian_condition_history[-1]
                         if result.jacobian_condition_history
                         else None
@@ -485,13 +538,17 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
         )
         if st.toggle("Show critical solver figures", key="critical_figures"):
             if result.history:
-                st.plotly_chart(
-                    plot_critical_solver_convergence(result), width="stretch"
+                _wide_chart(
+                    plot_critical_solver_convergence(result),
+                    key="critical_convergence_chart",
                 )
-                st.plotly_chart(plot_critical_solver_path(result), width="stretch")
+                _wide_chart(
+                    plot_critical_solver_path(result), key="critical_path_chart"
+                )
             if result.jacobian_condition_history:
-                st.plotly_chart(
-                    plot_critical_solver_conditioning(result), width="stretch"
+                _wide_chart(
+                    plot_critical_solver_conditioning(result),
+                    key="critical_conditioning_chart",
                 )
     scan_raw = get_result(session(), "critical_scan")
     if scan_raw is not None:
@@ -499,14 +556,14 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
         overlay = cast(MixtureCriticalPointResult | None, raw)
         if result_is_stale(session(), "critical", inputs):
             overlay = None
-        st.plotly_chart(
+        _wide_chart(
             plot_criticality_map(
                 cast(CriticalPointScanResult, scan_raw),
                 pressure_unit=PressureUnit.MPA,
                 critical_point=overlay,
                 metadata={"model": "Peng-Robinson EOS; kij=0"},
             ),
-            width="stretch",
+            key="criticality_map_chart",
         )
 
 
@@ -545,6 +602,14 @@ def render_validation() -> None:
             "Displayed figures are stale for the selected direction. Generate again."
         )
     records = _records()
+    state_count, error_count, median_error, worst_error = (
+        validation_pressure_error_summary(records, selected)
+    )
+    summary = st.columns(4)
+    summary[0].metric("Module 17 states", str(state_count))
+    summary[1].metric(f"{selected.capitalize()} error records", str(error_count))
+    summary[2].metric("Median absolute pressure error", _optional(median_error) + "%")
+    summary[3].metric("Worst absolute pressure error", _optional(worst_error) + "%")
     with st.status("Rendering Module 21 validation figures…") as status:
         figures = (
             plot_validation_pressure_parity(
@@ -567,10 +632,11 @@ def render_validation() -> None:
         else:
             composition_error = None
         status.update(label="Production validation figures ready", state="complete")
-    for figure in figures:
-        st.plotly_chart(figure, width="stretch")
+    _square_chart(figures[0], key="validation_pressure_parity")
+    _wide_chart(figures[1], key="validation_pressure_error")
+    _wide_chart(figures[2], key="validation_status")
     if composition_figure is not None:
-        st.plotly_chart(composition_figure, width="stretch")
+        _square_chart(composition_figure, key="validation_composition_parity")
     elif composition_error is not None:
         st.info(f"Composition parity unavailable: {composition_error}")
     st.subheader("Retrospective nearest-root diagnostics")
@@ -579,11 +645,11 @@ def render_validation() -> None:
         icon=":material/warning:",
     )
     try:
-        st.plotly_chart(
+        _wide_chart(
             plot_validation_retrospective_diagnostics(
                 records, pressure_unit=PressureUnit.MPA
             ),
-            width="stretch",
+            key="validation_retrospective",
         )
     except ValueError as error:
         st.info(f"Retrospective diagnostics unavailable: {error}")
@@ -644,17 +710,17 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
                     ("Latest iteration", str(latest.iteration), "Iteration index"),
                     (
                         "Maximum log-K residual",
-                        _scientific(latest.maximum_log_k_residual),
+                        _full_precision(latest.maximum_log_k_residual),
                         "Dimensionless",
                     ),
                     (
                         "Maximum equilibrium residual",
-                        _scientific(latest.maximum_fugacity_equilibrium_residual),
+                        _full_precision(latest.maximum_fugacity_equilibrium_residual),
                         "Dimensionless",
                     ),
                     (
                         "Maximum material-balance residual",
-                        _scientific(
+                        _full_precision(
                             latest.phase_compositions.maximum_material_balance_residual
                         ),
                         "Mole fraction",

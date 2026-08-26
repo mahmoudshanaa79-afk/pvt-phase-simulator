@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from math import fsum, isfinite
 from pathlib import Path
+from statistics import median
 from typing import Final
 
 from pvt_phase_simulator.eos.critical_point import (
@@ -239,14 +240,59 @@ def location_relative_to_envelope(
     if result is None:
         return "Unavailable until a phase envelope has been calculated."
     bubble, dew = _converged_pressures_at_temperature(result, temperature_k)
-    if bubble is None or dew is None:
-        return "Unavailable at this temperature from converged envelope points."
+    if bubble is None and dew is None:
+        return (
+            "No interpolated branch is available at this temperature. "
+            f"Bubble branch: {result.bubble_branch.termination_message} "
+            f"Dew branch: {result.dew_branch.termination_message}"
+        )
+    if bubble is None:
+        assert dew is not None
+        relationship = _relationship_to_branch(pressure_pa, dew, "dew")
+        return (
+            f"{relationship} Bubble branch unavailable: "
+            f"{result.bubble_branch.termination_message}"
+        )
+    if dew is None:
+        relationship = _relationship_to_branch(pressure_pa, bubble, "bubble")
+        return (
+            f"{relationship} Dew branch unavailable: "
+            f"{result.dew_branch.termination_message}"
+        )
     lower, upper = sorted((bubble, dew))
     if lower <= pressure_pa <= upper:
         return "Inside the interpolated two-phase envelope."
     if pressure_pa < lower:
         return "Below both interpolated saturation branches."
     return "Above both interpolated saturation branches."
+
+
+def _relationship_to_branch(
+    pressure_pa: float, branch_pressure_pa: float, branch_name: str
+) -> str:
+    if pressure_pa < branch_pressure_pa:
+        return f"Below the interpolated {branch_name} branch."
+    if pressure_pa > branch_pressure_pa:
+        return f"Above the interpolated {branch_name} branch."
+    return f"On the interpolated {branch_name} branch."
+
+
+def validation_pressure_error_summary(
+    records: Sequence[ValidationPlotRecord], direction: str
+) -> tuple[int, int, float | None, float | None]:
+    """Summarize only pressure-error values present in Module 17 records."""
+
+    if direction not in {"bubble", "dew"}:
+        raise ValueError("direction must be 'bubble' or 'dew'")
+    values = tuple(
+        abs(float(value))
+        for record in records
+        if (value := getattr(record, f"{direction}_pressure_relative_error"))
+        is not None
+    )
+    if not values:
+        return len(records), 0, None, None
+    return len(records), len(values), median(values) * 100.0, max(values) * 100.0
 
 
 def status_text(value: object) -> str:

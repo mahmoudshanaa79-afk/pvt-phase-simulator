@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -21,14 +22,17 @@ from pvt_phase_simulator.plotting import (
     plot_validation_pressure_parity,
     plot_validation_retrospective_diagnostics,
 )
+from pvt_phase_simulator_ui import views
 from pvt_phase_simulator_ui.adapters import (
     InputValidationError,
     adapt_critical_result,
     adapt_flash_result,
     load_module17_records,
+    location_relative_to_envelope,
     relative_pressure_error_percent,
     run_validated_flash,
     validate_scientific_inputs,
+    validation_pressure_error_summary,
 )
 from pvt_phase_simulator_ui.state import (
     get_result,
@@ -188,6 +192,103 @@ def test_module21_validation_figures_keep_sign_and_retrospective_separation() ->
     )
     assert relative_pressure_error_percent(90.0, 100.0) == -10.0
     assert relative_pressure_error_percent(110.0, 100.0) == 10.0
+
+
+def test_validation_summary_uses_only_recorded_absolute_pressure_errors() -> None:
+    records = load_module17_records(ROOT)
+    state_count, error_count, median_error, worst_error = (
+        validation_pressure_error_summary(records, "bubble")
+    )
+    recorded = sorted(
+        abs(cast(float, record.bubble_pressure_relative_error)) * 100.0
+        for record in records
+        if record.bubble_pressure_relative_error is not None
+    )
+    assert state_count == len(records)
+    assert error_count == len(recorded)
+    assert median_error == pytest.approx(
+        (recorded[(len(recorded) - 1) // 2] + recorded[len(recorded) // 2]) / 2.0
+    )
+    assert worst_error == max(recorded)
+
+
+def test_operating_point_reports_available_branch_and_missing_reason() -> None:
+    def point(temperature_k: float, pressure_pa: float) -> SimpleNamespace:
+        return SimpleNamespace(
+            temperature_k=temperature_k,
+            pressure_pa=pressure_pa,
+            status="converged",
+        )
+
+    result = SimpleNamespace(
+        bubble_branch=SimpleNamespace(
+            points=(), termination_message="Bubble bracket was not found."
+        ),
+        dew_branch=SimpleNamespace(
+            points=(point(290.0, 2.0e6), point(310.0, 3.0e6)),
+            termination_message="Target temperature reached.",
+        ),
+    )
+    message = location_relative_to_envelope(  # type: ignore[arg-type]
+        result, 300.0, 5.0e6
+    )
+    assert message == (
+        "Above the interpolated dew branch. Bubble branch unavailable: "
+        "Bubble bracket was not found."
+    )
+
+
+def test_ui_envelope_trace_is_centered_on_operating_temperature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
+    captured: dict[str, object] = {}
+    sentinel = object()
+
+    def fake_calculate(*args: object) -> object:
+        captured["args"] = args
+        return sentinel
+
+    views._calculate_envelope.clear()
+    monkeypatch.setattr(views, "calculate_phase_envelope", fake_calculate)
+    result = views._calculate_envelope(inputs)
+    args = cast(tuple[object, ...], captured["args"])
+    bubble_settings = args[1]
+    dew_settings = args[2]
+    assert result is sentinel
+    assert args[3:] == (270.0, 270.0)
+    assert bubble_settings.target_temperature_k == 330.0  # type: ignore[attr-defined]
+    assert dew_settings.target_temperature_k == 330.0  # type: ignore[attr-defined]
+    assert bubble_settings.initial_temperature_step_k == 5.0  # type: ignore[attr-defined]
+    assert bubble_settings.maximum_points == 15  # type: ignore[attr-defined]
+
+
+def test_empty_envelope_branch_is_annotated_with_engine_termination() -> None:
+    annotations: list[dict[str, object]] = []
+    figure = SimpleNamespace(add_annotation=lambda **kwargs: annotations.append(kwargs))
+    result = SimpleNamespace(
+        bubble_branch=SimpleNamespace(
+            branch_kind="bubble",
+            points=(),
+            termination_reason="corrector_failed",
+            termination_message="No trustworthy bracket was found.",
+        ),
+        dew_branch=SimpleNamespace(
+            branch_kind="dew",
+            points=(object(),),
+            termination_reason="target_reached",
+            termination_message="Target reached.",
+        ),
+    )
+    returned = views._annotate_missing_envelope_branches(  # type: ignore[arg-type]
+        figure, result
+    )
+    assert returned is figure
+    assert len(annotations) == 1
+    assert annotations[0]["text"] == (
+        "Bubble branch not plotted — Corrector failed: "
+        "No trustworthy bracket was found."
+    )
 
 
 def test_app_code_contains_labels_but_no_thermodynamic_implementation() -> None:

@@ -91,6 +91,7 @@ def test_navigation_module21_reuse_and_no_deprecated_width_argument() -> None:
         for path in (ROOT / "src" / "pvt_phase_simulator_ui").rglob("*.py")
     )
     assert "st.navigation" in app_source
+    assert 'position="sidebar"' in app_source
     assert app_source.count("st.Page(") == 5
     assert "st.form(" in app_source
     assert "st.form_submit_button(" in app_source
@@ -99,6 +100,28 @@ def test_navigation_module21_reuse_and_no_deprecated_width_argument() -> None:
     assert "plot_validation_retrospective_diagnostics(" in view_source
     assert "NOT PRODUCTION PREDICTIONS" in view_source
     assert "use_container_width" not in all_ui_source
+
+
+def test_disabled_scientific_actions_explain_flash_requirement() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    phase_page = ROOT / "src" / "pvt_phase_simulator_ui" / "pages" / "phase_envelope.py"
+    app.switch_page(phase_page).run()
+    phase_action = next(
+        button for button in app.button if button.label == "RUN PHASE ENVELOPE"
+    )
+    assert phase_action.disabled
+    assert any("Submit RUN FLASH to enable" in caption.value for caption in app.caption)
+
+    critical_page = (
+        ROOT / "src" / "pvt_phase_simulator_ui" / "pages" / "critical_point.py"
+    )
+    app.switch_page(critical_page).run()
+    critical_actions = [
+        button for button in app.button if button.label.startswith("RUN CRITICAL")
+    ]
+    assert len(critical_actions) == 2
+    assert all(button.disabled for button in critical_actions)
+    assert any("Submit RUN FLASH to enable" in caption.value for caption in app.caption)
 
 
 def test_ui_contains_no_duplicated_thermodynamic_implementations() -> None:
