@@ -24,7 +24,7 @@
   "claude_reaudit_cycles": 0,
   "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
-  "last_error": "targeted recovery audit returned CONDITIONAL; no builder or correction invoked",
+  "last_error": null,
   "history": [
     {
       "from": "IDLE",
@@ -280,6 +280,11 @@
       "from": "APPROVED",
       "to": "IDLE",
       "reason": "streamlit engineering UI refinement complete after B-1 re-audit"
+    },
+    {
+      "from": "IDLE",
+      "to": "IDLE",
+      "reason": "manually stopped"
     }
   ]
 }
