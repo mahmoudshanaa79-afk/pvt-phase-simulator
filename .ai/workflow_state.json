@@ -2,20 +2,47 @@
   "project": "pvt-phase-simulator",
   "phase": "post-v1.0-extensions",
   "workflow_status": "IDLE",
-  "last_scientific_commit": "c2b6de92e026953df0fecd0e4097c85da6375460",
-  "last_independent_audit_commit": "b94f3ef69351caeeaa6abacae5ec30103e1a88ef",
+  "last_scientific_commit": "d2a0a74",
+  "last_independent_audit_commit": "d2a0a74",
   "work_packages_since_audit": 0,
-  "current_work_package": "streamlit_engineering_ui_refinement",
+  "current_work_package": null,
   "current_risk": "MEDIUM",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
   "safe_defer_findings": [
     {
-      "id": "D-1",
-      "severity": "D",
+      "id": "C-1",
+      "severity": "C",
       "blocks": false,
-      "summary": "The whole work package, including the restored .streamlit/config.toml, remains untracked/unstaged in git pending final commit. Confirm the eventual approval commit actually stages .streamlit/ so the theme file cannot silently drop out a third time."
+      "summary": "views.py `_flash_details` leaves `Selected Z` as a raw unformatted float (unlike every sibling field, which was deliberately converted via `_full_precision()`), risking silent precision loss from Streamlit's default client-side numeric column formatting in a table meant to preserve full precision."
+    },
+    {
+      "id": "C-2",
+      "severity": "C",
+      "blocks": false,
+      "summary": "The Priority 1 navigation fix (blocking, per the work package) was never verified in a live browser as explicitly required; `AppTest`/HTTP-200 checks cannot detect the CSS/DOM overflow-clipping defect that was originally diagnosed, though the chosen fix (native sidebar position) is the correct, low-risk, recommended remediation."
+    },
+    {
+      "id": "UISTAB-C-1",
+      "category": "C",
+      "location": "src/pvt_phase_simulator_ui/views.py:228",
+      "summary": "_flash_details leaves 'Selected Z' as a raw float while sibling fields go through _full_precision(); Streamlit's default numeric column formatting may silently truncate it in a table intended to preserve full precision.",
+      "blocks_release": false
+    },
+    {
+      "id": "UISTAB-C-2",
+      "category": "C",
+      "location": "tests/test_app_streamlit.py",
+      "summary": "Auditor noted the navigation fix was not verified in a live browser (AppTest/HTTP-200 cannot detect a CSS/layout collapse). CLOSED by orchestrator browser re-audit at d2a0a74: five sidebar page links measured visible at 260x28 px each, top-nav overflow absent. No automated regression guard exists for it.",
+      "blocks_release": false
+    },
+    {
+      "id": "UISTAB-D-1",
+      "category": "D",
+      "location": ".streamlit/config.toml",
+      "summary": "Caption muting used grayTextColor, which governs Streamlit's semantic gray palette (:gray[...], badges), not st.caption. Captions still compute to full textColor rgb(20,43,67). Contrast remains 13.66:1 so this is hierarchy only, not accessibility.",
+      "blocks_release": false
     }
   ],
   "planned_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
@@ -283,6 +310,41 @@
     },
     {
       "from": "IDLE",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_ui_stabilization"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
       "to": "IDLE",
       "reason": "manually stopped"
     }

@@ -61,17 +61,52 @@
     "Validation copy claims nothing beyond what the protected Module 17 records contain."
   ],
   "required_tests": [
-    [".venv/Scripts/python.exe", "-m", "pytest", "-q"],
-    [".venv/Scripts/python.exe", "-m", "ruff", "check", "."],
-    [".venv/Scripts/python.exe", "-m", "ruff", "format", "--check", "."],
-    [".venv/Scripts/python.exe", "-m", "mypy", "src", "app"],
-    [".venv/Scripts/python.exe", "-m", "compileall", "-q", "src", "app"],
-    ["git", "diff", "--check"]
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ],
+    [
+      "git",
+      "diff",
+      "--check"
+    ]
   ],
   "required_quality_gates": [],
   "audit_policy": "IMMEDIATE",
   "commit_policy": "AFTER_AUDIT",
   "dependencies": [],
-  "status": "PENDING",
-  "notes": "Requirements derive from a live-browser UI audit at commit c2b6de9. Root causes for the operating point and the missing bubble branch were diagnosed read-only against the live engine before this package was written; the measured numbers are stated in the objective so the builder does not need to rediscover them."
+  "status": "COMMITTED",
+  "notes": "Completed first pass, zero correction cycles. All six gates passed; Claude audit APPROVED with 0 blocking findings (2 non-blocking Category C), cost $2.0429. Committed d2a0a74. Browser re-audit by the orchestrator confirmed navigation, operating point, and bubble branch live."
 }
