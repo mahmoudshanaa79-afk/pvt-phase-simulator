@@ -86,7 +86,10 @@ def read_repo(repo: Path) -> RepoFacts:
         for line in git(repo, "diff", "--cached", "--name-only").splitlines()
         if line
     )
-    porcelain = git(repo, "status", "--porcelain").splitlines()
+    # Report every untracked file instead of Git's default collapsed directory
+    # entries (for example, ``.streamlit/``). Scope verification must compare
+    # the actual file paths against a package's allowed-file patterns.
+    porcelain = git(repo, "status", "--porcelain", "--untracked-files=all").splitlines()
     modified: list[str] = []
     untracked: list[str] = []
     for line in porcelain:

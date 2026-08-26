@@ -382,6 +382,25 @@ class TestProtection:
         ok, _ = check_scope(config, ("pkg/a.py", "pkg/b.py"), ("pkg",), ())
         assert ok
 
+    def test_scope_accepts_allowed_file_inside_untracked_directory(
+        self, config
+    ) -> None:
+        theme = config.repo / ".streamlit" / "config.toml"
+        theme.parent.mkdir()
+        theme.write_text('[theme]\nbase = "light"\n', encoding="utf-8")
+
+        changed = read_repo(config.repo).dirty_paths
+
+        assert ".streamlit/config.toml" in changed
+        assert ".streamlit/" not in changed
+        ok, detail = check_scope(
+            config,
+            changed,
+            (".streamlit/config.toml",),
+            ("protected.csv",),
+        )
+        assert ok, detail
+
 
 # ------------------------------------------------------------------ git safety
 
