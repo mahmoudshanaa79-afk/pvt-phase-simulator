@@ -1,0 +1,136 @@
+{
+  "passed": false,
+  "protected_ok": true,
+  "protected_detail": {
+    "tests/golden_master/baseline.csv": "unchanged",
+    "data/component_properties.csv": "unchanged",
+    "docs/validation/module17_vle_validation.csv": "unchanged",
+    "docs/validation/module17_vle_validation_summary.json": "unchanged"
+  },
+  "scope_ok": true,
+  "scope_detail": "scope ok",
+  "diff_check_ok": true,
+  "diff_check_detail": "warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/adapters.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/state.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/streamlit_app.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/styles.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/STREAMLIT_APPLICATION.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_app_adapters.py', LF will be replaced by CRLF the next time Git touches it\n",
+  "changed_files": [
+    "README.md",
+    "app/adapters.py",
+    "app/state.py",
+    "app/streamlit_app.py",
+    "app/styles.py",
+    "docs/STREAMLIT_APPLICATION.md",
+    "pyproject.toml",
+    "src/pvt_phase_simulator_ui/",
+    "streamlit_app.py",
+    "tests/test_app_adapters.py",
+    "tests/test_app_streamlit.py"
+  ],
+  "commands": [
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:43:36.130838+00:00",
+      "ended": "2026-08-25T16:52:08.954111+00:00",
+      "stdout": "........................................................................ [  6%]\n........................................................................ [ 12%]\n........................................................................ [ 18%]\n........................................................................ [ 24%]\n........................................................................ [ 30%]\n........................................................................ [ 37%]\n........................................................................ [ 43%]\n........................................................................ [ 49%]\n........................................................................ [ 55%]\n........................................................................ [ 61%]\n........................................................................ [ 68%]\n........................................................................ [ 74%]\n........................................................................ [ 80%]\n........................................................................ [ 86%]\n........................................................................ [ 92%]\n........................................................................ [ 99%]\n..........                                                               [100%]\n1162 passed in 511.38s (0:08:31)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:52:08.954111+00:00",
+      "ended": "2026-08-25T16:52:09.089741+00:00",
+      "stdout": "All checks passed!\n",
+      "stderr": "warning: Encountered error: Access is denied. (os error 5)\nwarning: Encountered error: Access is denied. (os error 5)\n"
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 101,
+      "started": "2026-08-25T16:52:09.089741+00:00",
+      "ended": "2026-08-25T16:52:09.211401+00:00",
+      "stdout": "",
+      "stderr": "\nerror: Ruff crashed. If you could open an issue at:\n\n    https://github.com/astral-sh/ruff/issues/new?title=%5BPanic%5D\n\n...quoting the executed command, along with the relevant file contents and `pyproject.toml` settings, we'd be very appreciative!\n\n\nthread 'main' (21948) panicked at crates\\ruff_db\\src\\diagnostic\\mod.rs:502:14:\nExpected a ruff source file\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "mypy",
+        "src"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:52:09.211401+00:00",
+      "ended": "2026-08-25T16:52:09.859433+00:00",
+      "stdout": "Success: no issues found in 35 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "compileall",
+        "-q",
+        "src"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:52:09.859433+00:00",
+      "ended": "2026-08-25T16:52:09.950147+00:00",
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "uv",
+        "lock",
+        "--check"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:52:09.950147+00:00",
+      "ended": "2026-08-25T16:52:09.996080+00:00",
+      "stdout": "",
+      "stderr": "Resolved 83 packages in 1ms\n"
+    },
+    {
+      "command": [
+        "uv",
+        "run",
+        "python",
+        "-c",
+        "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.styles"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:52:09.996080+00:00",
+      "ended": "2026-08-25T16:52:11.878969+00:00",
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T16:52:11.878969+00:00",
+      "ended": "2026-08-25T16:52:11.925337+00:00",
+      "stdout": "",
+      "stderr": "warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/adapters.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/state.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/streamlit_app.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/styles.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/STREAMLIT_APPLICATION.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_app_adapters.py', LF will be replaced by CRLF the next time Git touches it\n"
+    }
+  ]
+}

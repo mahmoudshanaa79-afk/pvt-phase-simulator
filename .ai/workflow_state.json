@@ -2,44 +2,29 @@
   "project": "pvt-phase-simulator",
   "phase": "post-v1.0-extensions",
   "workflow_status": "IDLE",
-  "last_scientific_commit": "da5594f",
-  "last_independent_audit_commit": "da5594f",
+  "last_scientific_commit": "c2b6de92e026953df0fecd0e4097c85da6375460",
+  "last_independent_audit_commit": "b94f3ef69351caeeaa6abacae5ec30103e1a88ef",
   "work_packages_since_audit": 0,
-  "current_work_package": null,
-  "current_risk": null,
+  "current_work_package": "streamlit_engineering_ui_refinement",
+  "current_risk": "MEDIUM",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
   "safe_defer_findings": [
     {
-      "id": "M20-D-1",
-      "category": "D",
-      "location": "src/pvt_phase_simulator/eos/critical_point.py",
-      "summary": "Root-continuity sub-checks are mutually redundant; diagnostic-quality only, no false convergence.",
-      "blocks_release": false
-    },
-    {
-      "id": "FINAL-D-1-residual",
-      "category": "D",
-      "location": "src/pvt_phase_simulator/eos/phase_stability.py",
-      "summary": "Near-critical trivial-solution collapse remains present in code; now explicitly documented in README. Behavioural fix is separate future work.",
-      "blocks_release": false
-    },
-    {
-      "id": "STREAMLIT-D-1",
-      "category": "D",
-      "location": "tests/test_app_adapters.py, app/streamlit_app.py",
-      "summary": "No test imports app.streamlit_app or app.styles, so the entrypoint has no import/type regression guard. Auditor also claimed the gates omit app/, but the package's required_tests do run 'mypy src app' and 'compileall src app' (both exit 0 in the recorded verification); only the import smoke test is genuinely missing.",
-      "blocks_release": false
+      "id": "D-1",
+      "severity": "D",
+      "blocks": false,
+      "summary": "The whole work package, including the restored .streamlit/config.toml, remains untracked/unstaged in git pending final commit. Confirm the eventual approval commit actually stages .streamlit/ so the theme file cannot silently drop out a third time."
     }
   ],
   "planned_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
   "planned_scope_complete": true,
   "codex_correction_cycles": 0,
   "claude_reaudit_cycles": 0,
-  "claude_cost_usd_this_package": 2.1170143999999995,
+  "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
-  "last_error": null,
+  "last_error": "targeted recovery audit returned CONDITIONAL; no builder or correction invoked",
   "history": [
     {
       "from": "IDLE",
@@ -200,12 +185,101 @@
       "from": "CLAUDE_RUNNING",
       "to": "IDLE",
       "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_engineering_ui_refinement"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CORRECTION_REQUIRED",
+      "reason": "local verification failed"
+    },
+    {
+      "from": "CORRECTION_REQUIRED",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 1"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 2"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 3"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "max_codex_correction_cycles (3) exhausted; all reports preserved."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "REAUDIT_PENDING",
+      "reason": "targeted recovery re-audit 1 after external VERIFY repair"
+    },
+    {
+      "from": "REAUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "targeted recovery audit returned CONDITIONAL; no builder or correction invoked"
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "REAUDIT_PENDING",
+      "reason": "targeted re-audit 2 for B-1"
+    },
+    {
+      "from": "REAUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "IDLE",
+      "reason": "streamlit engineering UI refinement complete after B-1 re-audit"
     }
-  ],
-  "release_state": {
-    "original_modules_1_to_21": "COMPLETE",
-    "final_whole_project_audit": "APPROVED",
-    "optional_extensions": "streamlit_full_application COMMITTED at da5594f (audited APPROVED)",
-    "blocking_findings": "NONE"
-  }
+  ]
 }
