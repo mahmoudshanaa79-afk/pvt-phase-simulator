@@ -10,30 +10,39 @@ is not a commercial PVT package or a substitute for engineering review.
 Launch it from the repository root:
 
 ```powershell
-.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
+uv run streamlit run streamlit_app.py
 ```
+
+This reproducibly installs the project and requires no manual `PYTHONPATH`.
+`uv run streamlit run app/streamlit_app.py` remains a tested compatibility
+entrypoint.
 
 ## Architecture
 
-The application is deliberately compact:
+The application layer is installed separately from the frozen scientific
+package:
 
-- `app/streamlit_app.py` composes native Streamlit views.
-- `app/adapters.py` validates input, converts boundary units, and selects public
+- `streamlit_app.py` is the thin, stable root entrypoint.
+- `src/pvt_phase_simulator_ui/app.py` owns navigation and submitted inputs.
+- `src/pvt_phase_simulator_ui/pages/` contains the five page scripts.
+- `src/pvt_phase_simulator_ui/adapters.py` validates inputs, converts boundary
+  units, and selects public
   result fields without changing them.
-- `app/state.py` associates each calculation with a deterministic scientific
+- `src/pvt_phase_simulator_ui/state.py` associates each result with a scientific
   input signature.
-- `app/styles.py` applies the light scientific-engineering visual system.
+- `.streamlit/config.toml` supplies the light engineering theme. Narrow custom
+  styling is limited to the phase-split visualization.
 - `src/pvt_phase_simulator/plotting.py` remains the source of scientific Plotly
   figures.
 
 No EOS, fugacity, stability, flash, saturation, continuation, or criticality
-equation is implemented in `app/`.
+equation is implemented in the UI package.
 
 ## Inputs and views
 
-The persistent Fluid Input panel supports the verified v1.0 Methane, Ethane,
+The persistent Fluid inputs form supports the verified v1.0 Methane, Ethane,
 and Propane components. Composition is entered in mol %, temperature in K, and
-pressure in MPa. The panel shows the live composition total and rejects
+pressure in MPa. On submission, the panel shows the composition total and rejects
 nonfinite, negative, above-100, zero-total, and materially non-100% values. It
 does not silently normalize invalid composition.
 
@@ -57,8 +66,8 @@ Pa results are divided by `1e6` for MPa display.
 
 The UI calls existing flash, envelope, critical-point, and criticality APIs
 unchanged. Invalid input is rejected before a production call. Every expensive
-calculation requires an explicit button action; navigation and cosmetic reruns
-do not start calculations.
+calculation requires an explicit button action. Validation and advanced solver
+figures are guarded too; navigation and cosmetic reruns do not start them.
 
 Results persist in Streamlit session state. Each stores the exact composition,
 temperature, and internal-pressure signature used to produce it. Changed or

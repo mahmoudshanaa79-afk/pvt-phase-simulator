@@ -9,16 +9,6 @@ from typing import cast
 
 import pytest
 
-from app.adapters import (
-    InputValidationError,
-    adapt_critical_result,
-    adapt_flash_result,
-    load_module17_records,
-    relative_pressure_error_percent,
-    run_validated_flash,
-    validate_scientific_inputs,
-)
-from app.state import get_result, initialize_session, result_is_stale, store_result
 from pvt_phase_simulator.eos.critical_point import (
     CriticalPointStatus,
     solve_mixture_critical_point,
@@ -30,6 +20,21 @@ from pvt_phase_simulator.plotting import (
     plot_validation_pressure_error,
     plot_validation_pressure_parity,
     plot_validation_retrospective_diagnostics,
+)
+from pvt_phase_simulator_ui.adapters import (
+    InputValidationError,
+    adapt_critical_result,
+    adapt_flash_result,
+    load_module17_records,
+    relative_pressure_error_percent,
+    run_validated_flash,
+    validate_scientific_inputs,
+)
+from pvt_phase_simulator_ui.state import (
+    get_result,
+    initialize_session,
+    result_is_stale,
+    store_result,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -187,12 +192,13 @@ def test_module21_validation_figures_keep_sign_and_retrospective_separation() ->
 
 def test_app_code_contains_labels_but_no_thermodynamic_implementation() -> None:
     sources = "\n".join(
-        path.read_text(encoding="utf-8") for path in (ROOT / "app").glob("*.py")
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "src" / "pvt_phase_simulator_ui").rglob("*.py")
     )
     assert (
         "Turning indicators are continuation geometry, not critical points" in sources
     )
-    assert "Not production prediction" in sources
+    assert "NOT PRODUCTION PREDICTIONS" in sources
     assert "plot_validation_pressure_parity" in sources
     forbidden_definitions = (
         "def peng_robinson",

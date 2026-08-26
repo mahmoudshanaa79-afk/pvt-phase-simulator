@@ -23,6 +23,9 @@ pvt-phase-simulator = "pvt_phase_simulator:main"
 requires = ["uv_build>=0.11.33,<0.12.0"]
 build-backend = "uv_build"
 
+[tool.uv.build-backend]
+module-name = ["pvt_phase_simulator", "pvt_phase_simulator_ui"]
+
 [dependency-groups]
 dev = [
     "cosmic-ray>=8.4.6",

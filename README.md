@@ -71,8 +71,12 @@ propane scope. It calls the existing scientific APIs and Module 21 Plotly
 figures without changing the v1.0 engine.
 
 ```powershell
-.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
+uv run streamlit run streamlit_app.py
 ```
+
+The UI is installed as the separate `pvt_phase_simulator_ui` package. The
+compatibility command `uv run streamlit run app/streamlit_app.py` also works
+from a clean shell without `PYTHONPATH` configuration.
 
 Input validation, explicit calculation actions, stale-result handling, failure
 semantics, supported views, and limitations are documented in
@@ -107,7 +111,8 @@ docs/                            # Scientific documentation
 data/
 └── component_properties.csv     # Human-review/source-tree property mirror
 notebooks/                       # Exploration scaffold
-app/                             # Optional Streamlit application surface
+src/pvt_phase_simulator_ui/      # Installed Streamlit application layer
+streamlit_app.py                 # Stable Streamlit entrypoint
 ```
 
 The package includes a `py.typed` marker and exposes inline type information.
