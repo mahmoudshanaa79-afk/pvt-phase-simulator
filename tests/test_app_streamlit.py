@@ -79,6 +79,26 @@ def test_invalid_form_submission_never_creates_a_flash_result() -> None:
     assert any("Submission unavailable" in error.value for error in app.error)
 
 
+def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.number_input[4].set_value(20.0)
+    app.button[0].click().run()
+
+    assert not app.exception
+    assert not any("Solver status" in error.value for error in app.error)
+    assert any(
+        "No two-phase split was required" in info.value
+        and "0.5828298153218298" in info.value
+        for info in app.info
+    )
+    downloads = app.get("download_button")
+    assert [button.label for button in downloads] == ["Download CSV", "Download JSON"]
+    assert [button.key for button in downloads] == [
+        "download_current_case_csv",
+        "download_current_case_json",
+    ]
+
+
 def test_navigation_module21_reuse_and_no_deprecated_width_argument() -> None:
     app_source = (ROOT / "src" / "pvt_phase_simulator_ui" / "app.py").read_text(
         encoding="utf-8"

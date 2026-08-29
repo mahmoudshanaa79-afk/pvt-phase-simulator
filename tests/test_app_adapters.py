@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import json
 from dataclasses import replace
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -14,7 +17,10 @@ from pvt_phase_simulator.eos.critical_point import (
     CriticalPointStatus,
     solve_mixture_critical_point,
 )
-from pvt_phase_simulator.eos.flash import calculate_two_phase_flash
+from pvt_phase_simulator.eos.flash import (
+    FlashConvergenceStatus,
+    calculate_two_phase_flash,
+)
 from pvt_phase_simulator.fluid_models import FluidMixture
 from pvt_phase_simulator.plotting import (
     PressureUnit,
@@ -27,12 +33,18 @@ from pvt_phase_simulator_ui.adapters import (
     InputValidationError,
     adapt_critical_result,
     adapt_flash_result,
+    flash_presentation_kind,
     load_module17_records,
     location_relative_to_envelope,
     relative_pressure_error_percent,
     run_validated_flash,
     validate_scientific_inputs,
     validation_pressure_error_summary,
+)
+from pvt_phase_simulator_ui.exports import (
+    build_export_document,
+    export_csv_bytes,
+    export_json_bytes,
 )
 from pvt_phase_simulator_ui.state import (
     get_result,
@@ -136,6 +148,121 @@ def test_structured_flash_failure_is_not_reclassified() -> None:
     assert view.convergence_status is failed.convergence_status
 
 
+def test_single_phase_presentation_is_informational_but_failure_is_error() -> None:
+    inputs, result = run_validated_flash((50.0, 0.0, 50.0), 300.0, 20.0)
+    assert inputs.pressure_pa == 20_000_000.0
+    assert flash_presentation_kind(result) == "information"
+    assert result.single_phase_root == 0.5828298153218298
+
+    failed = replace(
+        result,
+        convergence_status=FlashConvergenceStatus.FAILED,
+        failure_reason="STRUCTURED_TEST_FAILURE",
+    )
+    assert flash_presentation_kind(failed) == "error"
+
+
+def test_current_case_json_preserves_precision_and_unavailable_semantics() -> None:
+    inputs, result = run_validated_flash((50.0, 0.0, 50.0), 300.0, 20.0)
+    document = build_export_document(inputs, flash_result=result)
+    encoded = export_json_bytes(document)
+    decoded = json.loads(encoded)
+    flash = decoded["results"]["flash"]
+
+    assert encoded == export_json_bytes(document)
+    assert decoded["schema"]["version"] == "1.0.0"
+    assert decoded["case"]["pressure_pa"] == 20_000_000.0
+    assert flash["selected_single_phase_z"]["value"] == result.single_phase_root
+    assert flash["selected_single_phase_z"]["value"] == 0.5828298153218298
+    assert flash["vapor_fraction"]["status"] == "not_applicable"
+    assert flash["vapor_fraction"]["value"] is None
+    assert decoded["results"]["phase_envelope"] == {
+        "calculation_status": "not_calculated"
+    }
+    assert decoded["results"]["critical_point"] == {
+        "calculation_status": "not_calculated"
+    }
+
+
+def test_current_case_csv_is_utf8_tidy_and_uses_source_float_values() -> None:
+    inputs, result = run_validated_flash((50.0, 0.0, 50.0), 300.0, 20.0)
+    encoded = export_csv_bytes(build_export_document(inputs, flash_result=result))
+    assert encoded.startswith(b"\xef\xbb\xbf")
+    rows = list(csv.DictReader(StringIO(encoded.decode("utf-8-sig"))))
+    values = {(row["section"], row["path"]): row["value"] for row in rows}
+
+    assert values[("case", "pressure_pa")] == "20000000.0"
+    assert values[("case", "components[0].overall_mole_fraction")] == "0.5"
+    assert values[("results", "flash.selected_single_phase_z.value")] == repr(
+        result.single_phase_root
+    )
+    assert values[("results", "flash.vapor_fraction.status")] == "not_applicable"
+
+
+def test_export_without_calculated_results_does_not_fabricate_fields() -> None:
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 20.0)
+    results = build_export_document(inputs)["results"]
+    assert results == {
+        "flash": {"calculation_status": "not_calculated"},
+        "phase_envelope": {"calculation_status": "not_calculated"},
+        "critical_point": {"calculation_status": "not_calculated"},
+    }
+
+
+def test_envelope_export_preserves_branch_points_and_termination_evidence() -> None:
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
+    saturation = SimpleNamespace(
+        parent_composition=(0.5, 0.0, 0.5),
+        incipient_composition=(0.2, 0.1, 0.7),
+        k_values=(0.4, 1.25, 1.4),
+        fugacity_equilibrium_residuals=(1.0e-13, None, -2.0e-13),
+        maximum_fugacity_equilibrium_residual=2.0e-13,
+        composition_sum_residual=4.440892098500626e-16,
+        pressure_residual=1.2345678901234567e-10,
+    )
+    point = SimpleNamespace(
+        status="converged",
+        temperature_k=300.1234567890123,
+        pressure_pa=8_669_987.654321097,
+        saturation_result=saturation,
+    )
+    envelope = SimpleNamespace(
+        bubble_branch=SimpleNamespace(
+            branch_kind="bubble",
+            termination_reason="target_reached",
+            termination_message="Bubble target reached.",
+            points=(point,),
+            rejected_attempts=(object(),),
+        ),
+        dew_branch=SimpleNamespace(
+            branch_kind="dew",
+            termination_reason="corrector_failed",
+            termination_message="Dew corrector stopped safely.",
+            points=(),
+            rejected_attempts=(),
+        ),
+    )
+    exported = build_export_document(  # type: ignore[arg-type]
+        inputs, envelope_result=envelope
+    )["results"]["phase_envelope"]
+
+    assert exported["bubble_branch"]["points"][0]["pressure_pa"] == (
+        8_669_987.654321097
+    )
+    assert exported["bubble_branch"]["points"][0]["pressure_residual"] == (
+        1.2345678901234567e-10
+    )
+    assert exported["bubble_branch"]["rejected_attempt_count"] == 1
+    assert exported["dew_branch"] == {
+        "branch_kind": "dew",
+        "termination_status": "corrector_failed",
+        "termination_message": "Dew corrector stopped safely.",
+        "accepted_point_count": 0,
+        "rejected_attempt_count": 0,
+        "points": [],
+    }
+
+
 def test_critical_certification_and_approved_regression() -> None:
     inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 320.0, 8.5)
     result = solve_mixture_critical_point(
@@ -160,6 +287,27 @@ def test_critical_certification_and_approved_regression() -> None:
     assert rejected.temperature_k is None
     assert rejected.pressure_pa is None
     assert rejected.lambda_min is None
+    certified_export = build_export_document(inputs, critical_result=result)["results"][
+        "critical_point"
+    ]
+    assert certified_export["certified"] is True
+    assert certified_export["temperature_k"]["value"] == result.temperature_k
+    assert certified_export["pressure_pa"]["value"] == result.pressure_pa
+
+    uncertified_export = build_export_document(inputs, critical_result=uncertified)[
+        "results"
+    ]["critical_point"]
+    assert uncertified_export["certified"] is False
+    assert uncertified_export["temperature_k"]["status"] == "unavailable"
+    assert uncertified_export["temperature_k"]["value"] is None
+    assert uncertified_export["pressure_pa"]["value"] is None
+    assert uncertified_export["lambda_min"] == {
+        "status": "available",
+        "value": 0.0,
+    }
+    assert uncertified_export["scaled_residual_norm"]["value"] == (
+        uncertified.scaled_residual_norm
+    )
 
 
 def test_session_state_is_deterministic_and_marks_scientific_changes_stale() -> None:

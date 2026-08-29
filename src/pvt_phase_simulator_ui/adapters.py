@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from math import fsum, isfinite
 from pathlib import Path
 from statistics import median
-from typing import Final
+from typing import Final, Literal
 
 from pvt_phase_simulator.eos.critical_point import (
     CriticalPointStatus,
@@ -171,6 +171,29 @@ def adapt_flash_result(result: TwoPhaseFlashResult) -> FlashView:
         len(result.iteration_history),
         result.failure_reason,
     )
+
+
+def flash_presentation_kind(
+    result: TwoPhaseFlashResult,
+) -> Literal["success", "information", "error"]:
+    """Map public result semantics to UI styling without reclassifying science."""
+
+    view = adapt_flash_result(result)
+    phase_state = getattr(view.phase_state, "value", view.phase_state)
+    convergence = getattr(view.convergence_status, "value", view.convergence_status)
+    stability = getattr(
+        result.phase_stability.status, "value", result.phase_stability.status
+    )
+    if convergence == "converged":
+        return "success"
+    if (
+        phase_state == "single_phase"
+        and convergence == "not_attempted"
+        and stability == "stable"
+        and view.single_phase_z is not None
+    ):
+        return "information"
+    return "error"
 
 
 @dataclass(frozen=True, slots=True)

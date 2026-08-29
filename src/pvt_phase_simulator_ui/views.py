@@ -43,12 +43,18 @@ from pvt_phase_simulator_ui.adapters import (
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
+    flash_presentation_kind,
     load_module17_records,
     location_relative_to_envelope,
     status_text,
     validation_pressure_error_summary,
 )
 from pvt_phase_simulator_ui.context import session
+from pvt_phase_simulator_ui.exports import (
+    build_export_document,
+    export_csv_bytes,
+    export_json_bytes,
+)
 from pvt_phase_simulator_ui.state import get_result, result_is_stale, store_result
 from pvt_phase_simulator_ui.styles import phase_split_bar
 
@@ -249,13 +255,20 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         return
     result = cast(TwoPhaseFlashResult, raw)
     view = adapt_flash_result(result)
-    _stale("flash", inputs)
+    flash_stale = _stale("flash", inputs)
     with st.container(border=True):
         st.subheader(status_text(view.phase_state))
-        if _value(view.convergence_status) == "converged":
+        presentation = flash_presentation_kind(result)
+        if presentation == "success":
             st.success(
                 f"Solver status: {status_text(view.convergence_status)}",
                 icon=":material/check_circle:",
+            )
+        elif presentation == "information":
+            st.info(
+                "Phase stability is conclusive. No two-phase split was required. "
+                f"Selected single-phase Z = {_full_precision(view.single_phase_z)}.",
+                icon=":material/info:",
             )
         else:
             st.error(
@@ -292,6 +305,45 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     )
     if envelope is None:
         st.caption("Calculate a phase envelope to establish this relationship.")
+    if inputs is not None:
+        envelope_export = cast(
+            PhaseEnvelopeResult | None, get_result(session(), "envelope")
+        )
+        if result_is_stale(session(), "envelope", inputs):
+            envelope_export = None
+        critical_export = cast(
+            MixtureCriticalPointResult | None, get_result(session(), "critical")
+        )
+        if result_is_stale(session(), "critical", inputs):
+            critical_export = None
+        document = build_export_document(
+            inputs,
+            flash_result=None if flash_stale else result,
+            envelope_result=envelope_export,
+            critical_result=critical_export,
+        )
+        st.subheader("Export current case")
+        with st.container(horizontal=True):
+            st.download_button(
+                "Download CSV",
+                data=export_csv_bytes(document),
+                file_name="pvt-current-case.csv",
+                mime="text/csv;charset=utf-8",
+                key="download_current_case_csv",
+                on_click="ignore",
+                width="content",
+                icon=":material/download:",
+            )
+            st.download_button(
+                "Download JSON",
+                data=export_json_bytes(document),
+                file_name="pvt-current-case.json",
+                mime="application/json",
+                key="download_current_case_json",
+                on_click="ignore",
+                width="content",
+                icon=":material/download:",
+            )
     details = st.expander("Technical details", icon=":material/table_view:")
     with details:
         _flash_details(result)
