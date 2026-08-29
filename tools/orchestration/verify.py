@@ -48,6 +48,7 @@ class VerificationReport:
     diff_check_ok: bool = True
     diff_check_detail: str = ""
     changed_files: tuple[str, ...] = ()
+    report_path: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -59,6 +60,7 @@ class VerificationReport:
             "diff_check_ok": self.diff_check_ok,
             "diff_check_detail": self.diff_check_detail,
             "changed_files": list(self.changed_files),
+            "report_path": self.report_path,
             "commands": [c.to_dict() for c in self.commands],
         }
 
@@ -262,7 +264,7 @@ def verify(
 
     directory = config.subdir("verification")
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    (directory / f"{stamp}-{label}.json").write_text(
-        json.dumps(report.to_dict(), indent=2), encoding="utf-8"
-    )
+    path = directory / f"{stamp}-{label}.json"
+    report.report_path = str(path.relative_to(config.repo))
+    path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
     return report

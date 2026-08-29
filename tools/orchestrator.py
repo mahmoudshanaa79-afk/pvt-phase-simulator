@@ -6,6 +6,8 @@ python tools/orchestrator.py run [--package NAME] [--dry-run]
 python tools/orchestrator.py verify
 python tools/orchestrator.py audit [--package NAME]
 python tools/orchestrator.py resume
+python tools/orchestrator.py autopilot
+python tools/orchestrator.py release-audit
 python tools/orchestrator.py stop
 """
 
@@ -31,10 +33,16 @@ from orchestration.state import (  # noqa: E402
 )
 from orchestration.verify import verify  # noqa: E402
 from orchestration.workpackage import (  # noqa: E402
+    AuditPolicy,
+    CommitPolicy,
+    PackageStatus,
+    Risk,
+    WorkPackage,
     assess_risk,
     list_packages,
     load_package,
     next_package,
+    save_package,
 )
 
 
@@ -92,6 +100,12 @@ def cmd_status(config, args) -> int:
     for finding in state.blocking_findings[:5]:
         print(f"                         {finding.get('id')}: {finding.get('summary')}")
     print(f"Safe-defer findings    : {len(state.safe_defer_findings)}")
+    print(f"Deferred audit debt    : {len(state.deferred_independent_audits)}")
+    for debt in state.deferred_independent_audits[:5]:
+        print(
+            f"                         {debt.get('package')}: "
+            f"{debt.get('resulting_commit')}"
+        )
     print(
         f"Auditor spend          : ${state.claude_cost_usd_this_package:.4f}"
         f" / ${config.limits.max_claude_cost_usd_per_work_package:.2f} per package"
@@ -112,7 +126,9 @@ def cmd_status(config, args) -> int:
     )
     print(f"Lock                   : {lock_detail}")
 
-    if package is None:
+    if state.workflow_status is WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT:
+        next_action = "`release-audit` when Claude is available"
+    elif package is None:
         next_action = "define a work package in .ai/work_packages/ then `run`"
     elif held:
         next_action = "another orchestrator is running; wait or investigate"
@@ -258,6 +274,7 @@ def cmd_stop(config, args) -> int:
     state.blocking_findings = []
     state.codex_correction_cycles = 0
     state.claude_reaudit_cycles = 0
+    state.provisional_review_cycles = 0
     state.last_error = None
     save_state(config.state_path, state)
     OrchestratorLock(config.lock_path).path.unlink(missing_ok=True)
@@ -278,6 +295,203 @@ def cmd_packages(config, args) -> int:
     return 0
 
 
+def cmd_autopilot(config, args) -> int:
+    """Run eligible packages sequentially with bounded package-level progress."""
+
+    state = load_state(config.state_path)
+    attempted: set[str] = set()
+    try:
+        with OrchestratorLock(config.lock_path):
+            while True:
+                package, package_path = _resolve_package(config, None)
+                if package is None:
+                    state.transition(
+                        WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT,
+                        "all eligible packages completed; release-level audit required",
+                    )
+                    state.audit_required = True
+                    state.audit_reason = "comprehensive v1.1 release audit required"
+                    save_state(config.state_path, state)
+                    print("All eligible work packages completed.")
+                    print("Final status: READY_FOR_CLAUDE_RELEASE_AUDIT")
+                    print("Resume command: python tools/orchestrator.py release-audit")
+                    return 0
+                if package.name in attempted:
+                    reason = (
+                        f"autopilot made no package progress on {package.name}; "
+                        "refusing an implementation loop"
+                    )
+                    state.transition(WorkflowStatus.HUMAN_ACTION_REQUIRED, reason)
+                    state.last_error = reason
+                    save_state(config.state_path, state)
+                    print(reason)
+                    return 2
+                attempted.add(package.name)
+                print(f"\n=== AUTOPILOT: {package.name} ===")
+                outcome = Engine(config, state).execute(package, package_path)
+                for line in outcome.messages:
+                    print(line)
+                if outcome.status in {
+                    WorkflowStatus.HUMAN_ACTION_REQUIRED,
+                    WorkflowStatus.FAILED,
+                    WorkflowStatus.BLOCKED,
+                }:
+                    print(f"autopilot stopped: {outcome.status.value}")
+                    return 2
+                if outcome.commit is None:
+                    reason = (
+                        f"package {package.name} finished without a commit; "
+                        "autopilot cannot prove forward progress"
+                    )
+                    state.transition(WorkflowStatus.HUMAN_ACTION_REQUIRED, reason)
+                    state.last_error = reason
+                    save_state(config.state_path, state)
+                    print(reason)
+                    return 2
+    except LockHeld as error:
+        print(f"REFUSED: {error}")
+        return 1
+
+
+def cmd_release_audit(config, args) -> int:
+    """Run the comprehensive independent audit over all deferred v1.1 work."""
+
+    state = load_state(config.state_path)
+    available, location = agents.agent_available(config.claude)
+    if not available:
+        state.transition(
+            WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT,
+            f"Claude unavailable ({location})",
+        )
+        state.audit_required = True
+        state.audit_reason = "Claude unavailable for comprehensive release audit"
+        save_state(config.state_path, state)
+        print("READY_FOR_CLAUDE_RELEASE_AUDIT")
+        print("Resume command: python tools/orchestrator.py release-audit")
+        return 2
+
+    report = verify(config, label="openphase-v1.1-release-audit-preflight")
+    if not report.passed:
+        reason = "release-audit preflight verification failed"
+        state.transition(WorkflowStatus.HUMAN_ACTION_REQUIRED, reason)
+        state.last_error = reason
+        save_state(config.state_path, state)
+        print(report.summary())
+        print(reason)
+        return 2
+
+    package = WorkPackage(
+        name="openphase_v1_1_release_audit",
+        objective=(
+            "Comprehensively audit OpenPhase v1.1: every commit since the last "
+            "independent audit, all deferred packages, application architecture, "
+            "scientific separation, result/export/error integrity, Streamlit "
+            "behavior, tests, deployment readiness, security, documentation "
+            "truthfulness, and scope control."
+        ),
+        risk=Risk.MEDIUM,
+        protected_files=(
+            "src/pvt_phase_simulator",
+            "data",
+            "docs/validation",
+            "tests/golden_master",
+        ),
+        scientific_invariants=(
+            "The frozen scientific engine and protected artifacts remain unchanged.",
+            "Provisional Codex reviews are audit debt, not independent approval.",
+        ),
+        audit_policy=AuditPolicy.IMMEDIATE,
+        commit_policy=CommitPolicy.MANUAL,
+    )
+    engine = Engine(config, state)
+    outcome = engine.plan(package)
+    outcome.status = state.workflow_status
+    debt_summary = "\n".join(str(item) for item in state.deferred_independent_audits)
+    try:
+        with OrchestratorLock(config.lock_path):
+            run = engine.run_audit(
+                package,
+                outcome,
+                codex_report=(
+                    "Deferred independent-audit debt:\n"
+                    + (debt_summary or "(none recorded)")
+                ),
+                verification=report,
+                base_commit=state.last_independent_audit_commit,
+            )
+    except LockHeld as error:
+        print(f"REFUSED: {error}")
+        return 1
+    for line in outcome.messages:
+        print(line)
+    if run is None or run.contract is None:
+        if outcome.review_unavailable_reason:
+            state.transition(
+                WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT,
+                outcome.review_unavailable_reason,
+            )
+            state.audit_required = True
+            state.audit_reason = outcome.review_unavailable_reason
+            save_state(config.state_path, state)
+            print("READY_FOR_CLAUDE_RELEASE_AUDIT")
+            print("Resume command: python tools/orchestrator.py release-audit")
+        return 2
+    blocking = agents.blocking_findings(run.contract)
+    if run.contract.get("verdict") == "APPROVED" and not blocking:
+        state.deferred_independent_audits = []
+        state.blocking_findings = []
+        state.audit_required = False
+        state.audit_reason = None
+        state.last_independent_audit_commit = read_repo(config.repo).head
+        state.transition(WorkflowStatus.APPROVED, "v1.1 release audit approved")
+        save_state(config.state_path, state)
+        print("INDEPENDENT_AUDIT_APPROVED")
+        return 0
+
+    correction = WorkPackage(
+        name="openphase_v1_1_release_audit_corrections",
+        objective=(
+            "Close only the blocking findings from the comprehensive v1.1 "
+            "release audit:\n"
+            + "\n".join(
+                f"- {item.get('id')}: {item.get('summary')}" for item in blocking
+            )
+        ),
+        risk=Risk.MEDIUM,
+        allowed_files=(
+            "src/pvt_phase_simulator_ui",
+            "app",
+            "streamlit_app.py",
+            ".streamlit/config.toml",
+            "tests/test_app*.py",
+            "docs/STREAMLIT_APPLICATION.md",
+            "README.md",
+        ),
+        protected_files=package.protected_files,
+        scientific_invariants=package.scientific_invariants,
+        required_tests=config.verification_commands,
+        audit_policy=AuditPolicy.IMMEDIATE,
+        commit_policy=CommitPolicy.AFTER_AUDIT,
+        status=PackageStatus.PENDING,
+        notes="Generated automatically from blocking release-audit findings.",
+    )
+    correction_path = (
+        config.ai_dir
+        / "work_packages"
+        / "openphase_v1_1_release_audit_corrections.json"
+    )
+    save_package(correction_path, correction)
+    state.blocking_findings = blocking
+    state.transition(
+        WorkflowStatus.IDLE,
+        "blocking release-audit findings converted to a correction package",
+    )
+    save_state(config.state_path, state)
+    print(f"Correction package: {correction_path}")
+    print("Resume command: python tools/orchestrator.py autopilot")
+    return 2
+
+
 COMMANDS = {
     "status": cmd_status,
     "run": cmd_run,
@@ -286,6 +500,8 @@ COMMANDS = {
     "resume": cmd_resume,
     "stop": cmd_stop,
     "packages": cmd_packages,
+    "autopilot": cmd_autopilot,
+    "release-audit": cmd_release_audit,
 }
 
 

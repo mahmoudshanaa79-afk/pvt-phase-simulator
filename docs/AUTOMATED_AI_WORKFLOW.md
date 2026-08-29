@@ -69,6 +69,8 @@ python tools/orchestrator.py run --package <name>         # full loop
 python tools/orchestrator.py verify                       # local gates only
 python tools/orchestrator.py audit --package <name>       # force an independent audit
 python tools/orchestrator.py resume                       # continue after an interruption
+python tools/orchestrator.py autopilot                    # run eligible packages in sequence
+python tools/orchestrator.py release-audit                # finalize deferred independent audit
 python tools/orchestrator.py stop                         # reset to IDLE, clear the lock
 ```
 
@@ -102,6 +104,14 @@ before running to see exactly what the automation will attempt.
 
 An independent audit runs after **five** normal packages, or immediately for
 HIGH-risk work, or when a package sets `audit_policy: IMMEDIATE`.
+
+When Claude is temporarily unavailable, `autopilot` may use a fresh, read-only
+Codex process for `PROVISIONAL_CODEX_REVIEW`, but only for locally verified
+LOW/MEDIUM application-layer work. This never counts as an independent audit:
+the commit and persistent state are marked `PENDING_INDEPENDENT_AUDIT`, the
+independent-audit commit is not advanced, and `release-audit` must later clear
+the debt. HIGH-risk, frozen-science, protected-artifact, or scientific-test
+changes never use this fallback.
 
 Risk is not taken on trust. `assess_risk` compares the files a package actually
 changed against `high_risk_paths` (the EOS package, component database, fluid
@@ -204,6 +214,12 @@ diff and are committed deliberately, never swept into a science commit.
 
 `AFTER_AUDIT` packages are not committed until an audit approves. Nothing is
 committed merely because an agent said "approved".
+
+The temporary provisional path is the one explicit exception: an eligible
+application package may be committed after passing every deterministic gate and
+a fresh Codex provisional review. Its commit message records provisional review
+truthfully and does not attribute Claude. Claude co-author attribution is added
+only when Claude genuinely performed the approving audit.
 
 ### Refused git operations
 

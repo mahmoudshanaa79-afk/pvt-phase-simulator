@@ -79,6 +79,42 @@ AUDITOR_RULES = textwrap.dedent(
     """
 ).strip()
 
+PROVISIONAL_REVIEW_CONTRACT = textwrap.dedent(
+    """
+    ## Required final output
+
+    End with exactly one machine-readable block:
+
+    <ORCHESTRATOR_RESULT>
+    {
+      "review_type": "PROVISIONAL_CODEX_REVIEW",
+      "verdict": "APPROVED",
+      "findings": [
+        {"id": "PCR-1", "severity": "C", "blocks": true, "summary": "..."}
+      ]
+    }
+    </ORCHESTRATOR_RESULT>
+
+    `verdict` must be exactly APPROVED or NOT_APPROVED. This review is not an
+    independent audit and must never be described as one.
+    """
+).strip()
+
+PROVISIONAL_REVIEW_RULES = textwrap.dedent(
+    """
+    ## Your role and limits
+
+    You are a SECOND, FRESH Codex process performing a
+    `PROVISIONAL_CODEX_REVIEW`. Assume the implementation may contain defects.
+
+    - Work read-only. Do not edit, stage, commit, or regenerate artifacts.
+    - This is NOT an independent audit and does not replace Claude review.
+    - Check the actual diff, local verification, acceptance criteria, failure
+      semantics, tests, and scientific separation adversarially.
+    - Report blocking defects precisely; do not fix them.
+    """
+).strip()
+
 
 def _clip(text: str | None, limit: int) -> str:
     if not text:
@@ -255,6 +291,86 @@ Look specifically for:
 - claims in documentation that the code does not support
 
 {AUDITOR_CONTRACT}
+"""
+
+
+def build_provisional_review_prompt(
+    config: OrchestratorConfig,
+    package: WorkPackage,
+    *,
+    verification: VerificationReport,
+    base_commit: str | None,
+    previous_findings: list[dict[str, Any]] | None = None,
+    targeted: bool = False,
+) -> str:
+    """Build a read-only Codex review prompt with explicitly limited provenance."""
+
+    try:
+        paths = list(verification.changed_files)
+        tracked_diff = (
+            git(config.repo, "diff", base_commit, "--", *paths)
+            if base_commit and paths
+            else git(config.repo, "diff", "--", *paths)
+            if paths
+            else "(no package paths changed)"
+        )
+    except (RuntimeError, OSError, ValueError):
+        tracked_diff = "(tracked diff unavailable)"
+    facts = read_repo(config.repo)
+    untracked_sections: list[str] = []
+    package_paths = set(verification.changed_files)
+    for relative in (path for path in facts.untracked if path in package_paths):
+        path = config.repo / relative
+        try:
+            body = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            body = "(binary or unreadable untracked file)"
+        added = "\n".join(f"+{line}" for line in body.splitlines())
+        untracked_sections.append(
+            f"diff --git a/{relative} b/{relative}\n"
+            f"new file mode 100644\n--- /dev/null\n+++ b/{relative}\n{added}"
+        )
+    full_diff = "\n".join([tracked_diff, *untracked_sections])
+    findings = ""
+    if previous_findings:
+        findings = "\n".join(
+            f"- {item.get('id')}: {item.get('summary')}" for item in previous_findings
+        )
+    scope = (
+        "Targeted re-review: verify the listed findings are closed and look for "
+        "regressions caused by their fixes."
+        if targeted
+        else "Review the complete work-package implementation."
+    )
+    return f"""# Provisional Codex review: {package.name}
+
+{PROVISIONAL_REVIEW_RULES}
+
+## Review scope
+{scope}
+
+## Objective and acceptance criteria
+{package.objective}
+
+## Scientific invariants
+{chr(10).join(f"- {item}" for item in package.scientific_invariants) or "(none)"}
+
+## Local deterministic verification
+Passed: **{verification.passed}**
+```
+{_clip(verification.summary(), 6000)}
+```
+Changed files: {list(verification.changed_files)}
+
+## Previous blocking findings
+{findings or "(none)"}
+
+## Actual Git diff, including untracked files
+```diff
+{_clip(full_diff, 80000)}
+```
+
+{PROVISIONAL_REVIEW_CONTRACT}
 """
 
 

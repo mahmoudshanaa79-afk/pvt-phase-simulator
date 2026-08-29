@@ -12,13 +12,15 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
 
-from orchestration import agents  # noqa: E402
+import orchestrator as orchestrator_cli  # noqa: E402
+from orchestration import agents, prompts  # noqa: E402
 from orchestration.config import AgentConfig, Limits, OrchestratorConfig  # noqa: E402
 from orchestration.engine import Engine  # noqa: E402
 from orchestration.gitops import ForbiddenGitOperation, git, read_repo  # noqa: E402
@@ -30,10 +32,15 @@ from orchestration.state import (  # noqa: E402
     load_state,
     save_state,
 )
-from orchestration.verify import check_protected_artifacts, check_scope  # noqa: E402
+from orchestration.verify import (  # noqa: E402
+    VerificationReport,
+    check_protected_artifacts,
+    check_scope,
+)
 from orchestration.workpackage import (  # noqa: E402
     AuditPolicy,
     CommitPolicy,
+    PackageStatus,
     Risk,
     WorkPackage,
     assess_risk,
@@ -181,6 +188,52 @@ def claude_stub(
     return runner
 
 
+def provisional_stub(verdict="APPROVED", findings=(), malformed=False):
+    """Fake fresh read-only Codex reviewer."""
+
+    calls = {"n": 0}
+
+    def runner(config, prompt_path, *, stem):
+        calls["n"] += 1
+        report = (
+            "not structured"
+            if malformed
+            else (
+                "Provisional review only.\n<ORCHESTRATOR_RESULT>\n"
+                + json.dumps(
+                    {
+                        "review_type": "PROVISIONAL_CODEX_REVIEW",
+                        "verdict": verdict,
+                        "findings": list(findings),
+                    }
+                )
+                + "\n</ORCHESTRATOR_RESULT>"
+            )
+        )
+        path = config.ai_dir / "provisional_reviews" / f"{stem}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(report, encoding="utf-8")
+        run = agents.AgentRun(
+            name="codex-provisional-review",
+            command=["codex-stub", "exec", "-s", "read-only"],
+            exit_code=0,
+            stdout=report,
+            stderr="",
+            raw_report=report,
+            transcript_path=path,
+        )
+        try:
+            run.contract = agents.validate_provisional_review_contract(
+                agents.parse_contract(report)
+            )
+        except agents.ContractError as error:
+            run.contract_error = str(error)
+        return run
+
+    runner.calls = calls  # type: ignore[attr-defined]
+    return runner
+
+
 BLOCKER = {"id": "C-1", "severity": "C", "blocks": True, "summary": "bad thing"}
 
 
@@ -190,10 +243,15 @@ BLOCKER = {"id": "C-1", "severity": "C", "blocks": True, "summary": "bad thing"}
 class TestState:
     def test_roundtrip_is_atomic_and_lossless(self, tmp_path: Path) -> None:
         path = tmp_path / "state.json"
-        state = WorkflowState(work_packages_since_audit=3, audit_required=True)
+        state = WorkflowState(
+            work_packages_since_audit=3,
+            audit_required=True,
+            deferred_independent_audits=[{"package": "demo"}],
+        )
         save_state(path, state)
         assert load_state(path).work_packages_since_audit == 3
         assert load_state(path).audit_required is True
+        assert load_state(path).deferred_independent_audits == [{"package": "demo"}]
 
     def test_missing_file_yields_idle(self, tmp_path: Path) -> None:
         assert load_state(tmp_path / "nope.json").workflow_status is WorkflowStatus.IDLE
@@ -297,6 +355,48 @@ class TestContracts:
         with pytest.raises(agents.ContractError, match="builder status"):
             agents.validate_builder_contract({"status": "DONE-ISH"})
 
+    def test_provisional_review_requires_truthful_type_and_bounded_verdict(
+        self,
+    ) -> None:
+        valid = {
+            "review_type": "PROVISIONAL_CODEX_REVIEW",
+            "verdict": "APPROVED",
+            "findings": [],
+        }
+        assert agents.validate_provisional_review_contract(valid) is valid
+        with pytest.raises(agents.ContractError, match="provisional verdict"):
+            agents.validate_provisional_review_contract(
+                {**valid, "verdict": "CONDITIONAL"}
+            )
+        with pytest.raises(agents.ContractError, match="review_type"):
+            agents.validate_provisional_review_contract(
+                {**valid, "review_type": "INDEPENDENT_AUDIT"}
+            )
+
+    def test_claude_usage_limit_is_temporary_unavailability(self) -> None:
+        run = agents.AgentRun(
+            name="claude",
+            command=["claude"],
+            exit_code=1,
+            stdout="",
+            stderr="ERROR: You've hit your usage limit",
+            raw_report="",
+        )
+        unavailable, reason = agents.claude_temporarily_unavailable(run)
+        assert unavailable is True
+        assert "usage limit" in reason
+
+    def test_generic_claude_failure_is_not_mislabelled_as_quota(self) -> None:
+        run = agents.AgentRun(
+            name="claude",
+            command=["claude"],
+            exit_code=1,
+            stdout="",
+            stderr="unexpected internal error",
+            raw_report="",
+        )
+        assert agents.claude_temporarily_unavailable(run) == (False, "")
+
 
 # ------------------------------------------------------------------ risk policy
 
@@ -313,6 +413,14 @@ class TestRisk:
 
     def test_high_stays_high(self) -> None:
         risk, _ = assess_risk(Risk.HIGH, ("docs/x.md",), ("src/eos/",))
+        assert risk is Risk.HIGH
+
+    def test_any_frozen_scientific_source_path_escalates(self) -> None:
+        risk, _ = assess_risk(
+            Risk.LOW,
+            ("src/pvt_phase_simulator/properties.py",),
+            ("src/pvt_phase_simulator",),
+        )
         assert risk is Risk.HIGH
 
 
@@ -481,6 +589,8 @@ class TestEndToEnd:
         assert outcome.commit is not None
         assert claude.calls["n"] == 0  # auditor not spent on batched work
         assert state.work_packages_since_audit == 1
+        message = git(config.repo, "log", "-1", "--format=%B")
+        assert "Co-Authored-By: Claude" not in message
 
     def test_high_risk_audits_before_finishing(self, config) -> None:
         state = WorkflowState()
@@ -491,6 +601,118 @@ class TestEndToEnd:
         assert claude.calls["n"] == 1
         assert outcome.status is WorkflowStatus.APPROVED
         assert state.work_packages_since_audit == 0
+        assert "Co-Authored-By: Claude" in git(config.repo, "log", "-1", "--format=%B")
+
+    def test_claude_unavailable_uses_provisional_review_and_records_debt(
+        self, config
+    ) -> None:
+        state = WorkflowState(last_independent_audit_commit="seed-audit")
+        package = make_package(
+            audit_policy=AuditPolicy.IMMEDIATE,
+            commit_policy=CommitPolicy.AFTER_AUDIT,
+        )
+        provisional = provisional_stub()
+        directory = config.ai_dir / "work_packages"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / "demo.json"
+        save_package(path, package)
+        outcome = Engine(
+            config,
+            state,
+            codex_runner=codex_stub(),
+            provisional_runner=provisional,
+        ).execute(package, path)
+
+        assert outcome.commit is not None
+        assert provisional.calls["n"] == 1
+        assert state.last_independent_audit_commit == "seed-audit"
+        assert state.audit_required is True
+        assert state.deferred_independent_audits == [
+            {
+                "status": "PENDING_INDEPENDENT_AUDIT",
+                "package": "demo",
+                "base_commit": state.deferred_independent_audits[0]["base_commit"],
+                "resulting_commit": outcome.commit,
+                "effective_risk": "LOW",
+                "verification_report": state.deferred_independent_audits[0][
+                    "verification_report"
+                ],
+                "provisional_review_report": state.deferred_independent_audits[0][
+                    "provisional_review_report"
+                ],
+                "reason": (
+                    "Claude unavailable; approved only by fresh read-only Codex "
+                    "provisional review."
+                ),
+            }
+        ]
+        message = git(config.repo, "log", "-1", "--format=%B")
+        assert "PROVISIONAL_CODEX_REVIEW" in message
+        assert "Co-Authored-By: Claude" not in message
+
+    def test_high_risk_never_uses_provisional_reviewer(self, config) -> None:
+        state = WorkflowState()
+        package = make_package(
+            risk=Risk.HIGH,
+            audit_policy=AuditPolicy.IMMEDIATE,
+            commit_policy=CommitPolicy.AFTER_AUDIT,
+        )
+        provisional = provisional_stub()
+        outcome = self._run_with_provisional(
+            config, state, package, codex_stub(), provisional
+        )
+        assert outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED
+        assert provisional.calls["n"] == 0
+        assert outcome.commit is None
+
+    def test_installed_claude_quota_failure_falls_back_provisionally(
+        self, config
+    ) -> None:
+        state = WorkflowState(last_independent_audit_commit="seed-audit")
+        package = make_package(
+            audit_policy=AuditPolicy.IMMEDIATE,
+            commit_policy=CommitPolicy.AFTER_AUDIT,
+        )
+
+        def quota_stub(config, prompt_path, *, stem):
+            return agents.AgentRun(
+                name="claude",
+                command=["claude-stub"],
+                exit_code=1,
+                stdout="",
+                stderr="ERROR: You've hit your usage limit",
+                raw_report="",
+            )
+
+        provisional = provisional_stub()
+        directory = config.ai_dir / "work_packages"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / "demo.json"
+        save_package(path, package)
+        outcome = Engine(
+            config,
+            state,
+            codex_runner=codex_stub(),
+            claude_runner=quota_stub,
+            provisional_runner=provisional,
+        ).execute(package, path)
+
+        assert outcome.commit is not None
+        assert provisional.calls["n"] == 1
+        assert len(state.deferred_independent_audits) == 1
+        assert state.last_independent_audit_commit == "seed-audit"
+
+    def _run_with_provisional(self, config, state, package, codex, provisional):
+        directory = config.ai_dir / "work_packages"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{package.name}.json"
+        save_package(path, package)
+        return Engine(
+            config,
+            state,
+            codex_runner=codex,
+            provisional_runner=provisional,
+        ).execute(package, path)
 
     def test_fifth_package_triggers_milestone_audit(self, config) -> None:
         state = WorkflowState(work_packages_since_audit=4)
@@ -834,6 +1056,24 @@ class TestSubprocessEncoding:
         assert _clip(None, 10) == "(unavailable)"
         assert _clip("", 10) == "(unavailable)"
 
+    def test_provisional_prompt_includes_untracked_file_content(self, config) -> None:
+        (config.repo / "new.py").write_text("answer = 42\n", encoding="utf-8")
+        noise = config.ai_dir / "codex_reports" / "noise.md"
+        noise.parent.mkdir(parents=True, exist_ok=True)
+        noise.write_text("must not crowd out package diff", encoding="utf-8")
+        prompt = prompts.build_provisional_review_prompt(
+            config,
+            make_package(allowed_files=("new.py",)),
+            verification=VerificationReport(
+                passed=True, changed_files=("new.py",), protected_ok=True
+            ),
+            base_commit=read_repo(config.repo).head,
+        )
+        assert "diff --git a/new.py b/new.py" in prompt
+        assert "+answer = 42" in prompt
+        assert "must not crowd out package diff" not in prompt
+        assert "NOT an independent audit" in prompt
+
 
 class TestAgentResolution:
     """Regression: a transient miss escalated a good run to HUMAN_ACTION_REQUIRED."""
@@ -929,6 +1169,35 @@ class TestTransportEncoding:
             "codepage corrupts non-ASCII prompt text"
         )
 
+    def test_provisional_reviewer_uses_read_only_sandbox(
+        self, config, monkeypatch
+    ) -> None:
+        captured: dict[str, object] = {}
+
+        class FakeCompleted:
+            returncode = 0
+            stdout = (
+                '<ORCHESTRATOR_RESULT>{"review_type":'
+                '"PROVISIONAL_CODEX_REVIEW","verdict":"APPROVED",'
+                '"findings":[]}</ORCHESTRATOR_RESULT>'
+            )
+            stderr = ""
+
+        def fake_run(command, **kwargs):
+            captured["command"] = command
+            captured.update(kwargs)
+            return FakeCompleted()
+
+        monkeypatch.setattr(agents.subprocess, "run", fake_run)
+        monkeypatch.setattr(agents, "_resolve", lambda agent, name: "codex-exe")
+        prompt = config.repo / "review.md"
+        prompt.write_text("review", encoding="utf-8")
+        agents.run_codex_review(config, prompt, stem="readonly")
+        command = captured["command"]
+        assert isinstance(command, list)
+        assert command[command.index("-s") + 1] == "read-only"
+        assert captured.get("encoding") == "utf-8"
+
 
 def test_orchestrator_cli_help_runs() -> None:
     result = subprocess.run(
@@ -940,3 +1209,74 @@ def test_orchestrator_cli_help_runs() -> None:
     )
     assert result.returncode == 0
     assert "status" in result.stdout
+    assert "autopilot" in result.stdout
+    assert "release-audit" in result.stdout
+
+
+class TestAutopilotCli:
+    def test_autopilot_runs_each_eligible_package_then_requests_release_audit(
+        self, config, monkeypatch, capsys
+    ) -> None:
+        directory = config.ai_dir / "work_packages"
+        directory.mkdir(parents=True, exist_ok=True)
+        first = make_package(name="a")
+        second = make_package(name="b", dependencies=("a",))
+        save_package(directory / "a.json", first)
+        save_package(directory / "b.json", second)
+        calls: list[str] = []
+
+        class FakeEngine:
+            def __init__(self, config, state):
+                self.state = state
+
+            def execute(self, package, path):
+                calls.append(package.name)
+                package.status = PackageStatus.COMMITTED
+                save_package(path, package)
+                return SimpleNamespace(
+                    status=WorkflowStatus.IDLE,
+                    messages=[f"completed {package.name}"],
+                    commit=f"commit-{package.name}",
+                )
+
+        monkeypatch.setattr(orchestrator_cli, "Engine", FakeEngine)
+        code = orchestrator_cli.cmd_autopilot(config, SimpleNamespace())
+        state = load_state(config.state_path)
+        assert code == 0
+        assert calls == ["a", "b"]
+        assert state.workflow_status is WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT
+        assert "python tools/orchestrator.py release-audit" in capsys.readouterr().out
+
+    def test_autopilot_refuses_a_no_progress_loop(self, config, monkeypatch) -> None:
+        directory = config.ai_dir / "work_packages"
+        directory.mkdir(parents=True, exist_ok=True)
+        save_package(directory / "demo.json", make_package())
+
+        class NoProgressEngine:
+            def __init__(self, config, state):
+                pass
+
+            def execute(self, package, path):
+                return SimpleNamespace(
+                    status=WorkflowStatus.IDLE, messages=[], commit=None
+                )
+
+        monkeypatch.setattr(orchestrator_cli, "Engine", NoProgressEngine)
+        assert orchestrator_cli.cmd_autopilot(config, SimpleNamespace()) == 2
+        state = load_state(config.state_path)
+        assert state.workflow_status is WorkflowStatus.HUMAN_ACTION_REQUIRED
+        assert "forward progress" in (state.last_error or "")
+
+    def test_release_audit_unavailable_preserves_debt_and_resume_command(
+        self, config, capsys
+    ) -> None:
+        state = WorkflowState(
+            deferred_independent_audits=[{"package": "demo"}],
+            audit_required=True,
+        )
+        save_state(config.state_path, state)
+        assert orchestrator_cli.cmd_release_audit(config, SimpleNamespace()) == 2
+        reloaded = load_state(config.state_path)
+        assert reloaded.deferred_independent_audits == [{"package": "demo"}]
+        assert reloaded.workflow_status is WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT
+        assert "python tools/orchestrator.py release-audit" in capsys.readouterr().out

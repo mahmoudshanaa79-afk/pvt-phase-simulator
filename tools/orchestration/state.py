@@ -25,6 +25,7 @@ class WorkflowStatus(StrEnum):
     LOCAL_VERIFY = "LOCAL_VERIFY"
     AUDIT_PENDING = "AUDIT_PENDING"
     CLAUDE_RUNNING = "CLAUDE_RUNNING"
+    PROVISIONAL_CODEX_REVIEW = "PROVISIONAL_CODEX_REVIEW"
     CORRECTION_REQUIRED = "CORRECTION_REQUIRED"
     CODEX_CORRECTION = "CODEX_CORRECTION"
     REAUDIT_PENDING = "REAUDIT_PENDING"
@@ -32,6 +33,7 @@ class WorkflowStatus(StrEnum):
     BLOCKED = "BLOCKED"
     HUMAN_ACTION_REQUIRED = "HUMAN_ACTION_REQUIRED"
     FAILED = "FAILED"
+    READY_FOR_CLAUDE_RELEASE_AUDIT = "READY_FOR_CLAUDE_RELEASE_AUDIT"
 
 
 TERMINAL_STATES: Final = frozenset(
@@ -40,6 +42,7 @@ TERMINAL_STATES: Final = frozenset(
         WorkflowStatus.BLOCKED,
         WorkflowStatus.HUMAN_ACTION_REQUIRED,
         WorkflowStatus.FAILED,
+        WorkflowStatus.READY_FOR_CLAUDE_RELEASE_AUDIT,
     }
 )
 
@@ -86,10 +89,12 @@ class WorkflowState:
     audit_reason: str | None = None
     blocking_findings: list[dict[str, Any]] = field(default_factory=list)
     safe_defer_findings: list[dict[str, Any]] = field(default_factory=list)
+    deferred_independent_audits: list[dict[str, Any]] = field(default_factory=list)
     planned_scope: str | None = None
     planned_scope_complete: bool = False
     codex_correction_cycles: int = 0
     claude_reaudit_cycles: int = 0
+    provisional_review_cycles: int = 0
     #: Cumulative reported auditor spend for the current work package.
     claude_cost_usd_this_package: float = 0.0
     #: Auditor runs whose cost the CLI did not report. Cost is never estimated,
@@ -122,7 +127,12 @@ class WorkflowState:
         if not isinstance(raw["audit_required"], bool):
             raise StateSchemaError("audit_required must be a boolean")
 
-        for list_key in ("blocking_findings", "safe_defer_findings", "history"):
+        for list_key in (
+            "blocking_findings",
+            "safe_defer_findings",
+            "deferred_independent_audits",
+            "history",
+        ):
             value = raw.get(list_key, [])
             if not isinstance(value, list):
                 raise StateSchemaError(f"{list_key} must be a list")
@@ -146,10 +156,12 @@ class WorkflowState:
             "audit_reason": self.audit_reason,
             "blocking_findings": self.blocking_findings,
             "safe_defer_findings": self.safe_defer_findings,
+            "deferred_independent_audits": self.deferred_independent_audits,
             "planned_scope": self.planned_scope,
             "planned_scope_complete": self.planned_scope_complete,
             "codex_correction_cycles": self.codex_correction_cycles,
             "claude_reaudit_cycles": self.claude_reaudit_cycles,
+            "provisional_review_cycles": self.provisional_review_cycles,
             "claude_cost_usd_this_package": self.claude_cost_usd_this_package,
             "claude_cost_unknown_runs": self.claude_cost_unknown_runs,
             "last_error": self.last_error,
