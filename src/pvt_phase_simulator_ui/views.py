@@ -78,6 +78,14 @@ def _action_requirement(inputs: ScientificInputs | None) -> None:
         st.caption(":material/lock: Submit RUN FLASH to enable this action.")
 
 
+def _action_inputs(inputs: ScientificInputs | None) -> ScientificInputs | None:
+    if inputs is None or get_result(session(), "flash") is None:
+        return None
+    if result_is_stale(session(), "flash", inputs):
+        return None
+    return inputs
+
+
 def _wide_chart(figure: Any, *, key: str | None = None) -> None:
     st.plotly_chart(figure, width="stretch", height=500, key=key)
 
@@ -305,7 +313,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     )
     if envelope is None:
         st.caption("Calculate a phase envelope to establish this relationship.")
-    if inputs is not None:
+    if inputs is not None and not flash_stale:
         envelope_export = cast(
             PhaseEnvelopeResult | None, get_result(session(), "envelope")
         )
@@ -344,6 +352,11 @@ def render_overview(inputs: ScientificInputs | None) -> None:
                 width="content",
                 icon=":material/download:",
             )
+    elif flash_stale:
+        st.caption(
+            ":material/lock: Downloads are unavailable until RUN FLASH recalculates "
+            "the changed inputs."
+        )
     details = st.expander("Technical details", icon=":material/table_view:")
     with details:
         _flash_details(result)
@@ -370,14 +383,15 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
         "Independent bounded bubble and dew continuation · "
         "turning points are not critical points"
     )
+    action_inputs = _action_inputs(inputs)
     if st.button(
         "RUN PHASE ENVELOPE",
         type="primary",
         width="stretch",
-        disabled=inputs is None,
+        disabled=action_inputs is None,
         icon=":material/play_arrow:",
     ):
-        assert inputs is not None
+        assert action_inputs is not None
         with st.status("Tracing bubble and dew branches…", expanded=True) as status:
             status.write(
                 "Cold-starting below the operating point, then continuing both "
@@ -386,13 +400,13 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             status.write("Typical first run: about 20–30 seconds.")
             status.caption("An unchanged submitted case reuses the bounded UI cache.")
             try:
-                result = _calculate_envelope(inputs)
-                store_result(session(), "envelope", result, inputs)
+                result = _calculate_envelope(action_inputs)
+                store_result(session(), "envelope", result, action_inputs)
                 status.update(label="Envelope trace complete", state="complete")
             except (ValueError, ArithmeticError) as error:
                 status.update(label="Envelope trace failed", state="error")
                 st.error(f"Phase-envelope calculation could not start: {error}")
-    _action_requirement(inputs)
+    _action_requirement(action_inputs)
     raw = get_result(session(), "envelope")
     if raw is None:
         st.info("No calculated envelope is available.", icon=":material/info:")
@@ -498,34 +512,43 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
         "A zero minimum stability eigenvalue alone identifies a spinodal condition, "
         "not a critical point."
     )
+    action_inputs = _action_inputs(inputs)
     with st.container(horizontal=True):
         run_solver = st.button(
             "RUN CRITICAL SOLVER",
             type="primary",
-            disabled=inputs is None,
+            disabled=action_inputs is None,
             icon=":material/play_arrow:",
         )
         run_map = st.button(
             "RUN CRITICALITY MAP",
-            disabled=inputs is None,
+            disabled=action_inputs is None,
             icon=":material/grid_on:",
         )
-    _action_requirement(inputs)
+    _action_requirement(action_inputs)
     if run_solver:
-        assert inputs is not None
+        assert action_inputs is not None
         with st.status("Solving production critical conditions…") as status:
             try:
-                store_result(session(), "critical", _calculate_critical(inputs), inputs)
+                store_result(
+                    session(),
+                    "critical",
+                    _calculate_critical(action_inputs),
+                    action_inputs,
+                )
                 status.update(label="Critical solver complete", state="complete")
             except (ValueError, ArithmeticError) as error:
                 status.update(label="Critical solver failed", state="error")
                 st.error(f"Critical solver could not start: {error}")
     if run_map:
-        assert inputs is not None
+        assert action_inputs is not None
         with st.status("Evaluating bounded diagnostic map…") as status:
             try:
                 store_result(
-                    session(), "critical_scan", _calculate_scan(inputs), inputs
+                    session(),
+                    "critical_scan",
+                    _calculate_scan(action_inputs),
+                    action_inputs,
                 )
                 status.update(label="Criticality map complete", state="complete")
             except (ValueError, ArithmeticError) as error:

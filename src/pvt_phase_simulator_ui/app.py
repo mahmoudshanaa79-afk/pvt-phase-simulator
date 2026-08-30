@@ -48,6 +48,16 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
             on_change=apply_selected_input_example,
             args=(session(),),
         )
+        selected_label = session().get("input_example")
+        prior_label = session().get("rendered_input_example")
+        selected_example = next(
+            (
+                example
+                for example in INPUT_EXAMPLES
+                if example.label == selected_label and selected_label != prior_label
+            ),
+            None,
+        )
         st.caption("Examples fill the inputs only; they do not run a calculation.")
         st.caption("Verified components · precise mol %, K, and MPa entry")
         with st.form("scientific_inputs", border=True):
@@ -64,7 +74,16 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
             pressure = st.number_input(
                 "Pressure (MPa)", format="%.15g", key="pressure_mpa"
             )
-            values = (methane, ethane, propane)
+            if selected_example is None:
+                values = (methane, ethane, propane)
+            else:
+                values = (
+                    selected_example.methane_pct,
+                    selected_example.ethane_pct,
+                    selected_example.propane_pct,
+                )
+                temperature = selected_example.temperature_k
+                pressure = selected_example.pressure_mpa
             try:
                 validated = validate_scientific_inputs(values, temperature, pressure)
                 validation_error = None
@@ -88,6 +107,8 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
         st.caption(
             "A submit converts mol % to fractions and MPa to internal Pa exactly once."
         )
+    session()["rendered_input_example"] = session().get("input_example")
+    session()["current_inputs"] = validated
     if submitted:
         session()["submitted_inputs"] = validated
         session()["input_error"] = validation_error

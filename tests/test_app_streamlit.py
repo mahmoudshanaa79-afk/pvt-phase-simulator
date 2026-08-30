@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
+import csv
+import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
+from io import StringIO
 from pathlib import Path
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 import pvt_phase_simulator_ui
 import pvt_phase_simulator_ui.styles
+from pvt_phase_simulator.eos.flash import FlashConvergenceStatus
+from pvt_phase_simulator_ui import app as ui_app
+from pvt_phase_simulator_ui import views
+from pvt_phase_simulator_ui.adapters import run_validated_flash
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -118,12 +127,41 @@ def test_invalid_form_submission_never_creates_a_flash_result() -> None:
     assert any("Submission unavailable" in error.value for error in app.error)
 
 
+def test_valid_two_phase_submission_preserves_science_and_success_semantics() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.button[0].click().run()
+
+    assert not app.exception
+    result = app.session_state["results"]["flash"]
+    assert str(result.phase_state) == "two_phase"
+    assert str(result.convergence_status) == "converged"
+    assert result.vapor_fraction == 0.5697996937735098
+    assert result.liquid_fraction == 0.4302003062264902
+    assert result.liquid_phase.selected_compressibility_factor == 0.1724373888123013
+    assert result.vapor_phase.selected_compressibility_factor == 0.7243397958656836
+    assert result.single_phase_root is None
+    assert result.failure_reason is None
+    assert [message.value for message in app.success] == ["Solver status: Converged"]
+    assert not app.error
+    metrics = {metric.label: metric.value for metric in app.metric}
+    assert metrics["Vapor fraction"] == "0.5698"
+    assert metrics["Liquid fraction"] == "0.4302"
+    assert metrics["Vapor Z"] == "0.72434"
+    assert metrics["Liquid Z"] == "0.172437"
+
+
 def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     app.number_input[4].set_value(20.0)
     app.button[0].click().run()
 
     assert not app.exception
+    result = app.session_state["results"]["flash"]
+    assert str(result.phase_state) == "single_phase"
+    assert str(result.convergence_status) == "not_attempted"
+    assert result.vapor_fraction is None
+    assert result.liquid_fraction is None
+    assert result.single_phase_root == 0.5828298153218298
     assert not any("Solver status" in error.value for error in app.error)
     assert any(
         "No two-phase split was required" in info.value
@@ -136,6 +174,95 @@ def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> N
         "download_current_case_csv",
         "download_current_case_json",
     ]
+
+
+def test_structured_flash_failure_is_presented_as_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, baseline = run_validated_flash((50.0, 0.0, 50.0), 300.0, 5.0)
+    failure = replace(
+        baseline,
+        convergence_status=FlashConvergenceStatus.FAILED,
+        failure_reason="STRUCTURED_TEST_FAILURE",
+    )
+    monkeypatch.setattr(ui_app, "_cached_flash", lambda _inputs: failure)
+
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.button[0].click().run()
+
+    assert not app.exception
+    stored = app.session_state["results"]["flash"]
+    assert stored.convergence_status is FlashConvergenceStatus.FAILED
+    assert stored.failure_reason == "STRUCTURED_TEST_FAILURE"
+    assert any(
+        "Solver status: Failed" in message.value
+        and "STRUCTURED_TEST_FAILURE" in message.value
+        for message in app.error
+    )
+    assert not app.success
+    assert not any("No two-phase split was required" in item.value for item in app.info)
+
+
+def test_download_widgets_receive_real_payloads_and_mime_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, dict[str, object]] = {}
+
+    def capture_download(label: str, **kwargs: object) -> bool:
+        captured[label] = kwargs
+        return False
+
+    monkeypatch.setattr(views.st, "download_button", capture_download)
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.number_input[4].set_value(20.0)
+    app.button[0].click().run()
+
+    assert not app.exception
+    assert set(captured) == {"Download CSV", "Download JSON"}
+    csv_download = captured["Download CSV"]
+    json_download = captured["Download JSON"]
+    assert csv_download["file_name"] == "pvt-current-case.csv"
+    assert csv_download["mime"] == "text/csv;charset=utf-8"
+    assert json_download["file_name"] == "pvt-current-case.json"
+    assert json_download["mime"] == "application/json"
+
+    csv_payload = csv_download["data"]
+    json_payload = json_download["data"]
+    assert isinstance(csv_payload, bytes)
+    assert isinstance(json_payload, bytes)
+    rows = list(csv.DictReader(StringIO(csv_payload.decode("utf-8-sig"))))
+    values = {(row["section"], row["path"]): row["value"] for row in rows}
+    document = json.loads(json_payload)
+    result = app.session_state["results"]["flash"]
+    assert values[("case", "pressure_pa")] == "20000000.0"
+    assert values[("results", "flash.selected_single_phase_z.value")] == repr(
+        result.single_phase_root
+    )
+    assert document["case"]["pressure_pa"] == 20_000_000.0
+    assert (
+        document["results"]["flash"]["selected_single_phase_z"]["value"]
+        == result.single_phase_root
+    )
+
+
+def test_changed_inputs_keep_result_visible_but_stale_and_disable_exports() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.button[0].click().run()
+    original = app.session_state["results"]["flash"]
+    assert len(app.get("download_button")) == 2
+
+    app.selectbox[0].select("Known single-phase case at 300 K and 20 MPa").run()
+
+    assert not app.exception
+    assert app.session_state["results"]["flash"] is original
+    assert app.session_state["submitted_inputs"].pressure_mpa == 5.0
+    assert app.number_input[4].value == 20.0
+    assert any("Stale result" in message.value for message in app.warning)
+    assert app.get("download_button") == []
+    assert any(
+        "Downloads are unavailable until RUN FLASH recalculates" in caption.value
+        for caption in app.caption
+    )
 
 
 def test_navigation_module21_reuse_and_no_deprecated_width_argument() -> None:

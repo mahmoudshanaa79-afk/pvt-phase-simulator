@@ -15,5 +15,5 @@ def session() -> MutableMapping[str, Any]:
 
 
 def current_inputs() -> ScientificInputs | None:
-    value = st.session_state.get("submitted_inputs")
+    value = st.session_state.get("current_inputs")
     return cast(ScientificInputs | None, value)

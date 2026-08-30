@@ -17,6 +17,15 @@ This reproducibly installs the project and requires no manual `PYTHONPATH`.
 `uv run streamlit run app/streamlit_app.py` remains a tested compatibility
 entrypoint.
 
+For a bounded final-QA startup and HTTP health check using localhost only, run:
+
+```powershell
+.venv/Scripts/python.exe tools/streamlit_smoke.py
+```
+
+The helper selects an available loopback port, waits at most 20 seconds, checks
+Streamlit's health endpoint, and always terminates its child server process.
+
 ## Architecture
 
 The application layer is installed separately from the frozen scientific
@@ -80,6 +89,8 @@ figures are guarded too; navigation and cosmetic reruns do not start them.
 Results persist in Streamlit session state. Each stores the exact composition,
 temperature, and internal-pressure signature used to produce it. Changed or
 invalid current input marks the prior result stale until explicitly recalculated.
+Stale results remain visible with a warning, but downloads are unavailable until
+the changed inputs have a current calculated result.
 
 Structured statuses such as `LINE_SEARCH_FAILED`, `JACOBIAN_FAILED`,
 `NOT_FOUND`, and `BRANCH_LOST` remain failures or information. Only
