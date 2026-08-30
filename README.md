@@ -78,9 +78,38 @@ The UI is installed as the separate `pvt_phase_simulator_ui` package. The
 compatibility command `uv run streamlit run app/streamlit_app.py` also works
 from a clean shell without `PYTHONPATH` configuration.
 
+Prerequisites are Python 3.12 or newer and [uv](https://docs.astral.sh/uv/); no
+other tooling, service, or account is required. `uv sync --locked` installs the
+exact dependency graph recorded in `uv.lock`.
+
+For a bounded localhost startup and HTTP health check, run:
+
+```powershell
+uv run python tools/streamlit_smoke.py
+```
+
+It selects a free loopback port, runs Streamlit headless, checks the health
+endpoint, and always terminates the server it started.
+
 Input validation, explicit calculation actions, stale-result handling, failure
 semantics, supported views, and limitations are documented in
 [`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md).
+
+### Continuous verification and deployment status
+
+[`.github/workflows/quality.yml`](.github/workflows/quality.yml) reproduces the
+authoritative gates on a clean Ubuntu runner with Python 3.12, installing from
+the locked dependency graph: lockfile check, Ruff, Ruff formatting, mypy,
+`compileall`, application import smoke, the full test suite, and the localhost
+Streamlit health smoke. It requires no secret and has read-only repository
+permissions.
+
+**This repository performs no deployment.** No public instance is hosted, no
+credentials or secrets are stored or required, and no release automation is
+configured. The Streamlit Community Cloud entry point, should the application
+ever be deployed there, is `streamlit_app.py` at the repository root with
+`uv.lock` as the dependency source; deploying it would be a deliberate, separate,
+human-authorized step that has not been taken.
 
 ## Package structure
 

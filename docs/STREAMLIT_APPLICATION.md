@@ -17,14 +17,21 @@ This reproducibly installs the project and requires no manual `PYTHONPATH`.
 `uv run streamlit run app/streamlit_app.py` remains a tested compatibility
 entrypoint.
 
+Prerequisites are Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
+`uv sync --locked` installs the exact dependency graph recorded in `uv.lock`. No
+service, account, or credential is required.
+
 For a bounded final-QA startup and HTTP health check using localhost only, run:
 
 ```powershell
-.venv/Scripts/python.exe tools/streamlit_smoke.py
+uv run python tools/streamlit_smoke.py
 ```
 
-The helper selects an available loopback port, waits at most 20 seconds, checks
-Streamlit's health endpoint, and always terminates its child server process.
+`.venv/Scripts/python.exe tools/streamlit_smoke.py` is the equivalent direct
+Windows invocation. The helper selects an available loopback port, waits at most
+20 seconds by default, checks Streamlit's health endpoint, and always terminates
+its child server process. Pass `--timeout` to allow more time on a cold machine;
+continuous integration uses `--timeout 60`.
 
 ## Architecture
 
@@ -120,3 +127,20 @@ pseudocomponents or C7+, EOS tuning, kij fitting, new components, experimental
 datasets, arbitrary reservoir-fluid validation, or commercial-PVT readiness.
 Scientific source, validation evidence, golden masters, tolerances, and public
 APIs remain unchanged.
+
+## Continuous verification and deployment status
+
+`.github/workflows/quality.yml` reproduces the authoritative gates on a clean
+Ubuntu runner with Python 3.12 installed from the locked dependency graph:
+`uv lock --check`, Ruff, Ruff formatting, mypy over `src` and `app`,
+`compileall`, the application import smoke, the full test suite, and the
+localhost Streamlit health smoke. The workflow holds read-only repository
+permissions and uses no secret.
+
+**No deployment is performed by this repository.** There is no hosted instance,
+no stored or required credential, and no release automation. If the application
+were ever published to Streamlit Community Cloud, the entry point would be
+`streamlit_app.py` at the repository root with `uv.lock` as the dependency
+source — a deliberate, separately authorized step that has not been taken. The
+application is local-only today, and the documentation makes no claim about a
+verification status that has not actually run.
