@@ -47,6 +47,8 @@ from pvt_phase_simulator_ui.exports import (
     export_json_bytes,
 )
 from pvt_phase_simulator_ui.state import (
+    INPUT_EXAMPLES,
+    apply_selected_input_example,
     get_result,
     initialize_session,
     result_is_stale,
@@ -323,6 +325,25 @@ def test_session_state_is_deterministic_and_marks_scientific_changes_stale() -> 
     assert not result_is_stale(state, "flash", same)
     assert result_is_stale(state, "flash", changed)
     assert result_is_stale(state, "flash", None)
+
+
+def test_selecting_input_example_only_assigns_input_state() -> None:
+    prior_result = object()
+    state: dict[str, object] = {
+        "results": {"flash": prior_result},
+        "submitted_inputs": "prior submission",
+        "input_example": INPUT_EXAMPLES[2].label,
+    }
+
+    apply_selected_input_example(state)
+
+    assert state["results"] == {"flash": prior_result}
+    assert state["submitted_inputs"] == "prior submission"
+    assert state["methane_pct"] == 50.0
+    assert state["ethane_pct"] == 0.0
+    assert state["propane_pct"] == 50.0
+    assert state["temperature_k"] == 321.5829183194
+    assert state["pressure_mpa"] == 8.53444323606381
 
 
 def test_module21_validation_figures_keep_sign_and_retrospective_separation() -> None:

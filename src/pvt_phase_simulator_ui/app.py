@@ -14,7 +14,12 @@ from pvt_phase_simulator_ui.adapters import (
     validate_scientific_inputs,
 )
 from pvt_phase_simulator_ui.context import session
-from pvt_phase_simulator_ui.state import initialize_session, store_result
+from pvt_phase_simulator_ui.state import (
+    INPUT_EXAMPLES,
+    apply_selected_input_example,
+    initialize_session,
+    store_result,
+)
 
 PAGES_DIRECTORY = Path(__file__).with_name("pages")
 
@@ -34,22 +39,30 @@ def _cached_flash(inputs: ScientificInputs) -> object:
 def _input_form() -> tuple[ScientificInputs | None, bool]:
     with st.sidebar:
         st.subheader("Fluid inputs")
+        st.selectbox(
+            "Example case",
+            options=[example.label for example in INPUT_EXAMPLES],
+            index=None,
+            placeholder="Choose an example",
+            key="input_example",
+            on_change=apply_selected_input_example,
+            args=(session(),),
+        )
+        st.caption("Examples fill the inputs only; they do not run a calculation.")
         st.caption("Verified components · precise mol %, K, and MPa entry")
         with st.form("scientific_inputs", border=True):
             methane = st.number_input(
-                "Methane (mol %)", value=50.0, format="%.10g", key="methane_pct"
+                "Methane (mol %)", format="%.15g", key="methane_pct"
             )
-            ethane = st.number_input(
-                "Ethane (mol %)", value=0.0, format="%.10g", key="ethane_pct"
-            )
+            ethane = st.number_input("Ethane (mol %)", format="%.15g", key="ethane_pct")
             propane = st.number_input(
-                "Propane (mol %)", value=50.0, format="%.10g", key="propane_pct"
+                "Propane (mol %)", format="%.15g", key="propane_pct"
             )
             temperature = st.number_input(
-                "Temperature (K)", value=300.0, format="%.10g", key="temperature_k"
+                "Temperature (K)", format="%.15g", key="temperature_k"
             )
             pressure = st.number_input(
-                "Pressure (MPa)", value=5.0, format="%.10g", key="pressure_mpa"
+                "Pressure (MPa)", format="%.15g", key="pressure_mpa"
             )
             values = (methane, ethane, propane)
             try:

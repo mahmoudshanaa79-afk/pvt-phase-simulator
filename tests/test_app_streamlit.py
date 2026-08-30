@@ -44,6 +44,12 @@ def test_clean_shell_compatibility_entrypoint_imports_without_pythonpath() -> No
 def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     assert not app.exception
+    assert [selector.label for selector in app.selectbox] == ["Example case"]
+    assert app.selectbox[0].options == [
+        "Default two-phase-oriented case",
+        "Known single-phase case at 300 K and 20 MPa",
+        "Audited critical-solver seed",
+    ]
     assert [field.label for field in app.number_input] == [
         "Methane (mol %)",
         "Ethane (mol %)",
@@ -52,6 +58,39 @@ def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
         "Pressure (MPa)",
     ]
     assert [button.label for button in app.button] == ["RUN FLASH"]
+
+
+def test_example_selection_populates_inputs_without_populating_results() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+
+    app.selectbox[0].select("Audited critical-solver seed").run()
+
+    assert not app.exception
+    assert [field.value for field in app.number_input] == [
+        50.0,
+        0.0,
+        50.0,
+        321.5829183194,
+        8.53444323606381,
+    ]
+    assert app.session_state["submitted_inputs"] is None
+    assert app.session_state["results"] == {}
+
+
+def test_custom_edits_after_example_selection_validate_and_submit_normally() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.selectbox[0].select("Known single-phase case at 300 K and 20 MPa").run()
+    app.number_input[0].set_value(49.0)
+    app.number_input[1].set_value(1.0)
+    app.number_input[3].set_value(301.25)
+    app.button[0].click().run()
+
+    assert not app.exception
+    submitted = app.session_state["submitted_inputs"]
+    assert submitted.composition_mol_percent == (49.0, 1.0, 50.0)
+    assert submitted.temperature_k == 301.25
+    assert submitted.pressure_mpa == 20.0
+    assert "flash" in app.session_state["results"]
 
 
 def test_every_navigation_page_renders_without_hidden_calculation() -> None:

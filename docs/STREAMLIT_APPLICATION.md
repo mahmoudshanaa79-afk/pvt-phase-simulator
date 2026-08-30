@@ -46,6 +46,14 @@ pressure in MPa. On submission, the panel shows the composition total and reject
 nonfinite, negative, above-100, zero-total, and materially non-100% values. It
 does not silently normalize invalid composition.
 
+The native example selector can fill the form with the default
+two-phase-oriented case, the known 50/50 methane/propane single-phase case at
+300 K and 20 MPa, or the audited 50/50 methane/propane critical-solver seed near
+321.5829183194 K and 8.53444323606381 MPa. Selection changes input values only;
+it never submits the form or starts a scientific calculation. Every populated
+value remains editable and passes through the same validation and conversion
+boundary when the user explicitly submits it.
+
 Valid composition is divided by 100 exactly for mole fractions. Valid pressure
 is multiplied by `1e6` exactly before it reaches an SI-pressure API, and public
 Pa results are divided by `1e6` for MPa display.
