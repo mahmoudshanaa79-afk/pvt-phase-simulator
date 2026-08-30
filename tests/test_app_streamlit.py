@@ -135,10 +135,14 @@ def test_valid_two_phase_submission_preserves_science_and_success_semantics() ->
     result = app.session_state["results"]["flash"]
     assert str(result.phase_state) == "two_phase"
     assert str(result.convergence_status) == "converged"
-    assert result.vapor_fraction == 0.5697996937735098
-    assert result.liquid_fraction == 0.4302003062264902
-    assert result.liquid_phase.selected_compressibility_factor == 0.1724373888123013
-    assert result.vapor_phase.selected_compressibility_factor == 0.7243397958656836
+    assert result.vapor_fraction == pytest.approx(0.5697996937735098, abs=2e-12)
+    assert result.liquid_fraction == pytest.approx(0.4302003062264902, abs=2e-12)
+    assert result.liquid_phase.selected_compressibility_factor == pytest.approx(
+        0.1724373888123013, abs=2e-12
+    )
+    assert result.vapor_phase.selected_compressibility_factor == pytest.approx(
+        0.7243397958656836, abs=2e-12
+    )
     assert result.single_phase_root is None
     assert result.failure_reason is None
     assert [message.value for message in app.success] == ["Solver status: Converged"]
@@ -161,11 +165,11 @@ def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> N
     assert str(result.convergence_status) == "not_attempted"
     assert result.vapor_fraction is None
     assert result.liquid_fraction is None
-    assert result.single_phase_root == 0.5828298153218298
+    assert result.single_phase_root == pytest.approx(0.5828298153218298, abs=2e-12)
     assert not any("Solver status" in error.value for error in app.error)
     assert any(
         "No two-phase split was required" in info.value
-        and "0.5828298153218298" in info.value
+        and repr(result.single_phase_root) in info.value
         for info in app.info
     )
     downloads = app.get("download_button")

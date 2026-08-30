@@ -154,7 +154,7 @@ def test_single_phase_presentation_is_informational_but_failure_is_error() -> No
     inputs, result = run_validated_flash((50.0, 0.0, 50.0), 300.0, 20.0)
     assert inputs.pressure_pa == 20_000_000.0
     assert flash_presentation_kind(result) == "information"
-    assert result.single_phase_root == 0.5828298153218298
+    assert result.single_phase_root == pytest.approx(0.5828298153218298, abs=2e-12)
 
     failed = replace(
         result,
@@ -175,7 +175,9 @@ def test_current_case_json_preserves_precision_and_unavailable_semantics() -> No
     assert decoded["schema"]["version"] == "1.0.0"
     assert decoded["case"]["pressure_pa"] == 20_000_000.0
     assert flash["selected_single_phase_z"]["value"] == result.single_phase_root
-    assert flash["selected_single_phase_z"]["value"] == 0.5828298153218298
+    assert flash["selected_single_phase_z"]["value"] == pytest.approx(
+        0.5828298153218298, abs=2e-12
+    )
     assert flash["vapor_fraction"]["status"] == "not_applicable"
     assert flash["vapor_fraction"]["value"] is None
     assert decoded["results"]["phase_envelope"] == {
