@@ -1,0 +1,124 @@
+{
+  "name": "v1_1_application_release_qa",
+  "objective": "Close the remaining application-specific release QA gaps without changing scientific behavior. Add deterministic semantic tests for a valid two-phase submitted case, a valid single-phase submitted case, genuine structured failure presentation, actual CSV/JSON download payloads and MIME metadata, stale-result behavior after input changes, all five page destinations, disabled-action explanations, and absence of deprecated Streamlit APIs. Add a lightweight local Streamlit startup and HTTP health smoke helper or test using the existing environment only; it must use a bounded timeout, terminate its own child process, require no network beyond localhost, and expose a clear command for final QA. Make only narrowly necessary application fixes revealed by those tests. Never weaken a test or scientific expectation.",
+  "risk": "MEDIUM",
+  "allowed_files": [
+    "src/pvt_phase_simulator_ui",
+    "app",
+    "streamlit_app.py",
+    "tests/test_app_adapters.py",
+    "tests/test_app_streamlit.py",
+    "tests/test_app_release.py",
+    "tools/streamlit_smoke.py",
+    "docs/STREAMLIT_APPLICATION.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master",
+    "tests/test_acceleration.py",
+    "tests/test_component_database.py",
+    "tests/test_critical_point.py",
+    "tests/test_criticality.py",
+    "tests/test_damping.py",
+    "tests/test_derivative_verification.py",
+    "tests/test_derivatives.py",
+    "tests/test_diagnostics.py",
+    "tests/test_experimental_validation.py",
+    "tests/test_flash.py",
+    "tests/test_fluid_models.py",
+    "tests/test_golden_master.py",
+    "tests/test_mixing_rules.py",
+    "tests/test_mixture_fugacity.py",
+    "tests/test_near_trivial_saturation.py",
+    "tests/test_newton_saturation.py",
+    "tests/test_peng_robinson.py",
+    "tests/test_phase_envelope.py",
+    "tests/test_phase_identity_corrections.py",
+    "tests/test_phase_stability.py",
+    "tests/test_plotting.py",
+    "tests/test_properties.py",
+    "tests/test_pseudo_arclength.py",
+    "tests/test_saturation_pressure.py",
+    ".ai/config.json",
+    "tools/orchestration"
+  ],
+  "scientific_invariants": [
+    "Every file under src/pvt_phase_simulator remains byte-unchanged.",
+    "Tests pin existing public scientific results and presentation semantics; they do not redefine expected science.",
+    "No scientific equation, algorithm, tolerance, status, result object, dataset, or baseline changes.",
+    "A valid two-phase result remains two-phase, a valid single-phase result remains informational, and genuine failures remain failures.",
+    "Exports use only current non-stale calculated results, preserve source floats, and never trigger or fabricate calculations.",
+    "Protected artifacts and all pre-existing scientific tests remain byte-unchanged."
+  ],
+  "acceptance_criteria": [
+    "Application semantic tests cover invalid input, valid single-phase, valid two-phase, failure, stale state, navigation, disabled actions, and downloads.",
+    "A bounded local command starts the real Streamlit entry point, receives a healthy localhost response, and always terminates the spawned server.",
+    "No deprecated use_container_width API appears in the UI package.",
+    "All tests are deterministic and do not require external services, credentials, or a browser dependency."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ],
+    [
+      "uv",
+      "lock",
+      "--check"
+    ],
+    [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views"
+    ],
+    [
+      "git",
+      "diff",
+      "--check"
+    ]
+  ],
+  "required_quality_gates": [],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [
+    "v1_1_first_use_examples"
+  ],
+  "status": "COMMITTED",
+  "notes": "Codex built until its usage quota expired mid-run (exit 1, no output contract). Claude reviewed, verified and finished it with no source changes required, and committed 514d963. All eight gates pass (1182 tests). NOT independently reviewed."
+}

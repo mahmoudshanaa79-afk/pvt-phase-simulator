@@ -1,0 +1,54 @@
+{
+  "name": "v1_1_ci_deployment_readiness",
+  "objective": "Make the already-working application reproducibly reviewable and deployment-ready without deploying it. Add a minimal GitHub Actions workflow that installs with uv from the locked dependency graph on Python 3.12 and runs the repository's authoritative pytest, Ruff check, Ruff formatting, mypy, compileall, lock, import, and Streamlit health-smoke gates with practical timeouts. Update README and Streamlit application documentation with the exact v1.1 local run command, compatibility entry point, health-smoke command, Streamlit Community Cloud entry point, prerequisites, limitations, and the explicit statement that no public deployment or credentials are included. Do not add secrets, paid infrastructure, badges claiming unperformed status, or production deployment automation.",
+  "risk": "LOW",
+  "allowed_files": [
+    ".github/workflows/quality.yml",
+    "README.md",
+    "docs/STREAMLIT_APPLICATION.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "src/pvt_phase_simulator_ui",
+    "app",
+    "streamlit_app.py",
+    "data",
+    "docs/validation",
+    "tests",
+    "tests/golden_master",
+    ".streamlit/config.toml",
+    "pyproject.toml",
+    "uv.lock",
+    ".ai/config.json",
+    "tools/orchestration"
+  ],
+  "scientific_invariants": [
+    "All scientific and application source files remain byte-unchanged in this documentation/automation package.",
+    "CI executes existing verification and never regenerates data, validation artifacts, or golden baselines.",
+    "Documentation describes the verified methane/ethane/propane Peng-Robinson default-zero-kij scope and limitations without overstating validation or audit status.",
+    "No secret, credential, public deployment, branch merge, tag, or release is created.",
+    "Protected hashes and locked dependency graph remain unchanged."
+  ],
+  "acceptance_criteria": [
+    "GitHub Actions uses Python 3.12 and uv sync --locked before running every authoritative quality gate.",
+    "CI runs the real Streamlit localhost health smoke with a bounded timeout.",
+    "README and application documentation give exact local and hosted entry points and clearly distinguish deployment readiness from an actual deployment.",
+    "Workflow and documentation contain no credentials or unsupported release claims."
+  ],
+  "required_tests": [
+    [".venv/Scripts/python.exe", "-m", "pytest", "-q"],
+    [".venv/Scripts/python.exe", "-m", "ruff", "check", "."],
+    [".venv/Scripts/python.exe", "-m", "ruff", "format", "--check", "."],
+    [".venv/Scripts/python.exe", "-m", "mypy", "src", "app"],
+    [".venv/Scripts/python.exe", "-m", "compileall", "-q", "src", "app"],
+    ["uv", "lock", "--check"],
+    ["uv", "run", "python", "-c", "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views"],
+    ["git", "diff", "--check"]
+  ],
+  "required_quality_gates": [],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": ["v1_1_application_release_qa"],
+  "status": "PENDING",
+  "notes": "Gap-report package 3 of 3. No deployment is authorized; this package prepares and documents it. Immediate review preserves explicit deferred independent-audit debt while Claude is unavailable."
+}

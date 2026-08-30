@@ -65,14 +65,59 @@
     "All pre-existing scientific tests remain present and unchanged; new tests are application tests only."
   ],
   "required_tests": [
-    [".venv/Scripts/python.exe", "-m", "pytest", "-q"],
-    [".venv/Scripts/python.exe", "-m", "ruff", "check", "."],
-    [".venv/Scripts/python.exe", "-m", "ruff", "format", "--check", "."],
-    [".venv/Scripts/python.exe", "-m", "mypy", "src", "app"],
-    [".venv/Scripts/python.exe", "-m", "compileall", "-q", "src", "app"],
-    ["uv", "lock", "--check"],
-    ["uv", "run", "python", "-c", "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views"],
-    ["git", "diff", "--check"]
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ],
+    [
+      "uv",
+      "lock",
+      "--check"
+    ],
+    [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views"
+    ],
+    [
+      "git",
+      "diff",
+      "--check"
+    ]
   ],
   "required_quality_gates": [],
   "audit_policy": "IMMEDIATE",
@@ -80,6 +125,6 @@
   "dependencies": [
     "streamlit_ui_stabilization"
   ],
-  "status": "PENDING",
-  "notes": "Narrow public-release P1 correction package. The immediate independent audit is targeted to the two stated findings. No documentation, theme, packaging, scientific, validation, or deployment work is permitted."
+  "status": "COMMITTED",
+  "notes": "Narrow public-release P1 correction package. The immediate independent audit is targeted to the two stated findings. No documentation, theme, packaging, scientific, validation, or deployment work is permitted.\nPENDING_INDEPENDENT_AUDIT at 1f01975f30b3e9ea9197323fd2f00c8b7da411bc."
 }

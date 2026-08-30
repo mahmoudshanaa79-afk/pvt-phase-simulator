@@ -3,52 +3,48 @@
   "phase": "post-v1.0-extensions",
   "workflow_status": "IDLE",
   "last_scientific_commit": "d2a0a74",
-  "last_independent_audit_commit": "d2a0a74",
-  "work_packages_since_audit": 0,
+  "last_independent_audit_commit": "c29ae4961543e74a271e8e2e54de22852892cf00",
+  "work_packages_since_audit": 1,
   "current_work_package": null,
-  "current_risk": "MEDIUM",
+  "current_risk": null,
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
   "safe_defer_findings": [
     {
-      "id": "C-1",
-      "severity": "C",
+      "id": "D-1",
+      "severity": "D",
       "blocks": false,
-      "summary": "views.py `_flash_details` leaves `Selected Z` as a raw unformatted float (unlike every sibling field, which was deliberately converted via `_full_precision()`), risking silent precision loss from Streamlit's default client-side numeric column formatting in a table meant to preserve full precision."
+      "summary": "Display-format precision (%.10g -> %.15g) was widened for all five input fields, not just the two needed for the new critical-solver-seed example; harmless and justified by the same 'preserve exact editable values' objective, but broader than strictly necessary."
+    }
+  ],
+  "deferred_independent_audits": [
+    {
+      "status": "PENDING_INDEPENDENT_AUDIT",
+      "package": "streamlit_public_release_p1_fixes",
+      "base_commit": "3a2dcb9e92f7b643c678322e9a0d6d73ded59db1",
+      "resulting_commit": "1f01975f30b3e9ea9197323fd2f00c8b7da411bc",
+      "effective_risk": "MEDIUM",
+      "verification_report": ".ai\\verification\\20260829-203045-streamlit_public_release_p1_fixes.json",
+      "provisional_review_report": ".ai\\provisional_reviews\\20260829-203046-streamlit_public_release_p1_fixes-provisional-review.md",
+      "reason": "Claude unavailable; approved only by fresh read-only Codex provisional review."
     },
     {
-      "id": "C-2",
-      "severity": "C",
-      "blocks": false,
-      "summary": "The Priority 1 navigation fix (blocking, per the work package) was never verified in a live browser as explicitly required; `AppTest`/HTTP-200 checks cannot detect the CSS/DOM overflow-clipping defect that was originally diagnosed, though the chosen fix (native sidebar position) is the correct, low-risk, recommended remediation."
-    },
-    {
-      "id": "UISTAB-C-1",
-      "category": "C",
-      "location": "src/pvt_phase_simulator_ui/views.py:228",
-      "summary": "_flash_details leaves 'Selected Z' as a raw float while sibling fields go through _full_precision(); Streamlit's default numeric column formatting may silently truncate it in a table intended to preserve full precision.",
-      "blocks_release": false
-    },
-    {
-      "id": "UISTAB-C-2",
-      "category": "C",
-      "location": "tests/test_app_streamlit.py",
-      "summary": "Auditor noted the navigation fix was not verified in a live browser (AppTest/HTTP-200 cannot detect a CSS/layout collapse). CLOSED by orchestrator browser re-audit at d2a0a74: five sidebar page links measured visible at 260x28 px each, top-nav overflow absent. No automated regression guard exists for it.",
-      "blocks_release": false
-    },
-    {
-      "id": "UISTAB-D-1",
-      "category": "D",
-      "location": ".streamlit/config.toml",
-      "summary": "Caption muting used grayTextColor, which governs Streamlit's semantic gray palette (:gray[...], badges), not st.caption. Captions still compute to full textColor rgb(20,43,67). Contrast remains 13.66:1 so this is hierarchy only, not accessibility.",
-      "blocks_release": false
+      "status": "PENDING_INDEPENDENT_AUDIT",
+      "package": "v1_1_application_release_qa",
+      "base_commit": "c29ae4961543e74a271e8e2e54de22852892cf00",
+      "resulting_commit": "514d963",
+      "effective_risk": "MEDIUM",
+      "verification_report": ".ai/verification\\20260830-131150-v1_1_application_release_qa-claude-finisher.json",
+      "builder_report": ".ai/builder_reports\\20260830-131256-v1_1_application_release_qa-claude-finisher-report.md",
+      "reason": "Codex exhausted its usage quota mid-run and emitted no output contract. Claude reviewed, verified and finished the package as builder, so this commit has NO independent review: builder and verifier are the same agent. commit_policy=AFTER_AUDIT and audit_policy=IMMEDIATE were both unsatisfied. Codex must perform the independent final diff / release-candidate review."
     }
   ],
   "planned_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
   "planned_scope_complete": true,
   "codex_correction_cycles": 0,
   "claude_reaudit_cycles": 0,
+  "provisional_review_cycles": 0,
   "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
   "last_error": null,
@@ -345,6 +341,121 @@
     },
     {
       "from": "APPROVED",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_public_release_p1_fixes"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260826-153136-streamlit_public_release_p1_fixes-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "PLANNING",
+      "reason": "planning streamlit_public_release_p1_fixes"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "PROVISIONAL_CODEX_REVIEW",
+      "reason": "invoking fresh Codex provisional reviewer"
+    },
+    {
+      "from": "PROVISIONAL_CODEX_REVIEW",
+      "to": "IDLE",
+      "reason": "package committed with PENDING_INDEPENDENT_AUDIT"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning v1_1_first_use_examples"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260829-203854-v1_1_first_use_examples-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning v1_1_first_use_examples"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v1_1_application_release_qa"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260830-120626-v1_1_application_release_qa-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
       "to": "IDLE",
       "reason": "manually stopped"
     }
