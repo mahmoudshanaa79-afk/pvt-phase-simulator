@@ -128,7 +128,7 @@ datasets, arbitrary reservoir-fluid validation, or commercial-PVT readiness.
 Scientific source, validation evidence, golden masters, tolerances, and public
 APIs remain unchanged.
 
-## Continuous verification and deployment status
+## Continuous verification
 
 `.github/workflows/quality.yml` reproduces the authoritative gates on a clean
 Ubuntu runner with Python 3.12 installed from the locked dependency graph:
@@ -137,10 +137,34 @@ Ubuntu runner with Python 3.12 installed from the locked dependency graph:
 localhost Streamlit health smoke. The workflow holds read-only repository
 permissions and uses no secret.
 
-**No deployment is performed by this repository.** There is no hosted instance,
-no stored or required credential, and no release automation. If the application
-were ever published to Streamlit Community Cloud, the entry point would be
-`streamlit_app.py` at the repository root with `uv.lock` as the dependency
-source — a deliberate, separately authorized step that has not been taken. The
-application is local-only today, and the documentation makes no claim about a
-verification status that has not actually run.
+## Public release-candidate deployment
+
+The application is published as the **public v1.1 release-candidate
+deployment**. It is a candidate offered for review, not an approved release, and
+it inherits every applicability limit recorded above.
+
+| | |
+| --- | --- |
+| Public application | <https://pvt-phase-simulator.streamlit.app/> |
+| Deployment | Streamlit Community Cloud |
+| Repository | `mahmoudshanaa79-afk/pvt-phase-simulator` |
+| Release-candidate branch | `app-v1.1-autonomous` |
+| Entrypoint | `streamlit_app.py` |
+| Python | 3.12 |
+| Secrets | none |
+
+Dependencies are installed by Streamlit Community Cloud from `uv.lock` using
+`uv sync`, so the hosted environment resolves from the same locked graph the
+gates use. The deployment stores and requires no credential, and no release
+automation publishes it: it was created as a deliberate, separately authorized
+step and is not wired to the default branch.
+
+Deployment remains outside `.github/workflows/quality.yml`, which verifies only
+and holds read-only repository permissions.
+
+One operational limit is worth stating for anyone using the public link. On the
+Community Cloud free tier, accumulating several heavy results in a single
+session — a flash, a full phase envelope, and a critical-point solve together —
+has made the container stop responding and require a reboot. Each calculation
+completes correctly on its own, and a fresh container runs any one of them to a
+complete render. Reload the page to obtain a fresh session.
