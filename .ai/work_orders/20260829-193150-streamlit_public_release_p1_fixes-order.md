@@ -1,0 +1,124 @@
+# Work order: streamlit_public_release_p1_fixes
+
+## Repository state
+- Branch: `app-v1.1-autonomous`
+- HEAD: `3a2dcb9e92f7b643c678322e9a0d6d73ded59db1`
+- Working tree: DIRTY — .ai/codex_reports/20260826-153136-streamlit_public_release_p1_fixes-report.md, .ai/codex_reports/20260826-153136-streamlit_public_release_p1_fixes-report.transcript.json, .ai/work_orders/20260826-153136-streamlit_public_release_p1_fixes-order.md, .ai/workflow_state.json, src/pvt_phase_simulator_ui/adapters.py, src/pvt_phase_simulator_ui/exports.py, src/pvt_phase_simulator_ui/views.py, tests/test_app_adapters.py, tests/test_app_streamlit.py
+
+## Objective
+Fix only the two P1 findings from the latest independent Claude audit of the public Streamlit application. This is application-layer work only; do not rebuild or broadly redesign the UI, add unrelated features, modify documentation, or change any scientific implementation, decision, result, tolerance, dataset, baseline, or validation artifact.
+
+P1 FINDING 1 - VALID SINGLE-PHASE PRESENTATION. A scientifically valid and conclusive single-phase result is currently rendered with red error styling. The reproducing case is Methane/Propane = 50/50 mol %, T = 300 K, P = 20 MPa: phase stability is conclusive, no two-phase flash is required, and the production result supplies a valid selected single-phase Z. Fix presentation only. Render valid single-phase outcomes with neutral, success, or information styling; explicitly say no two-phase split was required; preserve and display the selected single-phase Z from the result. Genuine structured solver failures must continue to use failure/error styling. Do not change or reinterpret scientific classification or convergence logic. Add semantic regression tests proving the valid single-phase case does not take the error path and genuine failures still do.
+
+P1 FINDING 2 - CURRENT-CASE CSV AND JSON EXPORT. Add explicit native Streamlit `Download CSV` and `Download JSON` controls for the current calculated case, using stable keys and truthful MIME types. Build export serialization in the application package from existing adapters/public production result objects; do not duplicate any thermodynamic equation. Preserve source numerical precision in serialization even though normal UI displays may remain rounded. Do not calculate, infer, backfill, or fabricate unavailable outputs; represent unavailability explicitly and consistently. JSON must be structured, deterministic apart from an optional clearly identified export timestamp, and reproducible. CSV must be UTF-8 and useful in Excel, using a tidy section/path/value representation or another documented flat structure that faithfully represents nested arrays and branch points without precision loss.
+
+Where applicable and actually present in the current case, exports must include: case inputs (temperature in K, pressure in Pa and/or clearly labelled MPa, component names, overall mole fractions, model, kij assumption); flash result (phase classification, solver/convergence status, vapor and liquid fractions, liquid Z, vapor Z, selected single-phase Z, liquid and vapor compositions, K-values, equilibrium residuals, material-balance residuals); phase-envelope result (bubble branch points, dew branch points, and branch termination/status information); critical-point result (certification status, Tc, Pc, and criticality residual information); metadata (Peng-Robinson EOS, SI units, kij = 0, verified Methane/Ethane/Propane scope, schema/version information, and export timestamp only if useful). Export only results already calculated and held for that current case/session; do not trigger hidden scientific calculations during export. Distinguish not-calculated, not-applicable, and unavailable when the existing state permits that distinction.
+
+Add regression tests for CSV existence and representative exact values; JSON existence, valid structure, and full float precision; safe unavailable handling; and absence of fabricated flash, envelope, or critical results. Tests should exercise pure serialization helpers where practical and Streamlit rendering semantics where needed. Retain explicit scientific action gating, stale-result semantics, existing navigation, theme, diagnostics, plots, precision policy, and all stabilization work. Follow installed Streamlit 1.60 public APIs; use `st.download_button` with `width` rather than deprecated `use_container_width`, and prefer native status elements over custom styling.
+
+The scientific engine is frozen. Do not modify `src/pvt_phase_simulator`, `data`, `docs/validation`, `tests/golden_master`, any pre-existing scientific test, experimental validation data, critical-point science, flash science, phase-envelope science, or any existing scientific algorithm. Existing engine/adapters/results are the only source of scientific truth.
+
+## Allowed files
+  - `src/pvt_phase_simulator_ui`
+  - `app`
+  - `streamlit_app.py`
+  - `tests/test_app*.py`
+
+## Files you must NOT modify
+  - `src/pvt_phase_simulator`
+  - `data`
+  - `docs/validation`
+  - `tests/golden_master`
+  - `docs`
+  - `README.md`
+  - `.streamlit/config.toml`
+  - `pyproject.toml`
+  - `uv.lock`
+  - `tests/__init__.py`
+  - `tests/conftest.py`
+  - `tests/derivative_reference.py`
+  - `tests/derivative_verification.py`
+  - `tests/run_derivative_verification.py`
+  - `tests/run_newton_saturation_benchmarks.py`
+  - `tests/test_acceleration.py`
+  - `tests/test_component_database.py`
+  - `tests/test_critical_point.py`
+  - `tests/test_criticality.py`
+  - `tests/test_damping.py`
+  - `tests/test_derivative_verification.py`
+  - `tests/test_derivatives.py`
+  - `tests/test_diagnostics.py`
+  - `tests/test_experimental_validation.py`
+  - `tests/test_flash.py`
+  - `tests/test_fluid_models.py`
+  - `tests/test_golden_master.py`
+  - `tests/test_mixing_rules.py`
+  - `tests/test_mixture_fugacity.py`
+  - `tests/test_near_trivial_saturation.py`
+  - `tests/test_newton_saturation.py`
+  - `tests/test_peng_robinson.py`
+  - `tests/test_phase_envelope.py`
+  - `tests/test_phase_identity_corrections.py`
+  - `tests/test_phase_stability.py`
+  - `tests/test_plotting.py`
+  - `tests/test_project_setup.py`
+  - `tests/test_properties.py`
+  - `tests/test_pseudo_arclength.py`
+  - `tests/test_saturation_pressure.py`
+  - `tools`
+  - `.ai/config.json`
+
+## Protected artifacts — never regenerate
+  - `tests/golden_master/baseline.csv` — SHA256 530C667AA70EF1EA182F4EDB98624A0A9B9908F149354276CDAC44A87EA7D2BE
+  - `data/component_properties.csv` — SHA256 C6F6BA9AE9C2F4C7F257BBC09A75DF0D7065255868AA46BF3E8C81AC5A8B9B3A
+  - `docs/validation/module17_vle_validation.csv` — SHA256 B14728D51AAC06AF38FC4F4E5F408942B253FEBE32D3E12EC26E9623CFA42482
+  - `docs/validation/module17_vle_validation_summary.json` — SHA256 5B120B77BF05567FCC6A0EE0D0054C6D1DEBA35FE26A7C837352C92017D24870
+
+## Scientific invariants that must continue to hold
+  - Every file under src/pvt_phase_simulator remains byte-unchanged; presentation and export code may only consume existing public results through the application layer.
+  - No scientific classification, convergence decision, equation, algorithm, tolerance, or production result object changes.
+  - A conclusive production single-phase result remains single-phase and retains its exact selected Z; only its visual status changes from erroneous failure styling to valid-result styling.
+  - A genuine production failure remains visibly and structurally a failure; presentation code never converts failure information into success.
+  - Exports preserve source float precision and never use rounded display strings as numeric source data.
+  - Exports never trigger a flash, envelope, critical-point, validation, or other scientific calculation and never invent unavailable phase fractions, Z factors, compositions, residuals, branch points, or certified critical values.
+  - Only already-calculated current-case results are exported, with explicit not-calculated, not-applicable, or unavailable values where supported by current state.
+  - Peng-Robinson EOS, SI units, kij = 0, and verified Methane/Ethane/Propane scope remain truthful metadata; no fitted interaction parameter is claimed.
+  - Golden master, component property provenance, Module 17 validation artifacts, critical-point results, flash results, and phase-envelope results remain unchanged.
+  - All pre-existing scientific tests remain present and unchanged; new tests are application tests only.
+
+## Required tests
+  - `.venv/Scripts/python.exe -m pytest -q`
+  - `.venv/Scripts/python.exe -m ruff check .`
+  - `.venv/Scripts/python.exe -m ruff format --check .`
+  - `.venv/Scripts/python.exe -m mypy src app`
+  - `.venv/Scripts/python.exe -m compileall -q src app`
+  - `uv lock --check`
+  - `uv run python -c import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views`
+  - `git diff --check`
+
+## Required quality gates
+  (orchestrator default gates)
+
+## Rules
+- Do NOT weaken a test to make it pass. Do not loosen a tolerance, edit an
+  expected value to match output, delete a test, swallow an exception, or
+  regenerate a baseline. Any of those is a blocking failure.
+- Do NOT commit, stage, reset, or clean. The orchestrator owns git.
+- Do NOT write your own audit — an independent auditor reviews your work.
+- Keep the change within the objective; no unrelated cleanup.
+
+## Required final output
+
+End your reply with exactly one machine-readable block:
+
+<ORCHESTRATOR_RESULT>
+{
+  "status": "COMPLETE",
+  "tests_claimed": "<what you ran and what it reported>",
+  "files_changed": ["<path>", "..."],
+  "ready_for_local_verification": true
+}
+</ORCHESTRATOR_RESULT>
+
+`status` must be COMPLETE, BLOCKED or FAILED. The orchestrator re-runs every
+check locally, so an inaccurate claim here will simply be caught.

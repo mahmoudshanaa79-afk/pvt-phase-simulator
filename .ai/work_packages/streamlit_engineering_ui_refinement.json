@@ -1,0 +1,132 @@
+{
+  "name": "streamlit_engineering_ui_refinement",
+  "objective": "Refine the existing, independently audited Streamlit frontend into a polished engineering-grade scientific application without changing any thermodynamic calculation, scientific result, public scientific API, or validation artifact. This is an application architecture, launch reliability, interaction design, accessibility, information hierarchy, and deployment-readiness package; it must improve the existing application rather than rebuild it.\n\nFix the clean-shell launch failure in which `uv run streamlit run app/streamlit_app.py` raises `ModuleNotFoundError: No module named 'app'`. Do not use `sys.path` mutation or require a manual `PYTHONPATH`. Inspect the uv-build packaging configuration and migrate the application layer to a clearly named installed package such as `src/pvt_phase_simulator_ui`, separate from the protected `src/pvt_phase_simulator` scientific package. A thin root `streamlit_app.py` may be used when it provides the cleanest stable Streamlit entrypoint. Configure packaging only as needed, preserve reproducible `uv` operation, document one normal launch command that works from a clean shell, and add a subprocess/startup regression test that reproduces Streamlit's real import context and would have caught the current failure. Do not introduce absolute machine paths, Windows-only runtime behavior, filesystem writes, or deployment in this package.\n\nUse installed Streamlit 1.60 public APIs and native components wherever possible. Replace the horizontal radio-button navigation with `st.navigation` and `st.Page` using a clear active state for Overview, Phase Envelope, Critical Point, Validation, and Diagnostics; keep global fluid inputs in the sidebar. Organize page modules and shared session state cleanly within the installed UI package. Use `st.form` or an equally explicit submit boundary for Methane/Ethane/Propane mol %, temperature K, and pressure MPa so editing individual number fields does not trigger heavy application work. Retain precise number entry rather than sliders, exact composition validation, exact mol-percent-to-fraction and MPa-to-Pa conversion, explicit scientific actions, deterministic stale-result behavior, and prominent full-width RUN FLASH semantics. Invalid input must explain why submission is unavailable.\n\nAdopt a restrained light engineering visual system primarily through `.streamlit/config.toml`: white/off-white surfaces, dark navy readable typography, restrained teal/blue accent, thin visible borders, modest radii, accessible status colors, coherent chart colors, and a focused sidebar. Correct hidden, clipped, disabled-looking, white-on-light, gray-on-gray, hover-dependent, and selected-navigation contrast failures. Prefer native theme and layout APIs over internal `data-testid` selectors; retain only narrowly scoped custom CSS where native Streamlit cannot express a required engineering visualization. Remove deprecated `use_container_width` usage in favor of current width semantics. Use sentence casing and restrained Material Symbols where they improve comprehension. Do not add gradients, glassmorphism, neon, fake gauges, or decorative animation.\n\nCreate a concise header hierarchy without repeated wording: `PVT PHASE SIMULATOR`, `Hydrocarbon Phase Behavior`, and `Peng-Robinson EOS - 3 verified components - kij = 0`. On Overview, make the entered composition, temperature, pressure, and model immediately legible; make phase and convergence the strongest result; show vapor/liquid fractions, available Z factors, source-provided phase compositions, and a restrained engineering phase-split bar without fabricating unavailable quantities. Show operating-point location relative to an existing calculated phase envelope and overlay the operating point when supported by the existing Module 21 plotting API; if no envelope exists, provide a clear action/status instead of fabricating one. Avoid ragged metric-card layouts.\n\nRedesign Technical Details and Diagnostics as engineering output rather than raw/debug output. Always show applicable solver status, converged/not-converged state, termination or failure reason, and iteration count. Present K values, equilibrium and material-balance residuals, fugacity coefficients, phase/root information, continuation evidence, Jacobian/conditioning evidence, and units through labelled status rows and tables using scientific notation where appropriate. Raw public-object or JSON inspection may remain only behind a secondary advanced toggle and must never become the primary presentation. Preserve every structured failure and never convert failure information into plausible success.\n\nMake the Phase Envelope plot the primary content and preserve bubble/dew identity, converged/unavailable status semantics, operating-point display, certified critical overlays, and the distinction between continuation turning points and critical points. Present completed, bounded-stop, and failure states as statuses rather than numeric metrics. Expose only existing safely bounded trace settings; do not change continuation science. On Critical Point, show `CERTIFIED CRITICAL POINT` with Tc and Pc only for an existing production result certified by `CriticalPointStatus.CONVERGED`, followed by existing lambda_min, C, scaled residual, iterations, conditioning, and critical direction evidence. Otherwise show `NOT CERTIFIED` with the production reason and no certified Tc/Pc; lambda_min=0 and spinodal status alone remain insufficient.\n\nLead Validation with a concise, honest summary of the existing experimental dataset, state count, kij=0, unfitted-model status, and only error metrics supported by the protected records. Do not replace measured performance with a generic green validated badge. Continue using Module 21 parity, error, composition, status, and retrospective plotting functions. Keep retrospective nearest-root diagnostics in a strongly separated section whose `NOT PRODUCTION PREDICTIONS` label remains visually associated with its chart, and preserve signed relative pressure error `100*(P_pred-P_exp)/P_exp`.\n\nBound expensive UI-triggered work. Heavy flash, envelope, critical-point, criticality-map, validation-figure, and diagnostic work must remain behind explicit actions, submitted state, guarded dynamic sections, or appropriately bounded caching without changing numerical results or sharing mutable per-user state. Render stable UI before slow work and provide honest progress/status feedback. Do not execute hidden expensive content merely because it sits inside a tab or collapsed expander. Preserve per-session result identity across navigation and cosmetic reruns.\n\nAdd semantic tests covering installed UI-package and styles imports, clean-shell launch without PYTHONPATH, Streamlit startup/AppTest behavior, explicit form-submit boundaries, input validation, exact unit conversions, production flash invocation, phase/fraction/composition/Z identity, structured failure presentation, critical certification rejection, Module 21 plotting reuse, retrospective labelling, protected scientific integrity, and absence of duplicated thermodynamic implementations. Avoid screenshot-pixel tests as the primary evidence. Update only the Streamlit application documentation and truthful README launch instructions. Prepare for a later public Streamlit deployment but do not deploy.\n\nThe scientific engine is frozen. Do not modify `src/pvt_phase_simulator`, `data`, `docs/validation`, golden-master/reference artifacts, or any pre-existing scientific test. Do not implement or duplicate Peng-Robinson, mixing rules, fugacity, Rachford-Rice, TPD, saturation, bubble/dew, phase-envelope continuation, Gibbs-curvature, or critical-point equations in the UI. Existing production APIs remain the only scientific source of truth and Module 21 Figure-returning APIs remain reused. Do not add components, kij editing, C7+/pseudocomponents, density, Bo, GOR, CCE, CVD, depletion, separators, pressure/temperature sweeps, field units, desktop packaging, case management, new datasets, or public deployment.",
+  "risk": "MEDIUM",
+  "allowed_files": [
+    "src/pvt_phase_simulator_ui",
+    "app",
+    "streamlit_app.py",
+    ".streamlit/config.toml",
+    "pyproject.toml",
+    "uv.lock",
+    "tests/test_app*.py",
+    "docs/STREAMLIT_APPLICATION.md",
+    "README.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master",
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/derivative_reference.py",
+    "tests/derivative_verification.py",
+    "tests/run_derivative_verification.py",
+    "tests/run_newton_saturation_benchmarks.py",
+    "tests/test_acceleration.py",
+    "tests/test_component_database.py",
+    "tests/test_critical_point.py",
+    "tests/test_criticality.py",
+    "tests/test_damping.py",
+    "tests/test_derivative_verification.py",
+    "tests/test_derivatives.py",
+    "tests/test_diagnostics.py",
+    "tests/test_experimental_validation.py",
+    "tests/test_flash.py",
+    "tests/test_fluid_models.py",
+    "tests/test_golden_master.py",
+    "tests/test_mixing_rules.py",
+    "tests/test_mixture_fugacity.py",
+    "tests/test_near_trivial_saturation.py",
+    "tests/test_newton_saturation.py",
+    "tests/test_peng_robinson.py",
+    "tests/test_phase_envelope.py",
+    "tests/test_phase_identity_corrections.py",
+    "tests/test_phase_stability.py",
+    "tests/test_plotting.py",
+    "tests/test_project_setup.py",
+    "tests/test_properties.py",
+    "tests/test_pseudo_arclength.py",
+    "tests/test_saturation_pressure.py",
+    "tools",
+    ".ai/config.json"
+  ],
+  "scientific_invariants": [
+    "Every file under src/pvt_phase_simulator remains unchanged; the separately installed UI package may import only existing public scientific and Module 21 plotting APIs.",
+    "No Peng-Robinson, mixing-rule, fugacity, Rachford-Rice, TPD, saturation, phase-envelope, pseudo-arclength, Gibbs-curvature, or critical-point equation is duplicated in the UI.",
+    "Internal pressure remains SI Pa; validated UI input converts MPa to Pa exactly once with MPa * 1e6, and display converts Pa to MPa without changing production results.",
+    "Methane, Ethane, and Propane mol-percent input is converted to mole fractions only after finite, nonnegative, positive-total, materially 100-percent validation; invalid input is never silently normalized and cannot invoke a scientific API.",
+    "The existing flash result remains the source of phase, convergence, vapor/liquid fractions, x/y compositions, Z factors, K values, residuals, iterations, roots, and failure information; presentation code does not reclassify or fill unavailable values.",
+    "Bubble and dew identities, structured unavailable points, and continuation terminations remain unchanged; operating-point presentation does not fabricate an envelope, and turning points are never labelled critical points.",
+    "Only a production MixtureCriticalPointResult with CriticalPointStatus.CONVERGED may display certified Tc/Pc; lambda_min=0 or a spinodal condition alone never certifies criticality.",
+    "Module 17 production predictions remain separate from retrospective nearest-root diagnostics labelled NOT PRODUCTION PREDICTIONS, relative pressure error remains 100*(P_pred-P_exp)/P_exp, and validation remains kij=0 with no fitted interaction parameters.",
+    "Session state remains per-user and preserves deliberate calculation results across navigation/cosmetic reruns while identifying results as stale after scientific inputs change.",
+    "Golden master, component-property, and Module 17 validation artifacts remain byte-identical and are never regenerated.",
+    "All 1137 pre-existing scientific tests remain present and unchanged; application tests add coverage without weakening any scientific test, tolerance, baseline, or expected value.",
+    "Verified frontend property scope remains Methane, Ethane, and Propane; no claim of arbitrary reservoir-fluid validation or commercial-PVT readiness is introduced.",
+    "No new thermodynamic feature, component, interaction-parameter editor, C7+ model, density/Bo/GOR output, CCE/CVD/depletion/separator workflow, sweep, field-unit system, desktop packaging, case management, dataset, or deployment is added."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src"
+    ],
+    [
+      "uv",
+      "lock",
+      "--check"
+    ],
+    [
+      "uv",
+      "run",
+      "python",
+      "-c",
+      "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.styles"
+    ],
+    [
+      "git",
+      "diff",
+      "--check"
+    ]
+  ],
+  "audit_policy": "BATCH",
+  "commit_policy": "AFTER_VERIFY",
+  "dependencies": [
+    "streamlit_full_application"
+  ],
+  "status": "COMMITTED",
+  "notes": "Optional post-v1.0 UI refinement only. Uses the normal LOW/MEDIUM five-package audit batching policy; any actual change to configured scientific high-risk paths escalates effective risk to HIGH and requires immediate audit. The current unrelated untracked reports/ directory is not part of this package and must not be modified, staged, committed, or silently admitted into allowed_files. Public deployment is explicitly deferred to a later package."
+}

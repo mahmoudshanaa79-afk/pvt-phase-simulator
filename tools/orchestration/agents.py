@@ -13,7 +13,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from .config import AgentConfig, OrchestratorConfig
 
@@ -23,6 +23,7 @@ RESULT_PATTERN = re.compile(
 )
 
 VALID_VERDICTS = frozenset({"APPROVED", "CONDITIONAL", "NOT_APPROVED"})
+VALID_PROVISIONAL_VERDICTS = frozenset({"APPROVED", "NOT_APPROVED"})
 
 #: Tools Claude may use while auditing: read and investigate, never mutate.
 AUDIT_ALLOWED_TOOLS = "Read,Glob,Grep,Bash,TodoWrite"
@@ -93,6 +94,13 @@ def validate_audit_contract(payload: dict[str, Any]) -> dict[str, Any]:
         raise ContractError(
             f"verdict {verdict!r} is not one of {sorted(VALID_VERDICTS)}"
         )
+    _validate_findings(payload)
+    return payload
+
+
+def _validate_findings(payload: dict[str, Any]) -> None:
+    """Validate the shared structured finding contract."""
+
     findings = payload.get("findings", [])
     if not isinstance(findings, list):
         raise ContractError("findings must be a list")
@@ -108,6 +116,22 @@ def validate_audit_contract(payload: dict[str, Any]) -> dict[str, Any]:
             raise ContractError(
                 f"finding {item['id']!r}: severity must be A, B, C or D"
             )
+
+
+def validate_provisional_review_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a non-independent Codex review without blurring provenance."""
+
+    verdict = payload.get("verdict")
+    if verdict not in VALID_PROVISIONAL_VERDICTS:
+        raise ContractError(
+            f"provisional verdict {verdict!r} is not one of "
+            f"{sorted(VALID_PROVISIONAL_VERDICTS)}"
+        )
+    if payload.get("review_type") != "PROVISIONAL_CODEX_REVIEW":
+        raise ContractError(
+            "provisional review must declare review_type='PROVISIONAL_CODEX_REVIEW'"
+        )
+    _validate_findings(payload)
     return payload
 
 
@@ -124,17 +148,47 @@ def blocking_findings(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [f for f in payload.get("findings", []) if f.get("blocks")]
 
 
+def claude_temporarily_unavailable(run: AgentRun) -> tuple[bool, str]:
+    """Recognize explicit quota/rate-limit failures without masking other errors."""
+
+    combined = "\n".join((run.stderr, run.stdout, run.raw_report)).lower()
+    markers = (
+        "usage limit",
+        "quota limit",
+        "quota exceeded",
+        "rate limit",
+        "rate_limit",
+        "credit balance",
+    )
+    hit = next((marker for marker in markers if marker in combined), None)
+    if run.exit_code != 0 and hit is not None:
+        return True, f"Claude temporarily unavailable ({hit}; exit {run.exit_code})"
+    return False, ""
+
+
 # --------------------------------------------------------------------- runner
 
 
+#: Transient resolution misses happen when an agent CLI is mid-auto-update and
+#: its versioned directory is briefly incomplete. Retry before escalating: a
+#: momentary miss must not discard an otherwise-good run.
+RESOLVE_ATTEMPTS: Final = 3
+RESOLVE_BACKOFF_SECONDS: Final = 2.0
+
+
 def _resolve(agent: AgentConfig, name: str) -> str:
-    executable = agent.resolve()
-    if executable is None:
-        raise AgentUnavailable(
-            f"{name} CLI not found (executable={agent.executable!r}, "
-            f"search_names={list(agent.search_names)})"
-        )
-    return executable
+    for attempt in range(RESOLVE_ATTEMPTS):
+        executable = agent.resolve()
+        if executable is not None:
+            return executable
+        if attempt < RESOLVE_ATTEMPTS - 1:
+            time.sleep(RESOLVE_BACKOFF_SECONDS * (attempt + 1))
+    raise AgentUnavailable(
+        f"{name} CLI not found after {RESOLVE_ATTEMPTS} attempts "
+        f"(executable={agent.executable!r}, "
+        f"search_names={list(agent.search_names)}, "
+        f"search_paths={list(agent.search_paths)})"
+    )
 
 
 def agent_available(agent: AgentConfig) -> tuple[bool, str]:
@@ -223,6 +277,61 @@ def run_codex(
     except ContractError as error:
         run.contract_error = str(error)
     run.transcript_path = _persist(config, "codex_reports", stem, run)
+    return run
+
+
+def run_codex_review(
+    config: OrchestratorConfig,
+    prompt: Path,
+    *,
+    stem: str,
+) -> AgentRun:
+    """Invoke a fresh Codex process as a read-only, non-independent reviewer."""
+
+    executable = _resolve(config.codex, "Codex")
+    report_file = config.subdir("provisional_reviews") / f"{stem}.last-message.txt"
+    command = [
+        executable,
+        "exec",
+        "-s",
+        "read-only",
+        "-C",
+        str(config.repo),
+        "--output-last-message",
+        str(report_file),
+        *config.codex.args,
+    ]
+    started = time.time()
+    completed = subprocess.run(
+        command,
+        cwd=str(config.repo),
+        input=prompt.read_text(encoding="utf-8"),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=config.codex.timeout_seconds,
+    )
+    raw = (
+        report_file.read_text(encoding="utf-8")
+        if report_file.exists()
+        else completed.stdout
+    )
+    run = AgentRun(
+        name="codex-provisional-review",
+        command=command,
+        exit_code=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        raw_report=raw,
+        duration_seconds=time.time() - started,
+    )
+    try:
+        run.contract = validate_provisional_review_contract(parse_contract(raw))
+    except ContractError as error:
+        run.contract_error = str(error)
+    run.transcript_path = _persist(config, "provisional_reviews", stem, run)
     return run
 
 

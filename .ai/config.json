@@ -95,6 +95,7 @@
     "docs/validation"
   ],
   "high_risk_paths": [
+    "src/pvt_phase_simulator",
     "src/pvt_phase_simulator/eos",
     "src/pvt_phase_simulator/component_database.py",
     "src/pvt_phase_simulator/component_models.py",

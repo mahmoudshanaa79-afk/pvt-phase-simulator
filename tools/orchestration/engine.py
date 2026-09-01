@@ -37,6 +37,8 @@ class StepOutcome:
     messages: list[str] = field(default_factory=list)
     verification: VerificationReport | None = None
     audit_contract: dict[str, Any] | None = None
+    provisional_review_contract: dict[str, Any] | None = None
+    review_unavailable_reason: str | None = None
     commit: str | None = None
     human_action: str | None = None
 
@@ -46,6 +48,7 @@ class StepOutcome:
 
 CodexRunner = Callable[..., agents.AgentRun]
 ClaudeRunner = Callable[..., agents.AgentRun]
+ProvisionalRunner = Callable[..., agents.AgentRun]
 
 
 class Engine:
@@ -58,12 +61,15 @@ class Engine:
         *,
         codex_runner: CodexRunner | None = None,
         claude_runner: ClaudeRunner | None = None,
+        provisional_runner: ProvisionalRunner | None = None,
     ) -> None:
         self.config = config
         self.state = state
         # Injectable so tests never spend a real agent call.
         self._run_codex = codex_runner or agents.run_codex
         self._run_claude = claude_runner or agents.run_claude_audit
+        self._run_provisional = provisional_runner or agents.run_codex_review
+        self._claude_injected = claude_runner is not None
 
     # ------------------------------------------------------------- utilities
 
@@ -105,6 +111,63 @@ class Engine:
             f"batched: {pending}/{self.config.limits.audit_batch_size} "
             "work packages since last independent audit"
         )
+
+    def _claude_available(self) -> tuple[bool, str]:
+        if self._claude_injected:
+            return True, "injected test auditor"
+        return agents.agent_available(self.config.claude)
+
+    def provisional_review_eligibility(
+        self,
+        package: WorkPackage,
+        effective_risk: Risk,
+        report: VerificationReport,
+    ) -> tuple[bool, str]:
+        """Enforce the absolute boundary around the temporary Codex fallback."""
+
+        if effective_risk is Risk.HIGH:
+            return False, "effective risk is HIGH"
+        if package.risk not in {Risk.LOW, Risk.MEDIUM}:
+            return False, "declared risk is not LOW/MEDIUM"
+        if not report.passed or not report.protected_ok or not report.scope_ok:
+            return False, "deterministic verification or protection checks did not pass"
+        normalized = tuple(path.replace("\\", "/") for path in report.changed_files)
+        scientific = [
+            path
+            for path in normalized
+            if path == "src/pvt_phase_simulator"
+            or path.startswith("src/pvt_phase_simulator/")
+        ]
+        if scientific:
+            return False, f"scientific source changed: {scientific}"
+        scientific_tests = [
+            path
+            for path in normalized
+            if path.startswith("tests/") and not Path(path).match("tests/test_app*.py")
+        ]
+        if scientific_tests:
+            return False, f"scientific tests changed: {scientific_tests}"
+        return True, "LOW/MEDIUM application-only change with all local gates passing"
+
+    def review_mode(
+        self,
+        package: WorkPackage,
+        effective_risk: Risk,
+        report: VerificationReport,
+        *,
+        needs_audit: bool,
+    ) -> tuple[str, str]:
+        if not needs_audit:
+            return "none", "independent review is not due for this package"
+        available, location = self._claude_available()
+        if available:
+            return "claude", f"Claude available at {location}"
+        eligible, reason = self.provisional_review_eligibility(
+            package, effective_risk, report
+        )
+        if eligible:
+            return "provisional", f"Claude unavailable ({location}); {reason}"
+        return "blocked", f"Claude unavailable ({location}); fallback refused: {reason}"
 
     # -------------------------------------------------------------- dry run
 
@@ -156,6 +219,7 @@ class Engine:
             # New package: start its auditor budget fresh.
             self.state.claude_cost_usd_this_package = 0.0
             self.state.claude_cost_unknown_runs = 0
+            self.state.provisional_review_cycles = 0
         self.state.current_work_package = package.name
         self.state.current_risk = package.risk.value
         self.state.transition(WorkflowStatus.PLANNING, f"planning {package.name}")
@@ -271,6 +335,7 @@ class Engine:
         previous_findings: list[dict[str, Any]] | None = None,
         targeted: bool = False,
     ) -> agents.AgentRun | None:
+        outcome.review_unavailable_reason = None
         affordable, note = self.budget_check()
         outcome.say(f"auditor budget: {note}")
         if not affordable:
@@ -298,7 +363,8 @@ class Engine:
                 self.config, prompt_path, stem=self._stamp(package, "audit")
             )
         except agents.AgentUnavailable as error:
-            self._escalate(outcome, str(error))
+            outcome.review_unavailable_reason = str(error)
+            outcome.say(str(error))
             return None
         outcome.say(f"claude exit={run.exit_code} audit={run.transcript_path}")
         # Spend is recorded before the contract is judged: a malformed or failed
@@ -306,6 +372,11 @@ class Engine:
         self._record_cost(run, outcome)
         self._persist()
         if run.contract is None:
+            unavailable, reason = agents.claude_temporarily_unavailable(run)
+            if unavailable:
+                outcome.review_unavailable_reason = reason
+                outcome.say(reason)
+                return None
             self._escalate(
                 outcome,
                 f"Claude audit contract unusable: {run.contract_error}. "
@@ -314,6 +385,60 @@ class Engine:
             )
             return None
         outcome.audit_contract = run.contract
+        return run
+
+    def run_provisional_review(
+        self,
+        package: WorkPackage,
+        outcome: StepOutcome,
+        *,
+        verification: VerificationReport,
+        base_commit: str | None,
+        previous_findings: list[dict[str, Any]] | None = None,
+        targeted: bool = False,
+    ) -> agents.AgentRun | None:
+        """Run a fresh read-only Codex review and label it non-independent."""
+
+        self.state.transition(
+            WorkflowStatus.PROVISIONAL_CODEX_REVIEW,
+            "invoking fresh Codex provisional reviewer",
+        )
+        self._persist()
+        prompt = prompts.build_provisional_review_prompt(
+            self.config,
+            package,
+            verification=verification,
+            base_commit=base_commit,
+            previous_findings=previous_findings,
+            targeted=targeted,
+        )
+        prompt_path = prompts.write_prompt(
+            self.config.subdir("provisional_reviews"),
+            self._stamp(package, "provisional-review-prompt"),
+            prompt,
+        )
+        outcome.say(f"provisional review prompt: {prompt_path}")
+        try:
+            run = self._run_provisional(
+                self.config,
+                prompt_path,
+                stem=self._stamp(package, "provisional-review"),
+            )
+        except agents.AgentUnavailable as error:
+            self._escalate(outcome, str(error))
+            return None
+        outcome.say(
+            f"provisional Codex review exit={run.exit_code} "
+            f"report={run.transcript_path}"
+        )
+        if run.contract is None:
+            self._escalate(
+                outcome,
+                f"Provisional Codex review contract unusable: "
+                f"{run.contract_error}. Approval is NOT inferred.",
+            )
+            return None
+        outcome.provisional_review_contract = run.contract
         return run
 
     # ------------------------------------------------------------ commitment
@@ -325,6 +450,7 @@ class Engine:
         report: VerificationReport,
         *,
         audited: bool,
+        provisional: bool = False,
     ) -> None:
         """Commit only when every precondition is independently satisfied."""
 
@@ -332,7 +458,7 @@ class Engine:
         if policy is CommitPolicy.MANUAL:
             outcome.say("commit policy MANUAL — leaving changes uncommitted")
             return
-        if policy is CommitPolicy.AFTER_AUDIT and not audited:
+        if policy is CommitPolicy.AFTER_AUDIT and not audited and not provisional:
             outcome.say(
                 "commit policy AFTER_AUDIT — audit not yet approved; not committing"
             )
@@ -351,18 +477,102 @@ class Engine:
             outcome.say("nothing to commit")
             return
         outcome.say(f"planned staged files: {paths}")
+        provenance = ""
+        if audited:
+            provenance = (
+                "\nIndependent audit: APPROVED."
+                "\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\n"
+            )
+        elif provisional:
+            provenance = (
+                "\nReview: PROVISIONAL_CODEX_REVIEW; independent audit pending.\n"
+            )
         message = (
             f"{package.objective.strip().splitlines()[0][:68]}\n\n"
             f"Work package: {package.name} (risk {package.risk.value}).\n"
-            f"Local verification passed; protected artifacts unchanged."
-            + ("\nIndependent audit: APPROVED." if audited else "")
-            + "\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\n"
+            f"Local verification passed; protected artifacts unchanged." + provenance
         )
         commit = commit_paths(self.config.repo, paths, message)
         outcome.commit = commit
         outcome.say(f"committed {commit[:7]}")
         package.status = PackageStatus.COMMITTED
-        self.state.last_scientific_commit = commit
+
+    def _handle_provisional_verdict(
+        self,
+        package: WorkPackage,
+        package_path: Path,
+        outcome: StepOutcome,
+        report: VerificationReport,
+        review: agents.AgentRun,
+        base_commit: str,
+        builder: agents.AgentRun,
+    ) -> StepOutcome:
+        contract = review.contract or {}
+        blocking = agents.blocking_findings(contract)
+        verdict = contract.get("verdict")
+        outcome.say(
+            f"provisional verdict: {verdict} ({len(blocking)} blocking findings)"
+        )
+        if verdict == "APPROVED" and not blocking:
+            self.state.blocking_findings = []
+            self.state.work_packages_since_audit += 1
+            self.maybe_commit(package, outcome, report, audited=False, provisional=True)
+            if outcome.commit is None:
+                return self._escalate(
+                    outcome,
+                    "provisional review approved but no package commit was produced",
+                )
+            debt = {
+                "status": "PENDING_INDEPENDENT_AUDIT",
+                "package": package.name,
+                "base_commit": base_commit,
+                "resulting_commit": outcome.commit,
+                "effective_risk": package.risk.value,
+                "verification_report": report.report_path,
+                "provisional_review_report": (
+                    str(review.transcript_path.relative_to(self.config.repo))
+                    if review.transcript_path is not None
+                    else None
+                ),
+                "reason": (
+                    "Claude unavailable; approved only by fresh read-only Codex "
+                    "provisional review."
+                ),
+            }
+            self.state.deferred_independent_audits.append(debt)
+            self.state.audit_required = True
+            self.state.audit_reason = "deferred independent-audit debt exists"
+            package.notes = (
+                package.notes.rstrip()
+                + f"\nPENDING_INDEPENDENT_AUDIT at {outcome.commit}."
+            ).strip()
+            save_package(package_path, package)
+            self.state.transition(
+                WorkflowStatus.IDLE,
+                "package committed with PENDING_INDEPENDENT_AUDIT",
+            )
+            self._persist()
+            outcome.status = WorkflowStatus.IDLE
+            return outcome
+
+        self.state.blocking_findings = blocking
+        return self._correction_loop(
+            package,
+            package_path,
+            outcome,
+            base_commit,
+            builder,
+            reason=f"provisional review verdict {verdict}",
+            findings=blocking
+            or [
+                {
+                    "id": "PROVISIONAL_VERDICT",
+                    "severity": "C",
+                    "blocks": True,
+                    "summary": f"provisional reviewer returned {verdict}",
+                }
+            ],
+        )
 
     # ------------------------------------------------------------- main loop
 
@@ -375,11 +585,13 @@ class Engine:
             return outcome
 
         report = self.run_verification(package, outcome)
-        facts = read_repo(self.config.repo)
         effective_risk, rationale = assess_risk(
-            package.risk, facts.dirty_paths, self.config.high_risk_paths
+            package.risk, report.changed_files, self.config.high_risk_paths
         )
         outcome.say(f"effective risk: {effective_risk.value} ({rationale})")
+
+        needs_audit, reason = self.audit_decision(package, effective_risk)
+        outcome.say(f"audit required: {'YES' if needs_audit else 'no'} ({reason})")
 
         if not report.passed:
             return self._correction_loop(
@@ -399,13 +611,11 @@ class Engine:
                 ],
             )
 
-        needs_audit, reason = self.audit_decision(package, effective_risk)
-        outcome.say(f"audit required: {'YES' if needs_audit else 'no'} ({reason})")
-
         if not needs_audit:
             self.state.work_packages_since_audit += 1
             self.maybe_commit(package, outcome, report, audited=False)
-            package.status = package.status or PackageStatus.VERIFIED
+            if outcome.commit is None:
+                package.status = PackageStatus.VERIFIED
             save_package(package_path, package)
             self.state.transition(WorkflowStatus.IDLE, "package complete without audit")
             self._persist()
@@ -414,6 +624,30 @@ class Engine:
 
         self.state.audit_required = True
         self.state.audit_reason = reason
+        mode, mode_reason = self.review_mode(
+            package, effective_risk, report, needs_audit=True
+        )
+        outcome.say(f"review mode: {mode} ({mode_reason})")
+        if mode == "blocked":
+            return self._escalate(outcome, mode_reason)
+        if mode == "provisional":
+            review = self.run_provisional_review(
+                package,
+                outcome,
+                verification=report,
+                base_commit=base_commit,
+            )
+            if review is None:
+                return outcome
+            return self._handle_provisional_verdict(
+                package,
+                package_path,
+                outcome,
+                report,
+                review,
+                base_commit,
+                builder,
+            )
         audit = self.run_audit(
             package,
             outcome,
@@ -422,6 +656,36 @@ class Engine:
             base_commit=base_commit,
         )
         if audit is None:
+            if outcome.review_unavailable_reason:
+                eligible, fallback_reason = self.provisional_review_eligibility(
+                    package, effective_risk, report
+                )
+                if not eligible:
+                    return self._escalate(
+                        outcome,
+                        f"{outcome.review_unavailable_reason}; provisional fallback "
+                        f"refused: {fallback_reason}",
+                    )
+                outcome.say(
+                    f"falling back to PROVISIONAL_CODEX_REVIEW: {fallback_reason}"
+                )
+                review = self.run_provisional_review(
+                    package,
+                    outcome,
+                    verification=report,
+                    base_commit=base_commit,
+                )
+                if review is None:
+                    return outcome
+                return self._handle_provisional_verdict(
+                    package,
+                    package_path,
+                    outcome,
+                    report,
+                    review,
+                    base_commit,
+                    builder,
+                )
             return outcome
         return self._handle_verdict(
             package, package_path, outcome, report, audit, base_commit, builder
@@ -451,12 +715,15 @@ class Engine:
             self.state.audit_required = False
             self.state.audit_reason = None
             self.state.work_packages_since_audit = 0
-            self.state.last_independent_audit_commit = base_commit
             self.state.codex_correction_cycles = 0
             self.state.claude_reaudit_cycles = 0
             self.state.claude_cost_usd_this_package = 0.0
             self.state.claude_cost_unknown_runs = 0
+            self.state.provisional_review_cycles = 0
             self.maybe_commit(package, outcome, report, audited=True)
+            self.state.last_independent_audit_commit = (
+                outcome.commit or read_repo(self.config.repo).head
+            )
             package.status = (
                 PackageStatus.AUDITED if not outcome.commit else PackageStatus.COMMITTED
             )
@@ -496,7 +763,7 @@ class Engine:
         reason: str,
         findings: list[dict[str, Any]],
     ) -> StepOutcome:
-        """Codex correction → verify → targeted Claude re-audit, bounded."""
+        """Codex correction → verify → policy-selected re-review, bounded."""
 
         limits = self.config.limits
         self.state.transition(WorkflowStatus.CORRECTION_REQUIRED, reason)
@@ -527,7 +794,7 @@ class Engine:
                 self.config,
                 package,
                 correction=(
-                    "Close the following findings from the independent audit. Change "
+                    "Close the following review or verification findings. Change "
                     "nothing else, and do not weaken any test or tolerance to make a "
                     f"finding disappear.\n\n{detail}"
                 ),
@@ -562,6 +829,75 @@ class Engine:
                 outcome.say("correction still fails local verification; retrying")
                 continue
 
+            effective_risk, rationale = assess_risk(
+                package.risk, report.changed_files, self.config.high_risk_paths
+            )
+            outcome.say(
+                f"effective risk after correction: {effective_risk.value} ({rationale})"
+            )
+            needs_audit, audit_reason = self.audit_decision(package, effective_risk)
+            mode, mode_reason = self.review_mode(
+                package, effective_risk, report, needs_audit=needs_audit
+            )
+            outcome.say(f"review mode after correction: {mode} ({mode_reason})")
+            if mode == "blocked":
+                return self._escalate(outcome, mode_reason)
+            if mode == "none":
+                self.state.work_packages_since_audit += 1
+                self.state.blocking_findings = []
+                self.maybe_commit(package, outcome, report, audited=False)
+                if outcome.commit is None:
+                    return self._escalate(
+                        outcome,
+                        "verification passed but no package commit was produced",
+                    )
+                save_package(package_path, package)
+                self.state.transition(
+                    WorkflowStatus.IDLE, "corrected package complete without audit"
+                )
+                self._persist()
+                outcome.status = WorkflowStatus.IDLE
+                return outcome
+            self.state.audit_required = True
+            self.state.audit_reason = audit_reason
+            if mode == "provisional":
+                if (
+                    self.state.provisional_review_cycles
+                    >= limits.max_claude_reaudit_cycles
+                ):
+                    return self._escalate(
+                        outcome,
+                        "provisional review cycle limit "
+                        f"({limits.max_claude_reaudit_cycles}) exhausted",
+                    )
+                self.state.provisional_review_cycles += 1
+                review = self.run_provisional_review(
+                    package,
+                    outcome,
+                    verification=report,
+                    base_commit=base_commit,
+                    previous_findings=current,
+                    targeted=True,
+                )
+                if review is None:
+                    return outcome
+                contract = review.contract or {}
+                blocking = agents.blocking_findings(contract)
+                if contract.get("verdict") == "APPROVED" and not blocking:
+                    return self._handle_provisional_verdict(
+                        package,
+                        package_path,
+                        outcome,
+                        report,
+                        review,
+                        base_commit,
+                        fix,
+                    )
+                current = blocking or current
+                self.state.blocking_findings = current
+                self._persist()
+                continue
+
             if self.state.claude_reaudit_cycles >= limits.max_claude_reaudit_cycles:
                 return self._escalate(
                     outcome,
@@ -585,6 +921,42 @@ class Engine:
                 targeted=True,
             )
             if audit is None:
+                if outcome.review_unavailable_reason:
+                    eligible, fallback_reason = self.provisional_review_eligibility(
+                        package, effective_risk, report
+                    )
+                    if not eligible:
+                        return self._escalate(
+                            outcome,
+                            f"{outcome.review_unavailable_reason}; provisional "
+                            f"fallback refused: {fallback_reason}",
+                        )
+                    review = self.run_provisional_review(
+                        package,
+                        outcome,
+                        verification=report,
+                        base_commit=base_commit,
+                        previous_findings=current,
+                        targeted=True,
+                    )
+                    if review is None:
+                        return outcome
+                    contract = review.contract or {}
+                    blocking = agents.blocking_findings(contract)
+                    if contract.get("verdict") == "APPROVED" and not blocking:
+                        return self._handle_provisional_verdict(
+                            package,
+                            package_path,
+                            outcome,
+                            report,
+                            review,
+                            base_commit,
+                            fix,
+                        )
+                    current = blocking or current
+                    self.state.blocking_findings = current
+                    self._persist()
+                    continue
                 return outcome
 
             contract = audit.contract or {}

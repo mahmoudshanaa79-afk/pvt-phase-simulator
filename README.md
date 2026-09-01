@@ -63,6 +63,63 @@ The equations and their implementation mapping are documented in
 The first experimental comparison and its limitations are documented in
 [`docs/EXPERIMENTAL_VALIDATION.md`](docs/EXPERIMENTAL_VALIDATION.md).
 
+## Streamlit application
+
+An optional Streamlit frontend now provides Overview, Phase Envelope, Critical
+Point, Validation, and Diagnostics views for the verified methane, ethane, and
+propane scope. It calls the existing scientific APIs and Module 21 Plotly
+figures without changing the v1.0 engine.
+
+```powershell
+uv run streamlit run streamlit_app.py
+```
+
+The UI is installed as the separate `pvt_phase_simulator_ui` package. The
+compatibility command `uv run streamlit run app/streamlit_app.py` also works
+from a clean shell without `PYTHONPATH` configuration.
+
+Prerequisites are Python 3.12 or newer and [uv](https://docs.astral.sh/uv/); no
+other tooling, service, or account is required. `uv sync --locked` installs the
+exact dependency graph recorded in `uv.lock`.
+
+For a bounded localhost startup and HTTP health check, run:
+
+```powershell
+uv run python tools/streamlit_smoke.py
+```
+
+It selects a free loopback port, runs Streamlit headless, checks the health
+endpoint, and always terminates the server it started.
+
+Input validation, explicit calculation actions, stale-result handling, failure
+semantics, supported views, and limitations are documented in
+[`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md).
+
+### Continuous verification and deployment status
+
+[`.github/workflows/quality.yml`](.github/workflows/quality.yml) reproduces the
+authoritative gates on a clean Ubuntu runner with Python 3.12, installing from
+the locked dependency graph: lockfile check, Ruff, Ruff formatting, mypy,
+`compileall`, application import smoke, the full test suite, and the localhost
+Streamlit health smoke. It requires no secret and has read-only repository
+permissions.
+
+**Public v1.1 release-candidate deployment:**
+<https://pvt-phase-simulator.streamlit.app/>
+
+It is hosted on Streamlit Community Cloud from the `app-v1.1-autonomous`
+release-candidate branch of `mahmoudshanaa79-afk/pvt-phase-simulator`, with
+`streamlit_app.py` as the entry point, Python 3.12, and `uv.lock` as the
+dependency source. **No secrets are stored or required.** It is a candidate
+offered for review, not an approved release.
+
+Deployment is not automated. It was a deliberate, separate, human-authorized
+step, it is not wired to the default branch, and no release automation
+configures or republishes it. `.github/workflows/quality.yml` verifies only and
+never deploys. See
+[`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md) for the hosted
+deployment's recorded observations.
+
 ## Package structure
 
 ```text
@@ -92,7 +149,8 @@ docs/                            # Scientific documentation
 data/
 └── component_properties.csv     # Human-review/source-tree property mirror
 notebooks/                       # Exploration scaffold
-app/                             # Reserved Streamlit entry point; no UI yet
+src/pvt_phase_simulator_ui/      # Installed Streamlit application layer
+streamlit_app.py                 # Stable Streamlit entrypoint
 ```
 
 The package includes a `py.typed` marker and exposes inline type information.
@@ -232,7 +290,6 @@ The project does **not** yet implement:
 - experimental authentication and uncertainty quantification beyond the
   verified bibliographic traceability of component-property values
 - engineering unit conversion functions
-- a Streamlit user interface
 
 Near a mixture critical point, the bounded stability trials can collapse to the
 trivial solution and falsely classify a state as stable. In the independently

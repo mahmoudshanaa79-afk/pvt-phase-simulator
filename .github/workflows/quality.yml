@@ -1,0 +1,85 @@
+name: Quality
+
+# Reproducible verification of the v1.1 application on a clean machine, using the
+# locked dependency graph. This workflow verifies; it does not deploy, publish,
+# or require any secret.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Authoritative gates (Python 3.12)
+    runs-on: ubuntu-latest
+    # The full scientific suite dominates the runtime; this ceiling is a guard
+    # against a hang, not a target.
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install from the locked dependency graph
+        # --locked fails if uv.lock does not match pyproject.toml, so a drifted
+        # lockfile is a build failure rather than a silent resolve. The dev
+        # dependency group is included by default, which is what supplies
+        # pytest, Ruff and mypy; no extras are defined by this project.
+        run: uv sync --locked
+
+      - name: Verify the lockfile is current
+        run: uv lock --check
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: mypy
+        run: uv run mypy src app
+
+      - name: compileall
+        run: uv run python -m compileall -q src app
+
+      - name: Application import smoke
+        run: |
+          uv run python -c "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views; print('import smoke ok')"
+
+      - name: Full test suite
+        # Includes the scientific regression suite, the golden master, and the
+        # application release-QA tests.
+        timeout-minutes: 20
+        run: uv run pytest -q
+
+      - name: Streamlit localhost health smoke
+        # Loopback only, headless, bounded, and self-terminating. A cold runner
+        # starts Streamlit more slowly than a warm developer machine, so this
+        # explicit run allows more headroom than the in-suite default.
+        timeout-minutes: 5
+        run: uv run python tools/streamlit_smoke.py --timeout 60
+
+      - name: Working tree is unchanged by verification
+        # Verification must not mutate the checkout. Any diff here means a gate
+        # wrote into the repository.
+        run: |
+          git diff --check
+          git diff --exit-code
+          git diff --cached --exit-code

@@ -1,0 +1,95 @@
+{
+  "passed": true,
+  "protected_ok": true,
+  "protected_detail": {
+    "tests/golden_master/baseline.csv": "unchanged",
+    "data/component_properties.csv": "unchanged",
+    "docs/validation/module17_vle_validation.csv": "unchanged",
+    "docs/validation/module17_vle_validation_summary.json": "unchanged"
+  },
+  "scope_ok": true,
+  "scope_detail": "scope ok",
+  "diff_check_ok": true,
+  "diff_check_detail": "warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/streamlit_app.py', LF will be replaced by CRLF the next time Git touches it\n",
+  "changed_files": [
+    "README.md",
+    "app/__init__.py",
+    "app/adapters.py",
+    "app/state.py",
+    "app/streamlit_app.py",
+    "app/styles.py",
+    "docs/STREAMLIT_APPLICATION.md",
+    "tests/test_app_adapters.py"
+  ],
+  "commands": [
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T12:28:59.891042+00:00",
+      "ended": "2026-08-25T12:36:17.706631+00:00",
+      "stdout": "........................................................................ [  6%]\n........................................................................ [ 12%]\n........................................................................ [ 18%]\n........................................................................ [ 24%]\n........................................................................ [ 31%]\n........................................................................ [ 37%]\n........................................................................ [ 43%]\n........................................................................ [ 49%]\n........................................................................ [ 56%]\n........................................................................ [ 62%]\n........................................................................ [ 68%]\n........................................................................ [ 74%]\n........................................................................ [ 81%]\n........................................................................ [ 87%]\n........................................................................ [ 93%]\n........................................................................ [ 99%]\n...                                                                      [100%]\n1155 passed in 435.65s (0:07:15)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T12:36:17.706631+00:00",
+      "ended": "2026-08-25T12:36:18.047023+00:00",
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T12:36:18.047023+00:00",
+      "ended": "2026-08-25T12:36:18.338017+00:00",
+      "stdout": "124 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "mypy",
+        "src"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T12:36:18.338017+00:00",
+      "ended": "2026-08-25T12:36:19.360295+00:00",
+      "stdout": "Success: no issues found in 22 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "compileall",
+        "-q",
+        "src"
+      ],
+      "exit_code": 0,
+      "started": "2026-08-25T12:36:19.360295+00:00",
+      "ended": "2026-08-25T12:36:19.710196+00:00",
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

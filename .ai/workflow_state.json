@@ -1,35 +1,60 @@
 {
   "project": "pvt-phase-simulator",
-  "phase": "release-ready",
+  "phase": "post-v1.0-extensions",
   "workflow_status": "IDLE",
-  "last_scientific_commit": "cb82425",
-  "last_independent_audit_commit": "89fdcbe464b6dec814a1f315959cb9160ecfc57d",
-  "work_packages_since_audit": 0,
-  "current_work_package": "final_release_doc_cleanup",
-  "current_risk": "LOW",
+  "last_scientific_commit": "d2a0a74",
+  "last_independent_audit_commit": "c29ae4961543e74a271e8e2e54de22852892cf00",
+  "work_packages_since_audit": 2,
+  "current_work_package": null,
+  "current_risk": null,
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
   "safe_defer_findings": [
     {
-      "id": "M20-D-1",
-      "category": "D",
-      "location": "src/pvt_phase_simulator/eos/critical_point.py",
-      "summary": "Root-continuity sub-checks are mutually redundant; diagnostic-quality only, no false convergence.",
-      "blocks_release": false
+      "id": "D-1",
+      "severity": "D",
+      "blocks": false,
+      "summary": "Display-format precision (%.10g -> %.15g) was widened for all five input fields, not just the two needed for the new critical-solver-seed example; harmless and justified by the same 'preserve exact editable values' objective, but broader than strictly necessary."
+    }
+  ],
+  "deferred_independent_audits": [
+    {
+      "status": "PENDING_INDEPENDENT_AUDIT",
+      "package": "streamlit_public_release_p1_fixes",
+      "base_commit": "3a2dcb9e92f7b643c678322e9a0d6d73ded59db1",
+      "resulting_commit": "1f01975f30b3e9ea9197323fd2f00c8b7da411bc",
+      "effective_risk": "MEDIUM",
+      "verification_report": ".ai\\verification\\20260829-203045-streamlit_public_release_p1_fixes.json",
+      "provisional_review_report": ".ai\\provisional_reviews\\20260829-203046-streamlit_public_release_p1_fixes-provisional-review.md",
+      "reason": "Claude unavailable; approved only by fresh read-only Codex provisional review."
     },
     {
-      "id": "FINAL-D-1-residual",
-      "category": "D",
-      "location": "src/pvt_phase_simulator/eos/phase_stability.py",
-      "summary": "Near-critical trivial-solution collapse remains present in code; now explicitly documented in README. Behavioural fix is separate future work.",
-      "blocks_release": false
+      "status": "PENDING_INDEPENDENT_AUDIT",
+      "package": "v1_1_application_release_qa",
+      "base_commit": "c29ae4961543e74a271e8e2e54de22852892cf00",
+      "resulting_commit": "514d963",
+      "effective_risk": "MEDIUM",
+      "verification_report": ".ai/verification\\20260830-131150-v1_1_application_release_qa-claude-finisher.json",
+      "builder_report": ".ai/builder_reports\\20260830-131256-v1_1_application_release_qa-claude-finisher-report.md",
+      "reason": "Codex exhausted its usage quota mid-run and emitted no output contract. Claude reviewed, verified and finished the package as builder, so this commit has NO independent review: builder and verifier are the same agent. commit_policy=AFTER_AUDIT and audit_policy=IMMEDIATE were both unsatisfied. Codex must perform the independent final diff / release-candidate review."
+    },
+    {
+      "status": "PENDING_INDEPENDENT_AUDIT",
+      "package": "v1_1_ci_deployment_readiness",
+      "base_commit": "a6c2362",
+      "resulting_commit": "4b8cb65",
+      "effective_risk": "LOW",
+      "verification_report": ".ai/verification\\20260830-133039-v1_1_ci_deployment_readiness-claude-finisher.json",
+      "builder_report": ".ai/builder_reports\\20260830-133141-v1_1_ci_deployment_readiness-claude-finisher-report.md",
+      "reason": "Built and verified by Claude while Codex was unavailable, so builder and verifier are the same agent and there is NO independent review. commit_policy=AFTER_AUDIT and audit_policy=IMMEDIATE were both unsatisfied. Additionally the GitHub Actions workflow has never executed: action resolution and runner behaviour are unverified until the branch is pushed."
     }
   ],
   "planned_scope": "Original 21-module Hydrocarbon Phase-Behavior & PVT Simulator",
   "planned_scope_complete": true,
   "codex_correction_cycles": 0,
   "claude_reaudit_cycles": 0,
+  "provisional_review_cycles": 0,
   "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
   "last_error": null,
@@ -118,14 +143,331 @@
       "from": "APPROVED",
       "to": "IDLE",
       "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_full_application"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "PLANNING",
+      "reason": "planning streamlit_full_application"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CORRECTION_REQUIRED",
+      "reason": "local verification failed"
+    },
+    {
+      "from": "CORRECTION_REQUIRED",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 1"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "REAUDIT_PENDING",
+      "reason": "targeted re-audit 1"
+    },
+    {
+      "from": "REAUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Claude Code CLI not found (executable='', search_names=['claude', 'claude.cmd'])"
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_engineering_ui_refinement"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CORRECTION_REQUIRED",
+      "reason": "local verification failed"
+    },
+    {
+      "from": "CORRECTION_REQUIRED",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 1"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 2"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 3"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "max_codex_correction_cycles (3) exhausted; all reports preserved."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "REAUDIT_PENDING",
+      "reason": "targeted recovery re-audit 1 after external VERIFY repair"
+    },
+    {
+      "from": "REAUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "targeted recovery audit returned CONDITIONAL; no builder or correction invoked"
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "REAUDIT_PENDING",
+      "reason": "targeted re-audit 2 for B-1"
+    },
+    {
+      "from": "REAUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "IDLE",
+      "reason": "streamlit engineering UI refinement complete after B-1 re-audit"
+    },
+    {
+      "from": "IDLE",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_ui_stabilization"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning streamlit_public_release_p1_fixes"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260826-153136-streamlit_public_release_p1_fixes-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "PLANNING",
+      "reason": "planning streamlit_public_release_p1_fixes"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "PROVISIONAL_CODEX_REVIEW",
+      "reason": "invoking fresh Codex provisional reviewer"
+    },
+    {
+      "from": "PROVISIONAL_CODEX_REVIEW",
+      "to": "IDLE",
+      "reason": "package committed with PENDING_INDEPENDENT_AUDIT"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning v1_1_first_use_examples"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260829-203854-v1_1_first_use_examples-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "IDLE",
+      "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning v1_1_first_use_examples"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "Codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking Claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v1_1_application_release_qa"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking Codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260830-120626-v1_1_application_release_qa-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "IDLE",
+      "reason": "manually stopped"
     }
-  ],
-  "release_state": {
-    "original_modules_1_to_21": "COMPLETE",
-    "final_whole_project_audit": "APPROVED",
-    "final_documentation_findings": "CLOSED (FINAL-D-1, FINAL-D-2 at cb82425)",
-    "blocking_findings": "NONE",
-    "project_release_state": "READY",
-    "optional_extensions": "NOT STARTED - awaiting explicit human scope decision"
-  }
+  ]
 }

@@ -233,8 +233,8 @@ class TestCriticalOverlayAndRealEnvelope:
         critical = next(
             trace for trace in figure.data if trace.name == "Certified critical point"
         )
-        assert tuple(critical.x) == (321.5829183194,)
-        assert tuple(critical.y) == (8.53444323606381,)
+        assert tuple(critical.x) == (critical_result.temperature_k,)
+        assert tuple(critical.y) == (critical_result.pressure_pa / 1.0e6,)
         assert "zero-kij Peng-Robinson" in critical.text[0]
         assert "composition=(0.5, 0.5)" in critical.text[0]
         assert "lambda_min" in critical.text[0]

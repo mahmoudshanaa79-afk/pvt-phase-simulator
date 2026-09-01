@@ -1,0 +1,112 @@
+{
+  "name": "streamlit_ui_stabilization",
+  "objective": "Post-audit UI stabilization of the Streamlit application, driven by a live-browser audit. Application layer only. The scientific engine is FROZEN: do not modify src/pvt_phase_simulator/**, scientific equations, validation datasets, critical-point algorithms, or flash/envelope/saturation logic. Two root causes below were already diagnosed against the live engine and are stated as FACT - do not re-litigate them, and do not change science to force any result.\n\n=== PRIORITY 1: NAVIGATION (blocking) ===\nst.navigation(..., position='top') renders a container measured at 924x0 px with overflow:hidden, so all five page tabs are clipped out of existence. The only visible affordance is a 57x28 px unlabeled 'more' overflow button. Reproduced at BOTH 1440x900 and 1920x1080, so it is not a responsive collapse. The application's own CSS is NOT the cause (styles.py is scoped only to the phase-split bar).\nRequired: replace top navigation with a clearly visible, professional layout that shows all five destinations. Prefer native Streamlit behaviour: either st.navigation with default sidebar position (recommended - the sidebar already exists and has room), or st.navigation with an explicit visible arrangement. Do NOT attempt to fix this with fragile CSS overrides against Streamlit internals. Per-page URLs must keep working (/phase_envelope, /critical_point, /validation, /diagnostics). Verify the chosen approach actually renders visible page labels rather than an overflow control.\n\n=== PRIORITY 2: OPERATING POINT (root cause proven) ===\nSymptom: with the default case (CH4 50 / C2 0 / C3 50 mol %, 300 K, 5 MPa) the Overview and Phase Envelope pages both report the operating point as unavailable even AFTER a successful envelope calculation.\nPROVEN ROOT CAUSE (measured against the live engine, read-only):\n  * views.py builds EnvelopeContinuationSettings(target_temperature_k = T + 50) and calls calculate_phase_envelope(..., start_bubble = T, start_dew = T). Both branches therefore COLD-START at exactly the operating temperature.\n  * A cold bubble-point saturation search fails for this mixture at T >= about 280 K. Direct probe: bubble converged 5.45208 MPa at 240 K and 6.77618 MPa at 260 K, but returns NOT_FOUND at 280 K, 300 K and 310 K. Dew converges at all of those temperatures.\n  * Consequently the bubble branch produced ZERO points, terminating corrector_failed with 'No trustworthy saturation-pressure bracket was found'. The dew branch produced 9 converged points spanning 300.0000-329.0730 K.\n  * adapters._converged_pressures_at_temperature returns (None, 2348238.8178706504). location_relative_to_envelope then hits the all-or-nothing guard 'if bubble is None or dew is None' and returns the unavailable string, discarding the dew value it does have.\nPROVEN FIX (application layer only, no science change):\n  * Continuation marching THROUGH a temperature succeeds where a cold bracket at that temperature fails. Starting the trace BELOW the operating point resolves it. Measured: start 270 K, target 330 K, step 5 K, maximum_points 15 gives bubble 15 converged points over 270.0-307.1 K and dew 11 over 270.0-329.1 K; both bracket 300 K; interpolation yields bubble 8.66999 MPa and dew 2.36649 MPa; location becomes 'Inside the interpolated two-phase envelope', which AGREES with the independent flash result of Two Phase. Runtime 21.7 s.\n  * Therefore: centre the traced range on the operating point (start below it, target above it) instead of starting at it. These settings live in the UI layer and are a UI decision, not science.\n  * ALSO make the reporting per-branch instead of all-or-nothing: when only one branch converged, state the relationship to that branch, name the missing branch, and surface the engine's own termination_message. Never fabricate a missing branch and never imply a bound that was not computed.\n\n=== PRIORITY 3: BUBBLE BRANCH (finding confirmed) ===\nThe audit observed only a dew branch in the rendered figure. Confirmed: the bubble branch genuinely contained zero points in that result - tracing did not produce it. This is NOT a plotting defect and NOT missing data that exists. It is the same root cause as Priority 2 and is resolved by the same trace-range change. Do not fabricate a bubble branch. If a branch is empty, the figure and the page must say so explicitly, citing the engine's termination reason.\n\n=== PRIORITY 4: UX FIXES ===\n  * Disabled actions: RUN PHASE ENVELOPE, RUN CRITICAL SOLVER, RUN CRITICALITY MAP and any other page action are disabled until RUN FLASH has been submitted, while the sidebar simultaneously reads 'Composition total: 100 mol % - ready'. Explain the requirement in the UI next to the disabled control, e.g. 'Submit RUN FLASH to enable'. Do not silently disable a primary action.\n  * Replace raw internal identifiers in user-facing copy. The Critical Point page currently prints 'Certification requires CriticalPointStatus.CONVERGED; a spinodal or lambda_min = 0 is insufficient.' Use plain engineering language with no Python class or enum names. Keep the scientific meaning exactly: certification requires solver convergence on BOTH criticality conditions, and lambda_min = 0 alone is a spinodal condition, not a critical point.\n  * Precision: normal UI surfaces currently show up to 10 significant figures (e.g. Vapor Z 0.7243397959, Tc 321.5829187 K), which overstates precision relative to solver tolerance. Round normal displays to about 5-6 significant figures. FULL precision must be preserved unchanged in technical details and in any export path. Do not round any value used in a calculation - display only.\n  * Chart dimensions: figures are all rendered at roughly 1450x450 (about 3.2:1). Parity plots that draw a y = x reference line are visually distorted by that aspect ratio. Give parity/scatter figures a near-square aspect and keep wide aspect for P-T envelopes and error-versus-temperature plots.\n  * Validation summary: the Validation page is about 3301 px tall - five stacked figures with no conclusion stated anywhere. Add a compact summary strip ABOVE the figures reporting only quantities that exist in the protected Module 17 records, for example number of states, and a median and worst absolute relative pressure error. State the worst case alongside the median. Do NOT add a bare 'validated' badge and do NOT make any accuracy claim beyond what the records support.\n  * Caption contrast: captions currently compute to the same colour as body text (rgb(20,43,67)), so secondary text has no visual de-emphasis. Mute secondary/caption text via the native theme while keeping accessible contrast (target at least 4.5:1 against its background; body currently measures 13.66:1 so there is ample headroom).\n\n=== PRIORITY 5: PERFORMANCE ===\nMeasured: the engine call for the current UI settings takes about 16 s; the browser end-to-end time from clicking RUN PHASE ENVELOPE to a rendered figure was about 51 s. The recommended bracketing range measures about 21.7 s in-engine. Do NOT weaken, truncate, or coarsen any calculation for speed. Permitted: cache results so an unchanged case is not recomputed, and replace the bare spinner with genuine progress/status feedback that tells the user what is running and roughly how long it takes. If runtime cannot be safely reduced at the UI layer, say so in the report and improve feedback instead.\n\n=== PRESERVE EXACTLY (do not regress) ===\n  * Diagnostics progressive disclosure: labelled tables by default plus the 'Show advanced raw public objects' toggle. Zero raw JSON dumps by default.\n  * Certified critical-point gating: certification only when the production status is converged; uncertified solves must never render a certified Tc/Pc.\n  * Technical details rendered as tables.\n  * The phase-split bar.\n  * The native theme in .streamlit/config.toml.\n  * Explicit-action gating: nothing scientific computes on page load.\n  * The 'turning points are not critical points' caption.\n  * The retrospective 'NOT PRODUCTION PREDICTIONS' warning adjacent to its figure.\n  * The 50/50 methane/propane regression must still read 321.5829183194 K and 8.53444323606381 MPa through production result objects at full precision.",
+  "risk": "MEDIUM",
+  "allowed_files": [
+    "src/pvt_phase_simulator_ui",
+    "streamlit_app.py",
+    ".streamlit/config.toml",
+    "app",
+    "tests/test_app_adapters.py",
+    "tests/test_app_streamlit.py",
+    "docs/STREAMLIT_APPLICATION.md",
+    "README.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master",
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/derivative_reference.py",
+    "tests/derivative_verification.py",
+    "tests/run_derivative_verification.py",
+    "tests/run_newton_saturation_benchmarks.py",
+    "tests/test_acceleration.py",
+    "tests/test_component_database.py",
+    "tests/test_critical_point.py",
+    "tests/test_criticality.py",
+    "tests/test_damping.py",
+    "tests/test_derivative_verification.py",
+    "tests/test_derivatives.py",
+    "tests/test_diagnostics.py",
+    "tests/test_experimental_validation.py",
+    "tests/test_flash.py",
+    "tests/test_fluid_models.py",
+    "tests/test_golden_master.py",
+    "tests/test_mixing_rules.py",
+    "tests/test_mixture_fugacity.py",
+    "tests/test_near_trivial_saturation.py",
+    "tests/test_newton_saturation.py",
+    "tests/test_peng_robinson.py",
+    "tests/test_phase_envelope.py",
+    "tests/test_phase_identity_corrections.py",
+    "tests/test_phase_stability.py",
+    "tests/test_plotting.py",
+    "tests/test_project_setup.py",
+    "tests/test_properties.py",
+    "tests/test_pseudo_arclength.py",
+    "tests/test_saturation_pressure.py"
+  ],
+  "scientific_invariants": [
+    "No file under src/pvt_phase_simulator/ changes. The engine is frozen.",
+    "No scientific equation, tolerance, dataset, or algorithm changes.",
+    "Golden master, property CSV, and Module 17 artifacts stay byte-identical.",
+    "Envelope trace-range settings are a UI decision; the continuation and saturation algorithms themselves are untouched.",
+    "A missing branch is reported as missing with the engine's own termination reason; no branch, point, or bound is ever fabricated.",
+    "Rounding is display-only; no rounded value is fed back into any calculation, technical-details table, or export.",
+    "Certification still requires the production converged status; lambda_min = 0 alone is never certified.",
+    "The 50/50 methane/propane regression still yields 321.5829183194 K and 8.53444323606381 MPa at full precision.",
+    "Validation copy claims nothing beyond what the protected Module 17 records contain."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ],
+    [
+      "git",
+      "diff",
+      "--check"
+    ]
+  ],
+  "required_quality_gates": [],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [],
+  "status": "COMMITTED",
+  "notes": "Completed first pass, zero correction cycles. All six gates passed; Claude audit APPROVED with 0 blocking findings (2 non-blocking Category C), cost $2.0429. Committed d2a0a74. Browser re-audit by the orchestrator confirmed navigation, operating point, and bubble branch live."
+}

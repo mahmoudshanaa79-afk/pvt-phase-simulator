@@ -21,6 +21,8 @@ wheels/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+.codex-test-temp/
+.tmp_pytest/
 
 # Coverage, editor, and temporary artifacts
 .coverage
