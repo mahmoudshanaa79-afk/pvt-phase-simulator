@@ -118,7 +118,7 @@ step, it is not wired to the default branch, and no release automation
 configures or republishes it. `.github/workflows/quality.yml` verifies only and
 never deploys. See
 [`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md) for the hosted
-environment's operational limits.
+deployment's recorded observations.
 
 ## Package structure
 

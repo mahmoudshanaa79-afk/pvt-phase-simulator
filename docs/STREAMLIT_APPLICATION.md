@@ -162,9 +162,11 @@ step and is not wired to the default branch.
 Deployment remains outside `.github/workflows/quality.yml`, which verifies only
 and holds read-only repository permissions.
 
-One operational limit is worth stating for anyone using the public link. On the
-Community Cloud free tier, accumulating several heavy results in a single
-session — a flash, a full phase envelope, and a critical-point solve together —
-has made the container stop responding and require a reboot. Each calculation
-completes correctly on its own, and a fresh container runs any one of them to a
-complete render. Reload the page to obtain a fresh session.
+One hosting observation is recorded for completeness. During initial deployment
+testing, one hosted session became unresponsive after several computationally
+heavy calculations were run sequentially. Two subsequent fresh-session
+reliability runs completed successfully without reproducing the failure, and no
+host log recorded any memory, resource, or process-termination message. No
+application or scientific defect has been identified. The event is therefore
+recorded as a non-reproducible hosting observation and will be revisited only
+if it recurs with diagnostic log evidence.
