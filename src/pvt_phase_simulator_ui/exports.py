@@ -6,7 +6,7 @@ import csv
 import json
 from collections.abc import Iterator, Mapping, Sequence
 from io import StringIO
-from typing import Literal
+from typing import Final, Literal
 
 from pvt_phase_simulator.eos.critical_point import MixtureCriticalPointResult
 from pvt_phase_simulator.eos.flash import TwoPhaseFlashResult
@@ -21,6 +21,7 @@ from pvt_phase_simulator_ui.adapters import (
     adapt_critical_result,
     adapt_flash_result,
 )
+from pvt_phase_simulator_ui.sweeps import SweepPoint, SweepResult
 
 EXPORT_SCHEMA_NAME = "pvt-phase-simulator-current-case"
 EXPORT_SCHEMA_VERSION = "1.0.0"
@@ -299,4 +300,133 @@ def export_csv_bytes(document: Mapping[str, object]) -> bytes:
     writer.writerow(("section", "path", "value"))
     for section, path, value in _flatten(document):
         writer.writerow((section, path, _csv_value(value)))
+    return output.getvalue().encode("utf-8-sig")
+
+
+SWEEP_EXPORT_SCHEMA_NAME = "pvt-phase-simulator-engineering-sweep"
+SWEEP_EXPORT_SCHEMA_VERSION = "1.0.0"
+
+#: Ordered CSV columns for the tabular sweep export. Engineers read a sweep as a
+#: table of states, so this export is one row per point rather than the
+#: path/value shape used for a single case.
+SWEEP_CSV_COLUMNS: Final = (
+    "index",
+    "status",
+    "temperature_k",
+    "pressure_mpa",
+    "pressure_pa",
+    "phase_state",
+    "convergence_status",
+    "stability_status",
+    "vapor_fraction",
+    "liquid_fraction",
+    "liquid_z",
+    "vapor_z",
+    "single_phase_z",
+    "iteration_count",
+    "failure_reason",
+    "error",
+)
+
+
+def _sweep_point_export(point: SweepPoint) -> dict[str, object]:
+    """Export one point without inventing a value the result did not supply."""
+
+    failed = point.status == "failed"
+    two_phase = point.phase_state == "two_phase"
+    single_phase = point.phase_state == "single_phase"
+    split_reason = "No two-phase split was required for this single-phase result."
+    failed_reason = "The point failed, so no phase quantity is reported."
+
+    def phase_field(value: float | None, *, not_applicable: bool) -> dict[str, object]:
+        if failed:
+            return _missing("not_applicable", failed_reason)
+        return _optional_result_value(
+            value, not_applicable=not_applicable, reason=split_reason
+        )
+
+    return {
+        "index": point.index,
+        "status": point.status,
+        "temperature_k": point.temperature_k,
+        "pressure_mpa": point.pressure_mpa,
+        "pressure_pa": point.pressure_pa,
+        "phase_state": _optional_result_value(
+            point.phase_state, not_applicable=failed, reason=failed_reason
+        ),
+        "convergence_status": _optional_result_value(
+            point.convergence_status, not_applicable=failed, reason=failed_reason
+        ),
+        "stability_status": _optional_result_value(
+            point.stability_status, not_applicable=failed, reason=failed_reason
+        ),
+        "vapor_fraction": phase_field(
+            point.vapor_fraction, not_applicable=single_phase
+        ),
+        "liquid_fraction": phase_field(
+            point.liquid_fraction, not_applicable=single_phase
+        ),
+        "liquid_z": phase_field(point.liquid_z, not_applicable=single_phase),
+        "vapor_z": phase_field(point.vapor_z, not_applicable=single_phase),
+        "single_phase_z": phase_field(point.single_phase_z, not_applicable=two_phase),
+        "iteration_count": _optional_result_value(
+            point.iteration_count, not_applicable=failed, reason=failed_reason
+        ),
+        "failure_reason": point.failure_reason,
+        "error": point.error,
+    }
+
+
+def build_sweep_export_document(result: SweepResult) -> dict[str, object]:
+    """Build a sweep export from an already-computed sweep, calculating nothing."""
+
+    request = result.request
+    components = [
+        {"name": name, "composition_mol_percent": mol_percent}
+        for name, mol_percent in zip(
+            COMPONENT_NAMES, request.composition_mol_percent, strict=True
+        )
+    ]
+    return {
+        "schema": {
+            "name": SWEEP_EXPORT_SCHEMA_NAME,
+            "version": SWEEP_EXPORT_SCHEMA_VERSION,
+        },
+        "metadata": {
+            "eos": "Peng-Robinson",
+            "unit_system": "SI",
+            "binary_interaction_assumption": "kij = 0",
+            "verified_component_scope": list(COMPONENT_NAMES),
+            "export_timestamp": {
+                "status": "omitted",
+                "reason": "Omitted to keep exports reproducible.",
+            },
+        },
+        "request": {
+            "kind": request.kind,
+            "fixed_temperature_k": request.fixed_temperature_k,
+            "fixed_pressure_mpa": request.fixed_pressure_mpa,
+            "start": request.start,
+            "end": request.end,
+            "points": request.points,
+            "components": components,
+        },
+        "summary": {
+            "requested_points": request.points,
+            "calculated_points": result.calculated_count,
+            "failed_points": result.failed_count,
+        },
+        "points": [_sweep_point_export(point) for point in result.points],
+    }
+
+
+def export_sweep_csv_bytes(result: SweepResult) -> bytes:
+    """Serialize one full-precision row per swept point, failures included."""
+
+    output = StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(SWEEP_CSV_COLUMNS)
+    for point in result.points:
+        row = [getattr(point, column) for column in SWEEP_CSV_COLUMNS]
+        writer.writerow([_csv_value(value) for value in row])
     return output.getvalue().encode("utf-8-sig")

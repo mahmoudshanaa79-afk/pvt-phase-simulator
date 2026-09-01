@@ -152,6 +152,11 @@ def run_app() -> None:
                 icon=":material/target:",
             ),
             st.Page(
+                PAGES_DIRECTORY / "engineering_sweeps.py",
+                title="Engineering Sweeps",
+                icon=":material/ssid_chart:",
+            ),
+            st.Page(
                 PAGES_DIRECTORY / "validation.py",
                 title="Validation",
                 icon=":material/fact_check:",

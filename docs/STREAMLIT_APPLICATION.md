@@ -40,12 +40,14 @@ package:
 
 - `streamlit_app.py` is the thin, stable root entrypoint.
 - `src/pvt_phase_simulator_ui/app.py` owns navigation and submitted inputs.
-- `src/pvt_phase_simulator_ui/pages/` contains the five page scripts.
+- `src/pvt_phase_simulator_ui/pages/` contains the six page scripts.
 - `src/pvt_phase_simulator_ui/adapters.py` validates inputs, converts boundary
   units, and selects public
   result fields without changing them.
 - `src/pvt_phase_simulator_ui/state.py` associates each result with a scientific
   input signature.
+- `src/pvt_phase_simulator_ui/sweeps.py` chooses swept abscissae and calls the
+  existing verified flash API once per point. It implements no thermodynamics.
 - `.streamlit/config.toml` supplies the light engineering theme. Narrow custom
   styling is limited to the phase-split visualization.
 - `src/pvt_phase_simulator/plotting.py` remains the source of scientific Plotly
@@ -81,6 +83,14 @@ Pa results are divided by `1e6` for MPa display.
   compositions when available.
 - **Critical Point:** Module 20 certification evidence and optional Module 19
   maps, including Tc, Pc, lambda_min, C, direction, convergence, and conditioning.
+- **Engineering Sweeps:** bounded pressure or temperature sweeps at the other
+  submitted variable, with vapor-fraction and Z-factor curves, a phase-state
+  table, a progress indicator, and CSV/JSON export. Each point is one call into
+  the existing verified flash and stability API; nothing is re-derived. A point
+  that fails is reported as **FAILED** and excluded from the curves rather than
+  interpolated, and failed abscissae are marked on both charts so a gap is never
+  read as a smooth curve. Displayed values are rounded for reading; exports carry
+  full precision. The default is 21 points, bounded to 60.
 - **Validation:** Module 17 artifacts rendered through Module 21 parity, error,
   composition, status, and retrospective figures.
 - **Diagnostics:** public status, termination, iteration, residual, stability,

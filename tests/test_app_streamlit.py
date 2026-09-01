@@ -108,6 +108,7 @@ def test_every_navigation_page_renders_without_hidden_calculation() -> None:
         "overview.py": "Overview",
         "phase_envelope.py": "Phase envelope",
         "critical_point.py": "Critical point",
+        "engineering_sweeps.py": "Engineering sweeps",
         "validation.py": "Validation",
         "diagnostics.py": "Diagnostics",
     }
@@ -282,7 +283,7 @@ def test_navigation_module21_reuse_and_no_deprecated_width_argument() -> None:
     )
     assert "st.navigation" in app_source
     assert 'position="sidebar"' in app_source
-    assert app_source.count("st.Page(") == 5
+    assert app_source.count("st.Page(") == 6
     assert "st.form(" in app_source
     assert "st.form_submit_button(" in app_source
     assert "plot_phase_envelope(" in view_source

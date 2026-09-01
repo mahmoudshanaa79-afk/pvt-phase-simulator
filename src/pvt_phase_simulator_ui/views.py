@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Final, Literal, cast
 
 import pandas as pd  # type: ignore[import-untyped]
+import plotly.graph_objects as go  # type: ignore[import-untyped]
 import streamlit as st
 
 from pvt_phase_simulator.eos.critical_point import (
@@ -52,11 +53,23 @@ from pvt_phase_simulator_ui.adapters import (
 from pvt_phase_simulator_ui.context import session
 from pvt_phase_simulator_ui.exports import (
     build_export_document,
+    build_sweep_export_document,
     export_csv_bytes,
     export_json_bytes,
+    export_sweep_csv_bytes,
 )
 from pvt_phase_simulator_ui.state import get_result, result_is_stale, store_result
 from pvt_phase_simulator_ui.styles import phase_split_bar
+from pvt_phase_simulator_ui.sweeps import (
+    DEFAULT_SWEEP_POINTS,
+    MAX_SWEEP_POINTS,
+    MIN_SWEEP_POINTS,
+    SweepKind,
+    SweepResult,
+    SweepValidationError,
+    run_sweep,
+    validate_sweep_request,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -855,3 +868,319 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
             st.json(asdict(cast(PhaseEnvelopeResult, envelope_raw)))
         if critical_raw is not None:
             st.json(asdict(cast(MixtureCriticalPointResult, critical_raw)))
+
+
+SWEEP_TABLE_COLUMNS: Final = (
+    "Point",
+    "Status",
+    "Temperature (K)",
+    "Pressure (MPa)",
+    "Phase",
+    "Convergence",
+    "Stability",
+    "Vapor fraction",
+    "Liquid fraction",
+    "Liquid Z",
+    "Vapor Z",
+    "Single-phase Z",
+    "Iterations",
+)
+
+
+def _rounded(value: float | None, digits: int) -> float | str:
+    """Round for reading. Exports keep full precision; this display does not."""
+
+    return "—" if value is None else round(float(value), digits)
+
+
+def _sweep_table(result: SweepResult) -> pd.DataFrame:
+    rows = []
+    for point in result.points:
+        rows.append(
+            {
+                "Point": point.index + 1,
+                "Status": "FAILED" if point.status == "failed" else "Calculated",
+                "Temperature (K)": _rounded(point.temperature_k, 4),
+                "Pressure (MPa)": _rounded(point.pressure_mpa, 5),
+                "Phase": point.phase_state or "—",
+                "Convergence": point.convergence_status or "—",
+                "Stability": point.stability_status or "—",
+                "Vapor fraction": _rounded(point.vapor_fraction, 5),
+                "Liquid fraction": _rounded(point.liquid_fraction, 5),
+                "Liquid Z": _rounded(point.liquid_z, 5),
+                "Vapor Z": _rounded(point.vapor_z, 5),
+                "Single-phase Z": _rounded(point.single_phase_z, 5),
+                "Iterations": (
+                    "—" if point.iteration_count is None else point.iteration_count
+                ),
+            }
+        )
+    return pd.DataFrame(rows, columns=list(SWEEP_TABLE_COLUMNS))
+
+
+def _sweep_series(
+    result: SweepResult, attribute: str
+) -> tuple[list[float], list[float]]:
+    """Return only the points that actually supplied the requested quantity.
+
+    Missing and failed points are dropped from the trace rather than
+    interpolated, so a gap in a curve is a real gap in the results.
+    """
+
+    abscissae = result.abscissae()
+    x: list[float] = []
+    y: list[float] = []
+    for value, point in zip(abscissae, result.points, strict=True):
+        if point.status == "failed":
+            continue
+        quantity = getattr(point, attribute)
+        if quantity is None:
+            continue
+        x.append(value)
+        y.append(float(quantity))
+    return x, y
+
+
+def _sweep_failure_marks(result: SweepResult) -> list[float]:
+    return [
+        value
+        for value, point in zip(result.abscissae(), result.points, strict=True)
+        if point.status == "failed"
+    ]
+
+
+def _sweep_axis_title(result: SweepResult) -> str:
+    return result.request.axis_label
+
+
+def _mark_failed_points(figure: go.Figure, result: SweepResult) -> go.Figure:
+    """Draw failed abscissae explicitly so a gap is never read as smooth."""
+
+    failures = _sweep_failure_marks(result)
+    for index, value in enumerate(failures):
+        figure.add_vline(
+            x=value,
+            line_width=1,
+            line_dash="dot",
+            line_color="#B3261E",
+            annotation_text="failed" if index == 0 else None,
+            annotation_position="top",
+        )
+    return figure
+
+
+def _vapor_fraction_figure(result: SweepResult) -> go.Figure:
+    x, y = _sweep_series(result, "vapor_fraction")
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=x,
+            y=y,
+            mode="lines+markers",
+            name="Vapor fraction",
+            connectgaps=False,
+        )
+    )
+    figure.update_layout(
+        title="Vapor fraction",
+        xaxis_title=_sweep_axis_title(result),
+        yaxis_title="Vapor fraction (-)",
+    )
+    return _mark_failed_points(figure, result)
+
+
+def _z_factor_figure(result: SweepResult) -> go.Figure:
+    figure = go.Figure()
+    for attribute, label in (
+        ("liquid_z", "Liquid Z"),
+        ("vapor_z", "Vapor Z"),
+        ("single_phase_z", "Single-phase Z"),
+    ):
+        x, y = _sweep_series(result, attribute)
+        if not x:
+            continue
+        figure.add_trace(
+            go.Scatter(x=x, y=y, mode="lines+markers", name=label, connectgaps=False)
+        )
+    figure.update_layout(
+        title="Compressibility factors",
+        xaxis_title=_sweep_axis_title(result),
+        yaxis_title="Z (-)",
+    )
+    return _mark_failed_points(figure, result)
+
+
+def _sweep_controls(inputs: ScientificInputs) -> tuple[SweepKind, float, float, int]:
+    """Collect sweep bounds; the fixed variable comes from the submitted case."""
+
+    kind = cast(
+        SweepKind,
+        st.segmented_control(
+            "Swept variable",
+            options=["pressure", "temperature"],
+            default="pressure",
+            format_func=lambda value: value.capitalize(),
+            key="sweep_kind",
+        )
+        or "pressure",
+    )
+    if kind == "pressure":
+        st.caption(
+            f"Pressure is swept at the submitted temperature of "
+            f"{inputs.temperature_k:g} K."
+        )
+        default_start, default_end = 1.0, 20.0
+        label_start, label_end = "Start pressure (MPa)", "End pressure (MPa)"
+    else:
+        st.caption(
+            f"Temperature is swept at the submitted pressure of "
+            f"{inputs.pressure_mpa:g} MPa."
+        )
+        default_start, default_end = 240.0, 340.0
+        label_start, label_end = "Start temperature (K)", "End temperature (K)"
+
+    with st.container(horizontal=True):
+        start = st.number_input(
+            label_start,
+            min_value=0.0,
+            value=default_start,
+            step=1.0,
+            key=f"sweep_start_{kind}",
+        )
+        end = st.number_input(
+            label_end,
+            min_value=0.0,
+            value=default_end,
+            step=1.0,
+            key=f"sweep_end_{kind}",
+        )
+        points = st.number_input(
+            "Points",
+            min_value=MIN_SWEEP_POINTS,
+            max_value=MAX_SWEEP_POINTS,
+            value=DEFAULT_SWEEP_POINTS,
+            step=1,
+            key=f"sweep_points_{kind}",
+        )
+    return kind, float(start), float(end), int(points)
+
+
+def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
+    """Bounded sweeps that call the existing verified flash API at every point."""
+
+    st.header("Engineering sweeps")
+    st.caption(
+        "Every point is one call into the existing verified flash and stability "
+        "API. A point that fails stays reported as FAILED and is never "
+        "interpolated away."
+    )
+
+    action_inputs = _action_inputs(inputs)
+    if inputs is None:
+        _action_requirement(inputs)
+    elif action_inputs is None:
+        st.caption(
+            ":material/lock: Submit RUN FLASH for the current inputs to enable sweeps."
+        )
+
+    kind, start, end, points = (
+        _sweep_controls(inputs)
+        if inputs
+        else (
+            "pressure",
+            1.0,
+            20.0,
+            DEFAULT_SWEEP_POINTS,
+        )
+    )
+
+    run = st.button(
+        "RUN SWEEP",
+        type="primary",
+        icon=":material/play_arrow:",
+        disabled=action_inputs is None,
+        key="run_sweep",
+    )
+
+    if run and action_inputs is not None:
+        fixed = (
+            action_inputs.temperature_k
+            if kind == "pressure"
+            else action_inputs.pressure_mpa
+        )
+        try:
+            request = validate_sweep_request(
+                kind,
+                action_inputs.composition_mol_percent,
+                fixed_value=fixed,
+                start=start,
+                end=end,
+                points=points,
+            )
+        except SweepValidationError as error:
+            st.error(f"Submission unavailable: {error}")
+        else:
+            progress = st.progress(0.0, text="Starting sweep…")
+
+            def _advance(done: int, total: int) -> None:
+                progress.progress(
+                    done / total,
+                    text=f"Evaluated {done} of {total} points…",
+                )
+
+            with st.spinner("Running the sweep…"):
+                result = run_sweep(request, progress=_advance)
+            progress.empty()
+            store_result(session(), "sweep", result, action_inputs)
+
+    sweep = cast(SweepResult | None, get_result(session(), "sweep"))
+    if sweep is None:
+        st.info("No sweep has been calculated yet.")
+        return
+    if _stale("sweep", inputs):
+        return
+
+    failed = sweep.failed_count
+    with st.container(horizontal=True):
+        st.metric("Points requested", sweep.request.points)
+        st.metric("Calculated", sweep.calculated_count)
+        st.metric("Failed", failed)
+    if failed:
+        st.warning(
+            f"{failed} of {sweep.request.points} points failed and are reported "
+            "as FAILED. They are excluded from the curves rather than "
+            "interpolated."
+        )
+
+    _wide_chart(_vapor_fraction_figure(sweep), key="sweep_vapor_fraction")
+    _wide_chart(_z_factor_figure(sweep), key="sweep_z_factors")
+
+    st.subheader("Phase-state results")
+    st.dataframe(_sweep_table(sweep), width="stretch", hide_index=True)
+    st.caption(
+        "Displayed values are rounded for reading. Exports carry full precision."
+    )
+
+    document = build_sweep_export_document(sweep)
+    st.subheader("Export sweep")
+    with st.container(horizontal=True):
+        st.download_button(
+            "Download CSV",
+            data=export_sweep_csv_bytes(sweep),
+            file_name="pvt-engineering-sweep.csv",
+            mime="text/csv;charset=utf-8",
+            key="download_sweep_csv",
+            on_click="ignore",
+            width="content",
+            icon=":material/download:",
+        )
+        st.download_button(
+            "Download JSON",
+            data=export_json_bytes(document),
+            file_name="pvt-engineering-sweep.json",
+            mime="application/json",
+            key="download_sweep_json",
+            on_click="ignore",
+            width="content",
+            icon=":material/download:",
+        )

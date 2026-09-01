@@ -8,7 +8,7 @@ from typing import Any, Final, cast
 
 from pvt_phase_simulator_ui.adapters import ScientificInputs
 
-RESULT_KEYS: Final = ("flash", "envelope", "critical", "critical_scan")
+RESULT_KEYS: Final = ("flash", "envelope", "critical", "critical_scan", "sweep")
 
 
 @dataclass(frozen=True)
