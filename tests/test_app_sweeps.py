@@ -635,3 +635,189 @@ def test_sweeps_page_states_that_failed_points_stay_failed() -> None:
     captions = " ".join(caption.value for caption in app.caption)
     assert "FAILED" in captions
     assert "interpolated" in captions
+
+
+# ------------------------------------------------- chart gaps at failed points
+
+
+def _series(result: Any, attribute: str) -> tuple[list[float], list[float | None]]:
+    from pvt_phase_simulator_ui.views import _sweep_series
+
+    return _sweep_series(result, attribute)
+
+
+def _segments(y: list[float | None]) -> list[list[float]]:
+    """Split a trace into the runs Plotly will actually draw as lines."""
+
+    runs: list[list[float]] = []
+    current: list[float] = []
+    for value in y:
+        if value is None:
+            if current:
+                runs.append(current)
+                current = []
+            continue
+        current.append(value)
+    if current:
+        runs.append(current)
+    return runs
+
+
+def _sweep_with_failure_at(failing_index: int, points: int = 5) -> Any:
+    calls = {"n": 0}
+
+    def api(*_: object) -> Any:
+        index = calls["n"]
+        calls["n"] += 1
+        if index == failing_index:
+            raise RuntimeError("point failed")
+        return _two_phase_api()
+
+    return run_pressure_sweep(
+        COMPOSITION,
+        temperature_k=300.0,
+        start_pressure_mpa=1.0,
+        end_pressure_mpa=float(points),
+        points=points,
+        flash_api=api,
+    )
+
+
+def test_valid_contiguous_points_connect_as_one_segment() -> None:
+    result = run_pressure_sweep(
+        COMPOSITION,
+        temperature_k=300.0,
+        start_pressure_mpa=1.0,
+        end_pressure_mpa=5.0,
+        points=5,
+        flash_api=_two_phase_api,
+    )
+    x, y = _series(result, "vapor_fraction")
+    assert len(x) == len(y) == 5
+    assert None not in y
+    assert len(_segments(y)) == 1
+
+
+def test_a_failed_point_breaks_the_trace() -> None:
+    result = _sweep_with_failure_at(2)
+    x, y = _series(result, "vapor_fraction")
+    assert len(x) == len(y) == 5
+    assert y[2] is None
+    assert x[2] == result.points[2].pressure_mpa
+    assert len(_segments(y)) == 2
+
+
+def test_an_unavailable_quantity_breaks_the_trace() -> None:
+    """A single-phase point supplies no vapor fraction; that is a real gap."""
+
+    calls = {"n": 0}
+
+    def api(*_: object) -> Any:
+        index = calls["n"]
+        calls["n"] += 1
+        return _single_phase_api() if index == 2 else _two_phase_api()
+
+    result = run_pressure_sweep(
+        COMPOSITION,
+        temperature_k=300.0,
+        start_pressure_mpa=1.0,
+        end_pressure_mpa=5.0,
+        points=5,
+        flash_api=api,
+    )
+    x, y = _series(result, "vapor_fraction")
+    assert result.failed_count == 0
+    assert len(x) == 5
+    assert y[2] is None
+    assert len(_segments(y)) == 2
+
+
+def test_valid_points_after_a_failure_resume_as_a_new_segment() -> None:
+    result = _sweep_with_failure_at(1)
+    _, y = _series(result, "vapor_fraction")
+    segments = _segments(y)
+    assert len(segments) == 2
+    assert len(segments[0]) == 1
+    assert len(segments[1]) == 3
+    assert all(value == 0.19956455877388646 for value in segments[1])
+
+
+def test_no_fabricated_value_is_ever_plotted() -> None:
+    result = _sweep_with_failure_at(3)
+    for attribute in ("vapor_fraction", "liquid_z", "vapor_z", "single_phase_z"):
+        x, y = _series(result, attribute)
+        assert len(x) == len(result.points)
+        for value, point in zip(y, result.points, strict=True):
+            if point.status == "failed":
+                assert value is None
+            else:
+                source = getattr(point, attribute)
+                assert value == (None if source is None else float(source))
+
+
+def test_figures_break_lines_rather_than_connecting_across_gaps() -> None:
+    from pvt_phase_simulator_ui.views import _vapor_fraction_figure, _z_factor_figure
+
+    result = _sweep_with_failure_at(2)
+    for figure in (_vapor_fraction_figure(result), _z_factor_figure(result)):
+        assert figure.data
+        for trace in figure.data:
+            assert trace.connectgaps is False
+            assert len(trace.x) == len(result.points)
+            assert any(value is None for value in trace.y)
+
+
+def test_z_factor_traces_keep_their_own_gaps_per_phase() -> None:
+    from pvt_phase_simulator_ui.views import _z_factor_figure
+
+    calls = {"n": 0}
+
+    def api(*_: object) -> Any:
+        index = calls["n"]
+        calls["n"] += 1
+        return _single_phase_api() if index in (0, 4) else _two_phase_api()
+
+    result = run_pressure_sweep(
+        COMPOSITION,
+        temperature_k=300.0,
+        start_pressure_mpa=1.0,
+        end_pressure_mpa=5.0,
+        points=5,
+        flash_api=api,
+    )
+    figure = _z_factor_figure(result)
+    traces = {trace.name: trace for trace in figure.data}
+    assert set(traces) == {"Liquid Z", "Vapor Z", "Single-phase Z"}
+    assert traces["Liquid Z"].y[0] is None
+    assert traces["Liquid Z"].y[4] is None
+    assert traces["Single-phase Z"].y[1] is None
+    assert _segments(list(traces["Single-phase Z"].y)) == [
+        [0.5828298153218295],
+        [0.5828298153218295],
+    ]
+
+
+def test_failed_points_remain_in_the_results_table_with_their_status() -> None:
+    from pvt_phase_simulator_ui.views import _sweep_table
+
+    result = _sweep_with_failure_at(2)
+    frame = _sweep_table(result)
+    assert len(frame) == len(result.points)
+    assert list(frame["Status"]).count("FAILED") == 1
+    failed_row = frame[frame["Status"] == "FAILED"].iloc[0]
+    assert failed_row["Point"] == 3
+    assert failed_row["Vapor fraction"] == "—"
+    assert failed_row["Phase"] == "—"
+
+
+def test_failed_abscissae_are_still_marked_on_the_charts() -> None:
+    from pvt_phase_simulator_ui.views import _vapor_fraction_figure
+
+    result = _sweep_with_failure_at(2)
+    figure = _vapor_fraction_figure(result)
+    vlines = [
+        shape
+        for shape in figure.layout.shapes
+        if getattr(shape, "line", None) is not None
+    ]
+    assert len(vlines) == result.failed_count

@@ -920,24 +920,25 @@ def _sweep_table(result: SweepResult) -> pd.DataFrame:
 
 def _sweep_series(
     result: SweepResult, attribute: str
-) -> tuple[list[float], list[float]]:
-    """Return only the points that actually supplied the requested quantity.
+) -> tuple[list[float], list[float | None]]:
+    """Return every abscissa, with ``None`` wherever the quantity is absent.
 
-    Missing and failed points are dropped from the trace rather than
-    interpolated, so a gap in a curve is a real gap in the results.
+    Dropping absent points would hand Plotly a contiguous array and it would
+    draw a straight segment from the last good point to the next one, silently
+    interpolating across a failed or unavailable calculation. Keeping the
+    abscissa and emitting ``None`` is what makes ``connectgaps=False`` break the
+    line exactly where the science stops.
     """
 
-    abscissae = result.abscissae()
     x: list[float] = []
-    y: list[float] = []
-    for value, point in zip(abscissae, result.points, strict=True):
+    y: list[float | None] = []
+    for value, point in zip(result.abscissae(), result.points, strict=True):
+        x.append(value)
         if point.status == "failed":
+            y.append(None)
             continue
         quantity = getattr(point, attribute)
-        if quantity is None:
-            continue
-        x.append(value)
-        y.append(float(quantity))
+        y.append(None if quantity is None else float(quantity))
     return x, y
 
 
@@ -997,7 +998,7 @@ def _z_factor_figure(result: SweepResult) -> go.Figure:
         ("single_phase_z", "Single-phase Z"),
     ):
         x, y = _sweep_series(result, attribute)
-        if not x:
+        if all(value is None for value in y):
             continue
         figure.add_trace(
             go.Scatter(x=x, y=y, mode="lines+markers", name=label, connectgaps=False)
@@ -1148,8 +1149,8 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
     if failed:
         st.warning(
             f"{failed} of {sweep.request.points} points failed and are reported "
-            "as FAILED. They are excluded from the curves rather than "
-            "interpolated."
+            "as FAILED. Each one breaks the plotted line instead of being "
+            "interpolated across."
         )
 
     _wide_chart(_vapor_fraction_figure(sweep), key="sweep_vapor_fraction")

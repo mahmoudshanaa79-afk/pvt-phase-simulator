@@ -87,10 +87,13 @@ Pa results are divided by `1e6` for MPa display.
   submitted variable, with vapor-fraction and Z-factor curves, a phase-state
   table, a progress indicator, and CSV/JSON export. Each point is one call into
   the existing verified flash and stability API; nothing is re-derived. A point
-  that fails is reported as **FAILED** and excluded from the curves rather than
-  interpolated, and failed abscissae are marked on both charts so a gap is never
-  read as a smooth curve. Displayed values are rounded for reading; exports carry
-  full precision. The default is 21 points, bounded to 60.
+  that fails is reported as **FAILED** and breaks the plotted line rather than
+  being interpolated across: the abscissa is kept and its value left empty, so
+  the curve shows a real gap. A quantity a point never supplied, such as a vapor
+  fraction at a single-phase state, breaks the line the same way. Failed
+  abscissae are additionally marked on both charts. Displayed values are rounded
+  for reading; exports carry full precision. The default is 21 points, bounded
+  to 60.
 - **Validation:** Module 17 artifacts rendered through Module 21 parity, error,
   composition, status, and retrospective figures.
 - **Diagnostics:** public status, termination, iteration, residual, stability,
