@@ -17,14 +17,13 @@ from . import agents, auditdebt, prompts, roles
 from . import evidence as evidence_mod
 from .config import OrchestratorConfig
 from .gitops import commit_paths, read_repo
-from .heartbeat import Heartbeat
+from .heartbeat import Heartbeat, HeartbeatTicker
 from .roles import AgentIdentity, RoleAssignment
 from .state import (
     Stage,
     WorkflowState,
     WorkflowStatus,
     save_state,
-    stage_reached,
 )
 from .verify import VerificationReport, check_protected_artifacts, verify
 from .workpackage import (
@@ -351,23 +350,44 @@ class Engine:
         ]
         if not outstanding:
             return None
+
+        # Identity is package *and* commit. A package rebuilt at a later commit
+        # owes a separate review, so approving one revision must never clear the
+        # debt recorded against a different one.
+        head = read_repo(self.config.repo).head
+        candidates = [
+            debt
+            for debt in outstanding
+            if debt.resulting_commit in {head, self.state.resulting_commit}
+        ]
+        if not candidates:
+            outcome.say(
+                f"no audit debt matches the reviewed commit {head[:12]}; "
+                f"{len(outstanding)} debt(s) for this package remain open"
+            )
+            return None
+        if len(candidates) > 1:
+            outcome.say(
+                f"{len(candidates)} debts share the reviewed commit; "
+                "settling the earliest and leaving the rest open"
+            )
+        debt = candidates[0]
+
         reviewer = roles.COUNTERPART[self.current_author()].value
-        cleared: auditdebt.AuditDebt | None = None
-        for debt in outstanding:
-            try:
-                cleared = auditdebt.reconcile(
-                    debts,
-                    identifier=debt.id,
-                    reviewer=reviewer,
-                    evidence=(
-                        f"independent {reviewer} audit approved "
-                        f"({audit.transcript_path or 'transcript preserved'})"
-                    ),
-                )
-            except auditdebt.DebtError as error:
-                outcome.say(f"audit debt {debt.id} not cleared: {error}")
-                continue
-            outcome.say(f"cleared audit debt {debt.id} (reviewed by {reviewer})")
+        try:
+            cleared = auditdebt.reconcile(
+                debts,
+                identifier=debt.id,
+                reviewer=reviewer,
+                evidence=(
+                    f"independent {reviewer} audit approved "
+                    f"({audit.transcript_path or 'transcript preserved'})"
+                ),
+            )
+        except auditdebt.DebtError as error:
+            outcome.say(f"audit debt {debt.id} not cleared: {error}")
+            return None
+        outcome.say(f"cleared audit debt {debt.id} (reviewed by {reviewer})")
         self.state.deferred_independent_audits = auditdebt.dump(debts)
         if not auditdebt.open_debts(debts):
             self.state.audit_required = False
@@ -578,7 +598,12 @@ class Engine:
             )
 
             try:
-                run = self._dispatch_builder(builder, package, order_path)
+                with HeartbeatTicker(
+                    self.heartbeat,
+                    stage="building",
+                    current_command=f"{builder.value} build",
+                ):
+                    run = self._dispatch_builder(builder, package, order_path)
             except agents.AgentUnavailable as error:
                 # Could not start at all: mark it out and let the loop retry the
                 # counterpart. Completed work on disk is untouched.
@@ -656,14 +681,21 @@ class Engine:
         )
         if run.transcript_path is not None:
             self.state.builder_report_path = str(run.transcript_path)
+            pending_report = run.transcript_path
+        else:
+            pending_report = None
+        self.state.revisions = []
+        self._record_revision(builder, "build")
+        if pending_report is not None:
             self.state.builder_evidence = evidence_mod.record_builder_evidence(
                 builder=run.name,
                 package=package.name,
                 workflow_id=self.state.workflow_id,
-                report_path=run.transcript_path,
+                report_path=pending_report,
+                revision=len(self.state.revisions),
+                kind="build",
             ).to_dict()
-        self.state.revisions = []
-        self._record_revision(builder, "build")
+            self._persist()
         self._complete_stage(Stage.BUILT)
         return outcome, run
 
@@ -690,14 +722,17 @@ class Engine:
                 current_command=" ".join(command),
             )
 
-        report = verify(
-            self.config,
-            allowed_files=package.allowed_files,
-            protected_files=package.protected_files,
-            commands=commands,
-            label=package.name,
-            on_command=beat_between_gates,
-        )
+        with HeartbeatTicker(
+            self.heartbeat, stage="verifying", current_command="local gates"
+        ):
+            report = verify(
+                self.config,
+                allowed_files=package.allowed_files,
+                protected_files=package.protected_files,
+                commands=commands,
+                label=package.name,
+                on_command=beat_between_gates,
+            )
         outcome.verification = report
         outcome.say(f"local verification passed={report.passed}")
         if report.summary():
@@ -827,14 +862,19 @@ class Engine:
         outcome.say(f"audit prompt: {prompt_path}")
         reviewer = roles.COUNTERPART[self._current_builder()]
         try:
-            if reviewer is AgentIdentity.CLAUDE:
-                run = self._run_claude(
-                    self.config, prompt_path, stem=self._stamp(package, "audit")
-                )
-            else:
-                run = self._run_codex_auditor(
-                    self.config, prompt_path, stem=self._stamp(package, "audit")
-                )
+            with HeartbeatTicker(
+                self.heartbeat,
+                stage="auditing",
+                current_command=f"{reviewer.value} audit",
+            ):
+                if reviewer is AgentIdentity.CLAUDE:
+                    run = self._run_claude(
+                        self.config, prompt_path, stem=self._stamp(package, "audit")
+                    )
+                else:
+                    run = self._run_codex_auditor(
+                        self.config, prompt_path, stem=self._stamp(package, "audit")
+                    )
         except agents.AgentUnavailable as error:
             outcome.review_unavailable_reason = str(error)
             outcome.say(str(error))
@@ -1089,14 +1129,16 @@ class Engine:
             self.state.builder_report_path = None
             self._persist()
 
+        # Only a plan may authorise skipping. `resume_from` on its own once
+        # inferred its own skips, which is how a verification the planner had
+        # required could still be skipped; it now names the stage for logging
+        # and nothing else.
         if resume_plan is not None:
             skip_build = resume_plan.skips(Stage.BUILT)
             skip_verification = resume_plan.skips(Stage.VERIFIED)
             skip_audit = resume_plan.skips(Stage.AUDITED)
         else:
-            skip_build = resuming and stage_reached(resume_from, Stage.BUILT)
-            skip_verification = resuming and stage_reached(resume_from, Stage.VERIFIED)
-            skip_audit = resuming and stage_reached(resume_from, Stage.AUDITED)
+            skip_build = skip_verification = skip_audit = False
 
         if skip_build:
             # The builder process is gone; its report is not. Downstream stages
@@ -1112,14 +1154,16 @@ class Engine:
                     evidence_mod.BuilderEvidence.from_dict(self.state.builder_evidence),
                     package=package.name,
                     expected_builder=self.state.builder,
+                    expected_workflow_id=self.state.workflow_id,
+                    expected_revision=len(self.state.revisions) or None,
                 )
             except evidence_mod.EvidenceRefused as error:
-                if not builder_report:
-                    return self._escalate(
-                        outcome, f"cannot reuse the builder's work: {error}"
-                    )
-                outcome.say(f"builder evidence not validated: {error}")
-                validated = builder_report
+                # There is no safe fallback here. Unvalidated report text is
+                # exactly the thing that must not be trusted across a process
+                # boundary, so a refusal stops the run.
+                return self._escalate(
+                    outcome, f"cannot reuse the builder's work: {error}"
+                )
             builder = agents.AgentRun(
                 name=self.state.builder or "previous-builder",
                 command=[],
@@ -1409,7 +1453,12 @@ class Engine:
                 return self._escalate(outcome, str(error))
             outcome.say(f"correction author: {corrector.value}")
             try:
-                fix = self._dispatch_builder(corrector, package, path)
+                with HeartbeatTicker(
+                    self.heartbeat,
+                    stage="correcting",
+                    current_command=f"{corrector.value} correction",
+                ):
+                    fix = self._dispatch_builder(corrector, package, path)
             except agents.AgentUnavailable as error:
                 return self._escalate(outcome, str(error))
             if fix.contract is None:
@@ -1421,6 +1470,17 @@ class Engine:
             # The diff under review is now this agent's work, so the reviewer
             # selected below must be the other one.
             self._record_revision(corrector, "correction")
+            if fix.transcript_path is not None:
+                self.state.builder_report_path = str(fix.transcript_path)
+                self.state.builder_evidence = evidence_mod.record_builder_evidence(
+                    builder=corrector.value,
+                    package=package.name,
+                    workflow_id=self.state.workflow_id,
+                    report_path=fix.transcript_path,
+                    revision=len(self.state.revisions),
+                    kind="correction",
+                ).to_dict()
+                self._persist()
 
             report = self.run_verification(package, outcome)
             if not report.passed:

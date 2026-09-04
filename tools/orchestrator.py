@@ -541,9 +541,12 @@ def _autopilot_resume_plan(config, state, package):
             read_repo(config.repo),
             roles.availability_map(config),
         )
-    except resume.ResumeRefused as error:
-        print(f"resume refused ({error}); starting this package fresh")
-        return None
+    except resume.ResumeRefused:
+        # A refusal means the persisted state and the repository disagree.
+        # Rebuilding from scratch on top of that disagreement is exactly the
+        # unsafe act the refusal exists to prevent, so it is raised, not
+        # swallowed.
+        raise
 
 
 def cmd_autopilot(config, args) -> int:
@@ -582,7 +585,16 @@ def cmd_autopilot(config, args) -> int:
                 attempted.add(package.name)
                 print(f"\n=== AUTOPILOT: {package.name} ===")
                 engine = Engine(config, state, heartbeat=_heartbeat(config, state))
-                plan = _autopilot_resume_plan(config, state, package)
+                try:
+                    plan = _autopilot_resume_plan(config, state, package)
+                except resume.ResumeRefused as error:
+                    reason = f"resume refused for {package.name}: {error}"
+                    state.transition(WorkflowStatus.HUMAN_ACTION_REQUIRED, reason)
+                    state.last_error = reason
+                    save_state(config.state_path, state)
+                    print(reason)
+                    print("autopilot stopped: HUMAN_ACTION_REQUIRED")
+                    return 2
                 if plan is None:
                     outcome = engine.execute(package, package_path)
                 elif plan.review_only:

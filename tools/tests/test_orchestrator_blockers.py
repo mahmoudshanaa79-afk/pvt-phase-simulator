@@ -215,8 +215,10 @@ class TestPlanSurvivesIntoExecution:
         )
         assert gate_runs == ["demo"], "verification must rerun when the plan says so"
 
-    def test_the_stage_only_path_would_have_skipped_it(self, config, repo) -> None:
-        """Mutation check: the old signature still skips, which is the bug."""
+    def test_the_stage_only_path_can_no_longer_skip_anything(
+        self, config, repo
+    ) -> None:
+        """Only a plan may authorise skipping; `resume_from` alone must not."""
 
         state = self._with_evidence(config, repo)
         gate_runs: list[str] = []
@@ -238,7 +240,9 @@ class TestPlanSurvivesIntoExecution:
             package_path(config),
             resume_from=Stage.VERIFIED,
         )
-        assert gate_runs == [], "stage-only resume skips; this is why plans exist"
+        assert gate_runs == ["demo"], (
+            "without a plan nothing may be skipped, so verification must run"
+        )
 
     def test_plan_reports_the_evidence_it_reuses(self, config, repo) -> None:
         state = self._state_verified_without_fingerprint(repo)
@@ -633,20 +637,19 @@ class TestAutopilotResumes:
             is None
         )
 
-    def test_autopilot_starts_fresh_when_the_plan_is_refused(
-        self, config, repo, capsys
+    def test_autopilot_raises_rather_than_rebuilding_after_a_refusal(
+        self, config, repo
     ) -> None:
+        """A refusal must stop the run, never become a fresh build."""
+
         state = WorkflowState()
         state.current_work_package = "demo"
         state.builder = "codex"
         state.base_commit = "0" * 40  # disagrees with the repository
         state.last_completed_stage = Stage.BUILT.value
         state.workflow_status = WorkflowStatus.LOCAL_VERIFY
-        assert (
+        with pytest.raises(resume_mod.ResumeRefused):
             orchestrator_cli._autopilot_resume_plan(config, state, make_package())
-            is None
-        )
-        assert "resume refused" in capsys.readouterr().out
 
     def test_autopilot_resumes_a_deferred_audit_as_review_only(
         self, config, repo
@@ -775,29 +778,112 @@ class TestBuilderEvidence:
         state.base_commit = read_repo(repo).head
         state.last_completed_stage = Stage.BUILT.value
         state.workflow_status = WorkflowStatus.LOCAL_VERIFY
+        state.revisions = [{"author": "codex", "kind": "build", "revision": 1}]
         (repo / "work.txt").write_text("built earlier\n", encoding="utf-8")
+        attach_builder_evidence(config, state)
 
-        captured: list[agents.AgentRun] = []
         engine = Engine(
             config,
             state,
             codex_runner=builder_stub("codex"),
             claude_runner=lambda *a, **k: None,
         )
-        original = engine.run_verification
-
-        def spy(package, outcome):
-            return original(package, outcome)
-
-        engine.run_verification = spy  # type: ignore[method-assign]
+        plan = plan_for(config, repo, state)
         outcome = engine.execute(
             make_package(audit_policy=AuditPolicy.NONE),
             package_path(config),
-            resume_from=Stage.BUILT,
-            builder_report="recovered text",
+            resume_plan=plan,
         )
         assert any("skipping build" in message for message in outcome.messages)
-        assert captured == []
+
+    def test_reuse_stops_when_evidence_cannot_be_validated(self, config, repo) -> None:
+        """No fallback to unvalidated text: a refusal stops the run."""
+
+        state = WorkflowState()
+        state.current_work_package = "demo"
+        state.builder = "codex"
+        state.base_commit = read_repo(repo).head
+        state.last_completed_stage = Stage.BUILT.value
+        state.workflow_status = WorkflowStatus.LOCAL_VERIFY
+        (repo / "work.txt").write_text("built earlier\n", encoding="utf-8")
+        # Deliberately no builder evidence recorded.
+
+        engine = Engine(
+            config,
+            state,
+            codex_runner=builder_stub("codex"),
+            claude_runner=lambda *a, **k: None,
+        )
+        plan = plan_for(config, repo, state)
+        outcome = engine.execute(
+            make_package(audit_policy=AuditPolicy.NONE),
+            package_path(config),
+            resume_plan=plan,
+            builder_report="unvalidated text that must not be trusted",
+        )
+        assert outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED
+        assert "cannot reuse the builder's work" in (outcome.human_action or "")
+
+    def test_a_tampered_report_stops_the_run(self, config, repo) -> None:
+        state = WorkflowState()
+        state.current_work_package = "demo"
+        state.builder = "codex"
+        state.base_commit = read_repo(repo).head
+        state.last_completed_stage = Stage.BUILT.value
+        state.workflow_status = WorkflowStatus.LOCAL_VERIFY
+        (repo / "work.txt").write_text("built earlier\n", encoding="utf-8")
+        report = attach_builder_evidence(config, state)
+        report.write_text("tampered\n", encoding="utf-8")
+
+        engine = Engine(
+            config,
+            state,
+            codex_runner=builder_stub("codex"),
+            claude_runner=lambda *a, **k: None,
+        )
+        plan = plan_for(config, repo, state)
+        outcome = engine.execute(
+            make_package(audit_policy=AuditPolicy.NONE),
+            package_path(config),
+            resume_plan=plan,
+        )
+        assert outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED
+        assert "has changed" in (outcome.human_action or "")
+
+    def test_a_workflow_id_mismatch_refuses(self, tmp_path) -> None:
+        report = tmp_path / "report.md"
+        report.write_text("builder said this\n", encoding="utf-8")
+        record = evidence.record_builder_evidence(
+            builder="codex",
+            package="demo",
+            workflow_id="workflow-A",
+            report_path=report,
+        )
+        with pytest.raises(evidence.EvidenceRefused, match="belongs to workflow"):
+            evidence.load_builder_evidence(
+                record,
+                package="demo",
+                expected_builder="codex",
+                expected_workflow_id="workflow-B",
+            )
+
+    def test_a_revision_mismatch_refuses(self, tmp_path) -> None:
+        report = tmp_path / "report.md"
+        report.write_text("builder said this\n", encoding="utf-8")
+        record = evidence.record_builder_evidence(
+            builder="codex",
+            package="demo",
+            workflow_id="wf",
+            report_path=report,
+            revision=1,
+        )
+        with pytest.raises(evidence.EvidenceRefused, match="revision"):
+            evidence.load_builder_evidence(
+                record,
+                package="demo",
+                expected_builder="codex",
+                expected_revision=2,
+            )
 
 
 # ===================================================================== heartbeat

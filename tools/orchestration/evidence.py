@@ -13,10 +13,10 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from .config import OrchestratorConfig
-from .gitops import read_repo
+from .gitops import git, read_repo
 from .workpackage import WorkPackage
 
 #: Marker for a path that the fingerprint expected but could not read.
@@ -40,6 +40,64 @@ def _file_digest(path: Path) -> str:
 
 # ------------------------------------------------------------ tree fingerprint
 
+#: Paths the orchestrator itself writes while a package is in flight. They
+#: change after verification by design - a heartbeat is written every few
+#: seconds - so including them would make every fingerprint unstable.
+RUNTIME_EXCLUDED_PREFIXES: Final = (
+    ".ai/runtime/",
+    ".ai/workflow_state.json",
+    ".ai/orchestrator.lock",
+    ".ai/verification/",
+    ".ai/codex_reports/",
+    ".ai/codex_audits/",
+    ".ai/claude_audits/",
+    ".ai/claude_builds/",
+    ".ai/work_orders/",
+    ".ai/workflow_logs/",
+    ".ai/provisional_reviews/",
+    ".ai/builder_reports/",
+)
+
+#: Git's mode for a submodule entry. Its content is another repository, so the
+#: fingerprint records the commit it points at rather than recursing into it.
+GITLINK_MODE: Final = "160000"
+
+
+def _excluded(relative: str) -> bool:
+    return any(relative.startswith(prefix) for prefix in RUNTIME_EXCLUDED_PREFIXES)
+
+
+def _tracked_entries(repo: Path) -> list[tuple[str, str]]:
+    """Every tracked path with its index mode, from git's own index.
+
+    Deliberately not ``git status``: status can be told to hide a modified file
+    (``assume-unchanged``/``skip-worktree``), and a fingerprint that trusts
+    status inherits that blindness. ``ls-files -s`` lists what is tracked
+    regardless of any such flag.
+    """
+
+    raw = git(repo, "ls-files", "-s", "-z")
+    entries: list[tuple[str, str]] = []
+    for record in raw.split("\0"):
+        if not record:
+            continue
+        # "<mode> <sha> <stage>	<path>"
+        meta, _, path = record.partition("	")
+        if not path:
+            continue
+        parts = meta.split()
+        mode = parts[0] if parts else ""
+        sha = parts[1] if len(parts) > 1 else ""
+        entries.append((path.replace("\\", "/"), f"{mode}:{sha}"))
+    return entries
+
+
+def _untracked_paths(repo: Path) -> list[str]:
+    """Untracked, non-ignored files. Ignored files are not package content."""
+
+    raw = git(repo, "ls-files", "-o", "--exclude-standard", "-z")
+    return [path.replace("\\", "/") for path in raw.split("\0") if path]
+
 
 def tree_fingerprint(
     config: OrchestratorConfig,
@@ -47,26 +105,39 @@ def tree_fingerprint(
     *,
     base_commit: str | None = None,
 ) -> str:
-    """A deterministic digest of the working tree at the package boundary.
+    """A deterministic digest of the package's working tree.
 
-    Covers file *contents*, not just names, for every path git reports as
-    modified or untracked, plus the commit the work sits on. Two runs at the
-    same HEAD with different edits produce different fingerprints, which is
-    exactly the case git HEAD cannot distinguish.
-
-    Protected-artifact hashes remain a separate layer: this answers "is the tree
-    the one I verified", that one answers "is the science still untouched".
+    The path set comes from git's index and its untracked listing, not from
+    ``git status``, so a tracked file whose modification status is suppressed is
+    still fingerprinted. Contents are hashed from disk; submodules record the
+    commit they point at rather than being walked. Orchestrator runtime files are
+    excluded because they change while a package is in flight and would make
+    every fingerprint differ from itself.
     """
 
     facts = read_repo(config.repo)
     entries: list[tuple[str, str]] = []
-    for relative in sorted(set(facts.dirty_paths)):
-        normalized = relative.replace("\\", "/")
-        candidate = config.repo / normalized
+
+    for relative, index_meta in _tracked_entries(config.repo):
+        if _excluded(relative):
+            continue
+        if index_meta.startswith(f"{GITLINK_MODE}:"):
+            # A submodule: identity is the commit it is pinned to.
+            entries.append((relative, f"submodule:{index_meta.split(':', 1)[1]}"))
+            continue
+        candidate = config.repo / relative
         entries.append(
-            (normalized, _file_digest(candidate) if candidate.is_file() else ABSENT)
+            (relative, _file_digest(candidate) if candidate.is_file() else ABSENT)
         )
 
+    for relative in _untracked_paths(config.repo):
+        if _excluded(relative):
+            continue
+        candidate = config.repo / relative
+        if candidate.is_file():
+            entries.append((relative, _file_digest(candidate)))
+
+    entries.sort()
     payload = json.dumps(
         {
             "base_commit": base_commit or "",
@@ -97,6 +168,12 @@ class BuilderEvidence:
     workflow_id: str | None
     report_path: str
     report_sha256: str
+    #: Which implementation revision this report belongs to. A correction
+    #: produces a new revision, and reusing an earlier revision's report would
+    #: describe work that has since been replaced.
+    revision: int = 1
+    #: "build" or "correction".
+    kind: str = "build"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -105,6 +182,8 @@ class BuilderEvidence:
             "workflow_id": self.workflow_id,
             "report_path": self.report_path,
             "report_sha256": self.report_sha256,
+            "revision": self.revision,
+            "kind": self.kind,
         }
 
     @classmethod
@@ -118,6 +197,8 @@ class BuilderEvidence:
                 workflow_id=raw.get("workflow_id"),
                 report_path=str(raw["report_path"]),
                 report_sha256=str(raw["report_sha256"]),
+                revision=int(raw.get("revision", 1)),
+                kind=str(raw.get("kind", "build")),
             )
         except KeyError:
             return None
@@ -133,6 +214,8 @@ def record_builder_evidence(
     package: str,
     workflow_id: str | None,
     report_path: Path,
+    revision: int = 1,
+    kind: str = "build",
 ) -> BuilderEvidence:
     """Capture a builder report so a later run can prove it is unchanged."""
 
@@ -142,6 +225,8 @@ def record_builder_evidence(
         workflow_id=workflow_id,
         report_path=str(report_path),
         report_sha256=_file_digest(report_path),
+        revision=revision,
+        kind=kind,
     )
 
 
@@ -150,6 +235,8 @@ def load_builder_evidence(
     *,
     package: str,
     expected_builder: str | None,
+    expected_workflow_id: str | None = None,
+    expected_revision: int | None = None,
 ) -> str:
     """Return the recorded report text, or refuse to reuse it.
 
@@ -169,6 +256,20 @@ def load_builder_evidence(
         raise EvidenceRefused(
             f"builder evidence names {evidence.builder!r} but the state records "
             f"{expected_builder!r} as the builder"
+        )
+    if (
+        expected_workflow_id is not None
+        and evidence.workflow_id is not None
+        and evidence.workflow_id != expected_workflow_id
+    ):
+        raise EvidenceRefused(
+            f"builder evidence belongs to workflow {evidence.workflow_id!r}, "
+            f"not {expected_workflow_id!r}"
+        )
+    if expected_revision is not None and evidence.revision != expected_revision:
+        raise EvidenceRefused(
+            f"builder evidence is for revision {evidence.revision}, but the "
+            f"current implementation revision is {expected_revision}"
         )
     path = Path(evidence.report_path)
     if not path.exists():

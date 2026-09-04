@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -259,3 +260,57 @@ class Heartbeat:
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         self.finish(next_action=None if exc_type is None else "run ended with an error")
+
+
+class HeartbeatTicker:
+    """Keeps a heartbeat fresh while a long call blocks the main thread.
+
+    An agent run or a full test suite can occupy one thread for twenty minutes
+    or more. Nothing in that window would otherwise write a beat, so a perfectly
+    healthy run reads as STALE. This ticks in the background for exactly as long
+    as the guarded call lasts, and stops when it returns.
+
+    It is deliberately not process management: it starts no work, kills nothing,
+    and only rewrites the same status file the caller already owns.
+    """
+
+    def __init__(
+        self,
+        beat: Heartbeat | None,
+        *,
+        interval_seconds: float = 30.0,
+        **fields: Any,
+    ) -> None:
+        self._beat = beat
+        # A floor rather than a policy: the caller chooses the cadence, this
+        # only stops a zero or negative interval from spinning the thread.
+        self._interval = max(0.05, float(interval_seconds))
+        self._fields = fields
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self.ticks = 0
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._interval):
+            if self._beat is None:
+                continue
+            self.ticks += 1
+            try:
+                self._beat.beat(**self._fields)
+            except OSError:
+                # Observability must never take the run down with it.
+                continue
+
+    def __enter__(self) -> HeartbeatTicker:
+        if self._beat is not None:
+            self._beat.beat(**self._fields)
+        self._thread = threading.Thread(
+            target=self._run, name="orchestrator-heartbeat", daemon=True
+        )
+        self._thread.start()
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=self._interval + 5.0)

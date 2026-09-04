@@ -147,6 +147,25 @@ def _fingerprint_config(repo: Path):
     )
 
 
+def _attach_evidence(config, state, *, builder: str = "codex") -> Path:
+    """The builder evidence a genuinely interrupted run would have left."""
+
+    from orchestration.evidence import record_builder_evidence
+
+    report = config.subdir("codex_reports") / "earlier-report.md"
+    report.write_text("earlier builder report\n", encoding="utf-8")
+    state.builder_report_path = str(report)
+    state.revisions = [{"author": builder, "kind": "build", "revision": 1}]
+    state.builder_evidence = record_builder_evidence(
+        builder=builder,
+        package=state.current_work_package or "demo",
+        workflow_id=state.workflow_id,
+        report_path=report,
+        revision=1,
+    ).to_dict()
+    return report
+
+
 def plan_for(config, repo, state, package=None):
     return resume_mod.plan(
         config,
@@ -420,11 +439,12 @@ class TestResumeExecution:
     ) -> None:
         calls: list[str] = []
         state = prepare(repo, completed=Stage.BUILT, verification=None)
+        _attach_evidence(config, state)
         engine = self._engine(config, state, calls)
         engine.execute(
             make_package(audit_policy=AuditPolicy.NONE),
             self._path(config),
-            resume_from=Stage.BUILT,
+            resume_plan=plan_for(config, repo, state),
         )
         assert calls == []
 
@@ -432,6 +452,7 @@ class TestResumeExecution:
         calls: list[str] = []
         gate_runs: list[str] = []
         state = prepare(repo, completed=Stage.VERIFIED)
+        _attach_evidence(config, state)
         engine = self._engine(config, state, calls)
         original = engine.run_verification
 
@@ -443,7 +464,7 @@ class TestResumeExecution:
         engine.execute(
             make_package(audit_policy=AuditPolicy.NONE),
             self._path(config),
-            resume_from=Stage.VERIFIED,
+            resume_plan=plan_for(config, repo, state),
         )
         assert calls == []
         assert gate_runs == []
@@ -473,12 +494,12 @@ class TestResumeExecution:
         self, config, repo
     ) -> None:
         state = prepare(repo, completed=Stage.BUILT, verification=None)
+        _attach_evidence(config, state)
         engine = self._engine(config, state, [])
         outcome = engine.execute(
             make_package(audit_policy=AuditPolicy.NONE),
             self._path(config),
-            resume_from=Stage.BUILT,
-            builder_report="report recovered from disk",
+            resume_plan=plan_for(config, repo, state),
         )
         assert any("skipping build" in message for message in outcome.messages)
 
