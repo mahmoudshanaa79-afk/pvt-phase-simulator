@@ -1447,10 +1447,22 @@ class Engine:
             )
             outcome.say(f"correction order: {path}")
 
+            # Policy: the agent that just reviewed this revision performs the
+            # correction, which makes the original builder the independent
+            # re-auditor. Preferring the original builder instead would leave
+            # the same agent authoring two consecutive revisions and force the
+            # reviewer to keep reviewing work it had already rejected.
+            preferred_corrector = roles.COUNTERPART[self.current_author()]
             try:
-                corrector = self.assign_roles().builder
+                assignment = self.assign_roles(preferred=preferred_corrector)
             except roles.NoBuilderAvailable as error:
                 return self._escalate(outcome, str(error))
+            corrector = assignment.builder
+            if corrector is not preferred_corrector:
+                outcome.say(
+                    f"preferred corrector {preferred_corrector.value} is "
+                    f"unavailable; {corrector.value} corrects instead"
+                )
             outcome.say(f"correction author: {corrector.value}")
             try:
                 with HeartbeatTicker(

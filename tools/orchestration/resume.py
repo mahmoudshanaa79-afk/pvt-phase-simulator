@@ -14,7 +14,7 @@ from pathlib import Path
 
 from .auditdebt import AuditDebt, load, open_debts
 from .config import OrchestratorConfig
-from .evidence import tree_fingerprint
+from .evidence import SubmoduleUnreadable, tree_fingerprint
 from .gitops import RepoFacts
 from .roles import COUNTERPART, AgentIdentity, Availability
 from .state import Stage, WorkflowState, WorkflowStatus, stage_reached
@@ -168,6 +168,13 @@ def validate(
 
     completed = _completed_stage(state)
 
+    try:
+        tree_fingerprint(config, package, base_commit=state.base_commit)
+    except SubmoduleUnreadable as error:
+        raise ResumeRefused(
+            f"the working tree cannot be described safely: {error}"
+        ) from error
+
     protected_ok, protected_detail = check_protected_artifacts(config)
     if not protected_ok:
         raise ResumeRefused(
@@ -235,7 +242,11 @@ def verification_evidence_valid(
         return False, f"recorded verification status is {state.verification_status!r}"
     if not state.tree_fingerprint:
         return False, "no working-tree fingerprint was recorded with the verification"
-    current = tree_fingerprint(config, package, base_commit=state.base_commit)
+    try:
+        current = tree_fingerprint(config, package, base_commit=state.base_commit)
+    except SubmoduleUnreadable as error:
+        # The tree cannot be described, so no claim about it can be trusted.
+        raise ResumeRefused(str(error)) from error
     if current != state.tree_fingerprint:
         return False, (
             "the working tree changed since verification passed "

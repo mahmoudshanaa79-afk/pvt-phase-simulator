@@ -99,6 +99,42 @@ def _untracked_paths(repo: Path) -> list[str]:
     return [path.replace("\\", "/") for path in raw.split("\0") if path]
 
 
+def _submodule_state(repo: Path, relative: str, index_sha: str) -> str:
+    """Describe a submodule without hashing its whole content tree.
+
+    The index gitlink alone says only which commit the parent *expects*. It says
+    nothing about the commit actually checked out, and nothing about uncommitted
+    edits inside the submodule - so a submodule advanced or dirtied underneath a
+    verification would leave the fingerprint unchanged. Recording the checked-out
+    HEAD and a dirty flag closes both without walking the submodule's files.
+    """
+
+    working = repo / relative
+    if not working.exists():
+        # Declared in the index but not checked out. That is a real, describable
+        # state, not a failure to read one.
+        return f"submodule:index={index_sha}:head=absent:dirty=unknown"
+
+    try:
+        head = git(working, "rev-parse", "HEAD").strip()
+    except (RuntimeError, OSError) as error:
+        raise SubmoduleUnreadable(
+            f"cannot read HEAD of submodule {relative!r}: {error}"
+        ) from error
+    if not head:
+        raise SubmoduleUnreadable(f"submodule {relative!r} reported no HEAD")
+
+    try:
+        status = git(working, "status", "--porcelain", "--untracked-files=normal")
+    except (RuntimeError, OSError) as error:
+        raise SubmoduleUnreadable(
+            f"cannot read the working tree of submodule {relative!r}: {error}"
+        ) from error
+
+    dirty = "yes" if status.strip() else "no"
+    return f"submodule:index={index_sha}:head={head}:dirty={dirty}"
+
+
 def tree_fingerprint(
     config: OrchestratorConfig,
     package: WorkPackage | None = None,
@@ -122,8 +158,14 @@ def tree_fingerprint(
         if _excluded(relative):
             continue
         if index_meta.startswith(f"{GITLINK_MODE}:"):
-            # A submodule: identity is the commit it is pinned to.
-            entries.append((relative, f"submodule:{index_meta.split(':', 1)[1]}"))
+            entries.append(
+                (
+                    relative,
+                    _submodule_state(
+                        config.repo, relative, index_meta.split(":", 1)[1]
+                    ),
+                )
+            )
             continue
         candidate = config.repo / relative
         entries.append(
@@ -208,6 +250,10 @@ class EvidenceRefused(RuntimeError):
     """Persisted evidence cannot be trusted for this run."""
 
 
+class SubmoduleUnreadable(RuntimeError):
+    """A submodule's state could not be read, so the tree cannot be described."""
+
+
 def record_builder_evidence(
     *,
     builder: str,
@@ -237,13 +283,18 @@ def load_builder_evidence(
     expected_builder: str | None,
     expected_workflow_id: str | None = None,
     expected_revision: int | None = None,
+    allow_missing_workflow_id: bool = False,
 ) -> str:
     """Return the recorded report text, or refuse to reuse it.
 
-    Refuses when there is no evidence, when it belongs to another package or
-    builder, when the report is gone, or when its contents no longer hash to
-    what was recorded. Any of those means the thing being reused is not the
-    thing that was verified.
+    Refuses when there is no evidence, when it belongs to another package,
+    builder, workflow or revision, when the report is gone, or when its contents
+    no longer hash to what was recorded. Any of those means the thing being
+    reused is not the thing that was verified.
+
+    ``allow_missing_workflow_id`` exists only for explicit manual reconciliation
+    of evidence written before workflow identity was recorded. Normal resume
+    never sets it.
     """
 
     if evidence is None:
@@ -257,15 +308,22 @@ def load_builder_evidence(
             f"builder evidence names {evidence.builder!r} but the state records "
             f"{expected_builder!r} as the builder"
         )
-    if (
-        expected_workflow_id is not None
-        and evidence.workflow_id is not None
-        and evidence.workflow_id != expected_workflow_id
-    ):
-        raise EvidenceRefused(
-            f"builder evidence belongs to workflow {evidence.workflow_id!r}, "
-            f"not {expected_workflow_id!r}"
-        )
+    if expected_workflow_id is not None:
+        # Strict: when this run has an identity, the evidence must carry the
+        # same one. Absent identity is not a pass - it is evidence that cannot
+        # prove it belongs to this run, which is the whole question being asked.
+        if evidence.workflow_id is None or evidence.workflow_id == "":
+            if not allow_missing_workflow_id:
+                raise EvidenceRefused(
+                    "builder evidence records no workflow identity, so it cannot "
+                    f"be shown to belong to workflow {expected_workflow_id!r}; "
+                    "reconcile it explicitly if it is genuinely this run's work"
+                )
+        elif evidence.workflow_id != expected_workflow_id:
+            raise EvidenceRefused(
+                f"builder evidence belongs to workflow {evidence.workflow_id!r}, "
+                f"not {expected_workflow_id!r}"
+            )
     if expected_revision is not None and evidence.revision != expected_revision:
         raise EvidenceRefused(
             f"builder evidence is for revision {evidence.revision}, but the "
