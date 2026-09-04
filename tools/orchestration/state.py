@@ -36,6 +36,45 @@ class WorkflowStatus(StrEnum):
     READY_FOR_CLAUDE_RELEASE_AUDIT = "READY_FOR_CLAUDE_RELEASE_AUDIT"
 
 
+class Stage(StrEnum):
+    """Fine-grained position inside a workflow status.
+
+    ``WorkflowStatus`` says which phase the package is in; this says how far
+    through that phase it got, which is what lets a resume skip work that
+    genuinely completed instead of redoing it.
+    """
+
+    NOT_STARTED = "not_started"
+    PLANNED = "planned"
+    BUILT = "built"
+    VERIFIED = "verified"
+    AUDITED = "audited"
+    COMMITTED = "committed"
+
+
+#: Stages in the order they complete, so "at least as far as X" is answerable.
+STAGE_ORDER: Final = (
+    Stage.NOT_STARTED,
+    Stage.PLANNED,
+    Stage.BUILT,
+    Stage.VERIFIED,
+    Stage.AUDITED,
+    Stage.COMMITTED,
+)
+
+
+def stage_reached(completed: str | None, target: Stage) -> bool:
+    """Whether ``completed`` is at or past ``target``."""
+
+    if completed is None:
+        return False
+    try:
+        current = Stage(completed)
+    except ValueError:
+        return False
+    return STAGE_ORDER.index(current) >= STAGE_ORDER.index(target)
+
+
 TERMINAL_STATES: Final = frozenset(
     {
         WorkflowStatus.APPROVED,
@@ -101,6 +140,24 @@ class WorkflowState:
     #: so these runs are governed by the cycle limits instead of the budget.
     claude_cost_unknown_runs: int = 0
     last_error: str | None = None
+    #: Identity of the run currently owning this package, matched against the
+    #: heartbeat so a resume can tell "still running" from "died mid-stage".
+    workflow_id: str | None = None
+    #: Which agent built and which must review. Roles are data in v2, not an
+    #: assumption baked into the call sites.
+    builder: str | None = None
+    reviewer: str | None = None
+    #: Last stage that fully completed, from :class:`Stage`.
+    last_completed_stage: str | None = None
+    #: Outcome of the most recent verification, so an interrupted run does not
+    #: have to re-run gates that already passed for the same commit boundary.
+    verification_status: str | None = None
+    #: The commit the current package's diff is measured against.
+    base_commit: str | None = None
+    #: Commit produced by the current package, once it exists.
+    resulting_commit: str | None = None
+    #: Every builder handover, with the reason, so history explains itself.
+    role_transitions: list[dict[str, Any]] = field(default_factory=list)
     history: list[dict[str, Any]] = field(default_factory=list)
 
     # ---------------------------------------------------------------- schema
@@ -131,6 +188,7 @@ class WorkflowState:
             "blocking_findings",
             "safe_defer_findings",
             "deferred_independent_audits",
+            "role_transitions",
             "history",
         ):
             value = raw.get(list_key, [])
@@ -165,6 +223,14 @@ class WorkflowState:
             "claude_cost_usd_this_package": self.claude_cost_usd_this_package,
             "claude_cost_unknown_runs": self.claude_cost_unknown_runs,
             "last_error": self.last_error,
+            "workflow_id": self.workflow_id,
+            "builder": self.builder,
+            "reviewer": self.reviewer,
+            "last_completed_stage": self.last_completed_stage,
+            "verification_status": self.verification_status,
+            "base_commit": self.base_commit,
+            "resulting_commit": self.resulting_commit,
+            "role_transitions": self.role_transitions[-100:],
             "history": self.history[-200:],
         }
 

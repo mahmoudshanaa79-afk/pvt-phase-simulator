@@ -97,7 +97,23 @@ class OrchestratorConfig:
     protected_paths: tuple[str, ...]
     high_risk_paths: tuple[str, ...]
     browser_fallback_enabled: bool = False
+    #: Which release this workflow is currently driving. Generic on purpose:
+    #: v1 hard-coded "v1.1" into the release-audit path, which made the command
+    #: read as a lie the moment the project moved on.
+    release_goal: str = "unversioned"
     extra: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def goal_slug(self) -> str:
+        """The release goal in a form safe for file and package names."""
+
+        return (
+            "".join(
+                character if character.isalnum() else "_"
+                for character in self.release_goal
+            ).strip("_")
+            or "unversioned"
+        )
 
     # convenience paths -------------------------------------------------
     @property
@@ -163,6 +179,7 @@ def load_config(repo: Path, config_path: Path | None = None) -> OrchestratorConf
         protected_paths=tuple(raw.get("protected_paths", ())),
         high_risk_paths=tuple(raw.get("high_risk_paths", ())),
         browser_fallback_enabled=bool(raw.get("browser_fallback_enabled", False)),
+        release_goal=str(raw.get("release_goal", "unversioned")),
         extra=raw,
     )
 

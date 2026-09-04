@@ -106,5 +106,6 @@
     "tests/golden_master"
   ],
   "browser_fallback_enabled": false,
-  "browser_fallback_note": "Claude in Chrome is NOT used to reach Claude. Claude Code CLI is the transport. Browser automation is reserved for third-party surfaces with no API/CLI and requires explicit human confirmation."
+  "browser_fallback_note": "Claude in Chrome is NOT used to reach Claude. Claude Code CLI is the transport. Browser automation is reserved for third-party surfaces with no API/CLI and requires explicit human confirmation.",
+  "release_goal": "v1.2"
 }

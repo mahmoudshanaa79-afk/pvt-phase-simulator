@@ -13,10 +13,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import agents, prompts
+from . import agents, auditdebt, prompts, roles
 from .config import OrchestratorConfig
 from .gitops import commit_paths, read_repo
-from .state import WorkflowState, WorkflowStatus, save_state
+from .heartbeat import Heartbeat
+from .roles import AgentIdentity, RoleAssignment
+from .state import Stage, WorkflowState, WorkflowStatus, save_state
 from .verify import VerificationReport, verify
 from .workpackage import (
     AuditPolicy,
@@ -41,6 +43,8 @@ class StepOutcome:
     review_unavailable_reason: str | None = None
     commit: str | None = None
     human_action: str | None = None
+    #: Who built and who must review, once decided.
+    role_assignment: RoleAssignment | None = None
 
     def say(self, text: str) -> None:
         self.messages.append(text)
@@ -49,6 +53,8 @@ class StepOutcome:
 CodexRunner = Callable[..., agents.AgentRun]
 ClaudeRunner = Callable[..., agents.AgentRun]
 ProvisionalRunner = Callable[..., agents.AgentRun]
+BuilderRunner = Callable[..., agents.AgentRun]
+ReviewerRunner = Callable[..., agents.AgentRun]
 
 
 class Engine:
@@ -62,6 +68,10 @@ class Engine:
         codex_runner: CodexRunner | None = None,
         claude_runner: ClaudeRunner | None = None,
         provisional_runner: ProvisionalRunner | None = None,
+        claude_builder_runner: BuilderRunner | None = None,
+        codex_auditor_runner: ReviewerRunner | None = None,
+        heartbeat: Heartbeat | None = None,
+        preferred_builder: AgentIdentity | None = None,
     ) -> None:
         self.config = config
         self.state = state
@@ -69,7 +79,15 @@ class Engine:
         self._run_codex = codex_runner or agents.run_codex
         self._run_claude = claude_runner or agents.run_claude_audit
         self._run_provisional = provisional_runner or agents.run_codex_review
+        self._run_claude_builder = claude_builder_runner or agents.run_claude_builder
+        self._run_codex_auditor = codex_auditor_runner or agents.run_codex_audit
         self._claude_injected = claude_runner is not None
+        self._codex_injected = codex_runner is not None
+        self.heartbeat = heartbeat
+        #: Agents this run has already observed to be out of capacity.
+        self._exhausted: set[AgentIdentity] = set()
+        self.roles: RoleAssignment | None = None
+        self._preferred_builder = preferred_builder
 
     # ------------------------------------------------------------- utilities
 
@@ -87,6 +105,80 @@ class Engine:
 
     def _stamp(self, package: WorkPackage, suffix: str) -> str:
         return f"{time.strftime('%Y%m%d-%H%M%S')}-{package.name}-{suffix}"
+
+    # ------------------------------------------------------------ v2 plumbing
+
+    def _injected(self) -> frozenset[AgentIdentity]:
+        """Agents backed by a test double, which are always reachable."""
+
+        injected: set[AgentIdentity] = set()
+        if self._claude_injected:
+            injected.add(AgentIdentity.CLAUDE)
+        if self._codex_injected:
+            injected.add(AgentIdentity.CODEX)
+        return frozenset(injected)
+
+    def _beat(self, **updates: Any) -> None:
+        """Update the runtime status when one is being kept."""
+
+        if self.heartbeat is not None:
+            self.heartbeat.beat(**updates)
+
+    def _complete_stage(self, stage: Stage) -> None:
+        self.state.last_completed_stage = stage.value
+        self._persist()
+        self._beat(stage=stage.value, workflow_status=self.state.workflow_status.value)
+
+    def _record_role_transition(self, assignment: RoleAssignment) -> None:
+        self.state.builder = assignment.builder.value
+        self.state.reviewer = (
+            None if assignment.reviewer is None else assignment.reviewer.value
+        )
+        if assignment.failed_over:
+            self.state.role_transitions.append(
+                {
+                    "package": self.state.current_work_package,
+                    "from_builder": (
+                        None
+                        if assignment.previous_builder is None
+                        else assignment.previous_builder.value
+                    ),
+                    "to_builder": assignment.builder.value,
+                    "reason": assignment.reason,
+                    "at": time.time(),
+                }
+            )
+        self._persist()
+
+    def assign_roles(self, *, preferred: AgentIdentity | None = None) -> RoleAssignment:
+        """Decide builder and reviewer for the current package."""
+
+        previous = None
+        if self.state.builder:
+            try:
+                previous = AgentIdentity(self.state.builder)
+            except ValueError:
+                previous = None
+        assignment = roles.assign_roles(
+            self.config,
+            preferred_builder=(
+                preferred or self._preferred_builder or previous or AgentIdentity.CODEX
+            ),
+            injected=self._injected(),
+            unavailable=frozenset(self._exhausted),
+            previous_builder=previous,
+        )
+        self.roles = assignment
+        self._record_role_transition(assignment)
+        return assignment
+
+    def _dispatch_builder(
+        self, builder: AgentIdentity, package: WorkPackage, order_path: Path
+    ) -> agents.AgentRun:
+        stem = self._stamp(package, f"{builder.value}-report")
+        if builder is AgentIdentity.CODEX:
+            return self._run_codex(self.config, order_path, stem=stem)
+        return self._run_claude_builder(self.config, order_path, stem=stem)
 
     # ------------------------------------------------------------ audit rules
 
@@ -157,17 +249,80 @@ class Engine:
         *,
         needs_audit: bool,
     ) -> tuple[str, str]:
+        """Choose how this package gets reviewed.
+
+        The reviewer is always the agent that did *not* build. When that agent
+        cannot run, the review is deferred as recorded debt or falls back to an
+        explicitly non-independent provisional review - never to the builder
+        reviewing itself.
+        """
+
         if not needs_audit:
             return "none", "independent review is not due for this package"
-        available, location = self._claude_available()
-        if available:
-            return "claude", f"Claude available at {location}"
-        eligible, reason = self.provisional_review_eligibility(
+
+        builder = self._current_builder()
+        availability = roles.availability_map(
+            self.config,
+            injected=self._injected(),
+            unavailable=frozenset(self._exhausted),
+        )
+        reviewer, deferred, reason = roles.select_reviewer(builder, availability)
+        if not deferred and reviewer is not None:
+            roles.assert_independent(builder, reviewer)
+            mode = "claude" if reviewer is AgentIdentity.CLAUDE else "codex_audit"
+            return mode, (
+                f"{reviewer.value} independently reviews {builder.value}: {reason}"
+            )
+
+        eligible, fallback = self.provisional_review_eligibility(
             package, effective_risk, report
         )
         if eligible:
-            return "provisional", f"Claude unavailable ({location}); {reason}"
-        return "blocked", f"Claude unavailable ({location}); fallback refused: {reason}"
+            return "provisional", f"{reason}; {fallback}"
+        return "deferred", f"{reason}; provisional fallback refused: {fallback}"
+
+    def _current_builder(self) -> AgentIdentity:
+        if self.roles is not None:
+            return self.roles.builder
+        if self.state.builder:
+            try:
+                return AgentIdentity(self.state.builder)
+            except ValueError:
+                pass
+        return AgentIdentity.CODEX
+
+    def record_audit_debt(
+        self,
+        package: WorkPackage,
+        *,
+        resulting_commit: str,
+        base_commit: str | None,
+        effective_risk: Risk,
+        reason: str,
+    ) -> auditdebt.AuditDebt:
+        """Record that this package still owes an independent review.
+
+        The debt names who built it and which agent must review it, so it can
+        later be cleared by evidence rather than by assumption.
+        """
+
+        builder = self._current_builder()
+        required = roles.COUNTERPART[builder]
+        debts = auditdebt.load(self.state.deferred_independent_audits)
+        debt = auditdebt.record(
+            debts,
+            package=package.name,
+            resulting_commit=resulting_commit,
+            builder=builder.value,
+            reviewer_required=required.value,
+            reason=reason,
+            base_commit=base_commit,
+            effective_risk=effective_risk.value,
+        )
+        self.state.deferred_independent_audits = auditdebt.dump(debts)
+        self._persist()
+        self._beat(audit_debt=len(auditdebt.open_debts(debts)))
+        return debt
 
     # -------------------------------------------------------------- dry run
 
@@ -231,21 +386,105 @@ class Engine:
         )
         outcome.say(f"work order: {order_path}")
 
-        self.state.transition(WorkflowStatus.CODEX_RUNNING, "invoking Codex builder")
-        self._persist()
-        try:
-            run = self._run_codex(
-                self.config, order_path, stem=self._stamp(package, "report")
-            )
-        except agents.AgentUnavailable as error:
-            return self._escalate(outcome, str(error)), None
+        self._complete_stage(Stage.PLANNED)
 
-        outcome.say(f"codex exit={run.exit_code} report={run.transcript_path}")
+        # Try each permitted builder in turn. A builder that cannot run is a
+        # capacity problem, not a verdict on the work, so it hands over instead
+        # of escalating. A builder that runs and returns bad work still stops.
+        attempted: list[str] = []
+        run: agents.AgentRun | None = None
+        # At most one attempt per permitted agent: a handover is a last resort,
+        # not a retry loop, and the bound makes that impossible to get wrong.
+        for _ in range(len(AgentIdentity)):
+            try:
+                assignment = self.assign_roles()
+            except roles.NoBuilderAvailable as error:
+                return self._escalate(outcome, str(error)), run
+            builder = assignment.builder
+            outcome.role_assignment = assignment
+            if assignment.failed_over:
+                outcome.say(f"builder failover: {assignment.reason}")
+            outcome.say(
+                f"builder={builder.value} reviewer="
+                f"{assignment.reviewer.value if assignment.reviewer else 'DEFERRED'}"
+            )
+            attempted.append(builder.value)
+
+            self.state.transition(
+                WorkflowStatus.CODEX_RUNNING, f"invoking {builder.value} builder"
+            )
+            self._persist()
+            self._beat(
+                stage="building",
+                builder=builder.value,
+                reviewer=(
+                    None if assignment.reviewer is None else assignment.reviewer.value
+                ),
+                current_command=f"{builder.value} build",
+                workflow_status=self.state.workflow_status.value,
+            )
+
+            try:
+                run = self._dispatch_builder(builder, package, order_path)
+            except agents.AgentUnavailable as error:
+                # Could not start at all: mark it out and let the loop retry the
+                # counterpart. Completed work on disk is untouched.
+                self._exhausted.add(builder)
+                outcome.say(f"{builder.value} unavailable: {error}")
+                if len(self._exhausted) >= len(AgentIdentity):
+                    return (
+                        self._escalate(
+                            outcome,
+                            f"no builder could be started (tried {attempted}): {error}",
+                        ),
+                        run,
+                    )
+                continue
+
+            outcome.say(
+                f"{builder.value} exit={run.exit_code} report={run.transcript_path}"
+            )
+
+            if roles.is_capacity_failure(run):
+                reason = roles.classify_run_failure(run)
+                self._exhausted.add(builder)
+                outcome.say(
+                    f"{builder.value} builder lost capacity ({reason.value}); "
+                    "preserving completed work and looking for a failover builder"
+                )
+                if len(self._exhausted) >= len(AgentIdentity):
+                    return (
+                        self._escalate(
+                            outcome,
+                            f"every permitted builder is unavailable "
+                            f"({reason.value}); tried {attempted}. Completed work "
+                            "is preserved on disk and in the persisted state.",
+                        ),
+                        run,
+                    )
+                continue
+
+            break
+        else:
+            return (
+                self._escalate(
+                    outcome,
+                    f"every permitted builder was attempted without success "
+                    f"(tried {attempted})",
+                ),
+                run,
+            )
+
+        if run is None:
+            return (
+                self._escalate(outcome, "no builder produced a result"),
+                None,
+            )
         if run.contract is None:
             return (
                 self._escalate(
                     outcome,
-                    f"Codex output contract unusable: {run.contract_error}. "
+                    f"{run.name} output contract unusable: {run.contract_error}. "
                     f"Raw report preserved at {run.transcript_path}.",
                 ),
                 run,
@@ -254,20 +493,28 @@ class Engine:
             return (
                 self._escalate(
                     outcome,
-                    f"Codex reported status={run.contract.get('status')!r}; "
+                    f"{run.name} reported status={run.contract.get('status')!r}; "
                     "human decision required.",
                 ),
                 run,
             )
-        self.state.transition(WorkflowStatus.CODEX_REVIEW, "Codex returned COMPLETE")
-        self._persist()
+        self.state.transition(
+            WorkflowStatus.CODEX_REVIEW, f"{run.name} returned COMPLETE"
+        )
+        self._complete_stage(Stage.BUILT)
         return outcome, run
 
     def run_verification(
         self, package: WorkPackage, outcome: StepOutcome
     ) -> VerificationReport:
         self.state.transition(WorkflowStatus.LOCAL_VERIFY, "running local gates")
+        self.state.verification_status = "running"
         self._persist()
+        self._beat(
+            stage="verifying",
+            current_command="local gates",
+            workflow_status=self.state.workflow_status.value,
+        )
         commands = (
             tuple(package.required_tests) + tuple(package.required_quality_gates)
         ) or None
@@ -282,6 +529,15 @@ class Engine:
         outcome.say(f"local verification passed={report.passed}")
         if report.summary():
             outcome.say(report.summary())
+        self.state.verification_status = "passed" if report.passed else "failed"
+        if report.passed:
+            self._complete_stage(Stage.VERIFIED)
+        else:
+            self._persist()
+        self._beat(
+            verification_gate="complete",
+            science_firewall="SAFE" if report.protected_ok else "VIOLATION",
+        )
         return report
 
     def budget_check(self) -> tuple[bool, str]:
@@ -341,8 +597,12 @@ class Engine:
         if not affordable:
             self._escalate(outcome, note)
             return None
-        self.state.transition(WorkflowStatus.CLAUDE_RUNNING, "invoking Claude auditor")
+        reviewer_name = roles.COUNTERPART[self._current_builder()].value
+        self.state.transition(
+            WorkflowStatus.CLAUDE_RUNNING, f"invoking {reviewer_name} auditor"
+        )
         self._persist()
+        self._beat(stage="auditing", current_command=f"{reviewer_name} audit")
         prompt = prompts.build_audit_prompt(
             self.config,
             package,
@@ -358,15 +618,23 @@ class Engine:
             prompt,
         )
         outcome.say(f"audit prompt: {prompt_path}")
+        reviewer = roles.COUNTERPART[self._current_builder()]
         try:
-            run = self._run_claude(
-                self.config, prompt_path, stem=self._stamp(package, "audit")
-            )
+            if reviewer is AgentIdentity.CLAUDE:
+                run = self._run_claude(
+                    self.config, prompt_path, stem=self._stamp(package, "audit")
+                )
+            else:
+                run = self._run_codex_auditor(
+                    self.config, prompt_path, stem=self._stamp(package, "audit")
+                )
         except agents.AgentUnavailable as error:
             outcome.review_unavailable_reason = str(error)
             outcome.say(str(error))
             return None
-        outcome.say(f"claude exit={run.exit_code} audit={run.transcript_path}")
+        outcome.say(
+            f"{reviewer.value} exit={run.exit_code} audit={run.transcript_path}"
+        )
         # Spend is recorded before the contract is judged: a malformed or failed
         # audit still cost money and must count against the package ceiling.
         self._record_cost(run, outcome)
@@ -496,6 +764,8 @@ class Engine:
         outcome.commit = commit
         outcome.say(f"committed {commit[:7]}")
         package.status = PackageStatus.COMMITTED
+        self.state.resulting_commit = commit
+        self._complete_stage(Stage.COMMITTED)
 
     def _handle_provisional_verdict(
         self,
@@ -580,6 +850,11 @@ class Engine:
         """Full builder → verify → audit → correction loop for one package."""
 
         base_commit = read_repo(self.config.repo).head
+        self.state.base_commit = base_commit
+        self.state.resulting_commit = None
+        self.state.verification_status = None
+        self.state.last_completed_stage = Stage.NOT_STARTED.value
+        self._persist()
         outcome, builder = self.run_builder(package)
         if outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED or builder is None:
             return outcome
@@ -628,7 +903,24 @@ class Engine:
             package, effective_risk, report, needs_audit=True
         )
         outcome.say(f"review mode: {mode} ({mode_reason})")
-        if mode == "blocked":
+        if mode == "deferred":
+            # The required independent reviewer cannot run and the provisional
+            # fallback is refused. Record what is owed so the persisted state
+            # tells the truth, then stop: recording a debt is bookkeeping, not
+            # permission to commit unreviewed work. The refusal reasons here are
+            # the hard ones - HIGH risk, changed scientific source or tests, or
+            # failing gates - and none of them may proceed unattended.
+            debt = self.record_audit_debt(
+                package,
+                resulting_commit=read_repo(self.config.repo).head,
+                base_commit=base_commit,
+                effective_risk=effective_risk,
+                reason=mode_reason,
+            )
+            outcome.say(
+                f"DEFERRED_INDEPENDENT_AUDIT recorded as {debt.id}: "
+                f"built by {debt.builder}, awaiting {debt.reviewer_required}"
+            )
             return self._escalate(outcome, mode_reason)
         if mode == "provisional":
             review = self.run_provisional_review(

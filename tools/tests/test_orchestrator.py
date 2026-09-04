@@ -1226,7 +1226,9 @@ class TestAutopilotCli:
         calls: list[str] = []
 
         class FakeEngine:
-            def __init__(self, config, state):
+            def __init__(self, config, state, **kwargs):
+                # Mirrors the real Engine, which now also takes runners,
+                # a heartbeat and a preferred builder.
                 self.state = state
 
             def execute(self, package, path):
@@ -1253,7 +1255,9 @@ class TestAutopilotCli:
         save_package(directory / "demo.json", make_package())
 
         class NoProgressEngine:
-            def __init__(self, config, state):
+            def __init__(self, config, state, **kwargs):
+                # Mirrors the real Engine, which now also takes runners,
+                # a heartbeat and a preferred builder.
                 pass
 
             def execute(self, package, path):
