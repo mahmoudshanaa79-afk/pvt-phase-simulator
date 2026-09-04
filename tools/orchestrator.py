@@ -20,7 +20,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 
-from orchestration import agents, auditdebt  # noqa: E402
+from orchestration import agents, auditdebt, resume, roles  # noqa: E402
 from orchestration import heartbeat as hb  # noqa: E402
 from orchestration.config import ConfigError, load_config  # noqa: E402
 from orchestration.engine import Engine  # noqa: E402
@@ -397,28 +397,99 @@ def cmd_verify(config, args) -> int:
 
 
 def cmd_resume(config, args) -> int:
+    """Continue an interrupted package from the last stage that completed."""
+
     state = load_state(config.state_path)
     facts = read_repo(config.repo)
     print(f"workflow status: {state.workflow_status.value}")
-    if state.workflow_status is WorkflowStatus.HUMAN_ACTION_REQUIRED:
-        print(f"blocked on: {state.last_error}")
-        print("resolve the issue, then run `stop` to clear or `run` to continue.")
-        return 2
-    if state.workflow_status not in INTERRUPTIBLE_STATES:
+
+    package, package_path = _resolve_package(config, state.current_work_package)
+    if package is None or package_path is None:
+        print(
+            f"no work package named {state.current_work_package!r} is available; "
+            "nothing to resume."
+        )
+        return 1
+
+    allowed, why = resume.resumable(state, package.name)
+    print(f"resumable: {'yes' if allowed else 'no'} ({why})")
+    if not allowed:
+        if state.workflow_status is WorkflowStatus.HUMAN_ACTION_REQUIRED:
+            print("resolve the issue, then run `stop` to clear or `run` to continue.")
+            return 2
         print("nothing to resume; use `run`.")
         return 0
-    print(f"interrupted during {state.workflow_status.value}; re-verifying from git")
-    report = verify(config, label="resume")
-    print(report.summary() or "  (no commands configured)")
-    print(
-        f"tree {'clean' if facts.is_clean else 'dirty'}; "
-        f"verification passed={report.passed}"
-    )
-    print(
-        "re-run `run` to continue from this boundary; "
-        "completed commits are not repeated."
-    )
-    return 0
+
+    try:
+        plan = resume.plan(
+            config,
+            state,
+            package,
+            facts,
+            roles.availability_map(config),
+        )
+    except resume.ResumeRefused as error:
+        # Persisted state and repository disagree. Record the refusal rather
+        # than guessing which one is right.
+        state.transition(
+            WorkflowStatus.HUMAN_ACTION_REQUIRED, f"resume refused: {error}"
+        )
+        state.last_error = f"resume refused: {error}"
+        save_state(config.state_path, state)
+        print(f"REFUSED: {error}")
+        print("state and repository disagree; resolve manually, then `run`.")
+        return 2
+
+    print(f"plan: {plan.describe()}")
+    print(f"first stage to run: {plan.first_stage_to_run}")
+    if plan.builder:
+        print(f"builder (recorded)  : {plan.builder.value}")
+    if plan.reviewer_required:
+        availability = "available" if plan.reviewer_available else "UNAVAILABLE"
+        print(f"reviewer (required) : {plan.reviewer_required.value} [{availability}]")
+
+    if plan.nothing_to_do:
+        print("package already committed; nothing to resume.")
+        state.transition(WorkflowStatus.IDLE, "resume found the package complete")
+        save_state(config.state_path, state)
+        return 0
+
+    if plan.debt is not None and not plan.reviewer_available:
+        print(
+            f"deferred audit {plan.debt.id} still needs "
+            f"{plan.debt.reviewer_required}, which is unavailable; not resuming."
+        )
+        return 2
+
+    if getattr(args, "dry_run", False):
+        print("(dry run: no agent invoked)")
+        return 0
+
+    lock = OrchestratorLock(config.lock_path)
+    try:
+        with lock.acquire():
+            engine = Engine(
+                config,
+                state,
+                heartbeat=_heartbeat(config, state),
+                preferred_builder=plan.builder,
+            )
+            outcome = engine.execute(
+                package,
+                package_path,
+                resume_from=plan.completed,
+                builder_report=plan.builder_report,
+            )
+    except LockHeld as error:
+        print(f"another orchestrator run holds the lock: {error}")
+        return 1
+
+    for message in outcome.messages:
+        print(f"  {message}")
+    print(f"status: {outcome.status.value}")
+    if outcome.commit:
+        print(f"commit: {outcome.commit[:12]}")
+    return 0 if outcome.status is not WorkflowStatus.HUMAN_ACTION_REQUIRED else 2
 
 
 def cmd_stop(config, args) -> int:

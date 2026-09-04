@@ -18,8 +18,14 @@ from .config import OrchestratorConfig
 from .gitops import commit_paths, read_repo
 from .heartbeat import Heartbeat
 from .roles import AgentIdentity, RoleAssignment
-from .state import Stage, WorkflowState, WorkflowStatus, save_state
-from .verify import VerificationReport, verify
+from .state import (
+    Stage,
+    WorkflowState,
+    WorkflowStatus,
+    save_state,
+    stage_reached,
+)
+from .verify import VerificationReport, check_protected_artifacts, verify
 from .workpackage import (
     AuditPolicy,
     CommitPolicy,
@@ -501,6 +507,8 @@ class Engine:
         self.state.transition(
             WorkflowStatus.CODEX_REVIEW, f"{run.name} returned COMPLETE"
         )
+        if run.transcript_path is not None:
+            self.state.builder_report_path = str(run.transcript_path)
         self._complete_stage(Stage.BUILT)
         return outcome, run
 
@@ -537,6 +545,33 @@ class Engine:
         self._beat(
             verification_gate="complete",
             science_firewall="SAFE" if report.protected_ok else "VIOLATION",
+        )
+        return report
+
+    def reconstruct_verification(self, package: WorkPackage) -> VerificationReport:
+        """Rebuild the report for a verification that already passed.
+
+        This deliberately does not re-run the gates: they passed for this exact
+        commit boundary, and resume exists so they are not paid for twice. The
+        protected-artifact hashes *are* re-checked, because that is a safety
+        check rather than a gate, and it is cheap.
+        """
+
+        facts = read_repo(self.config.repo)
+        protected_ok, protected_detail = check_protected_artifacts(self.config)
+        report = VerificationReport(
+            passed=protected_ok,
+            protected_ok=protected_ok,
+            protected_detail=protected_detail,
+            scope_ok=True,
+            scope_detail="carried forward from the completed verification",
+            changed_files=tuple(facts.dirty_paths),
+        )
+        self.state.verification_status = "passed" if protected_ok else "failed"
+        self._persist()
+        self._beat(
+            verification_gate="carried forward",
+            science_firewall="SAFE" if protected_ok else "VIOLATION",
         )
         return report
 
@@ -846,20 +881,71 @@ class Engine:
 
     # ------------------------------------------------------------- main loop
 
-    def execute(self, package: WorkPackage, package_path: Path) -> StepOutcome:
-        """Full builder → verify → audit → correction loop for one package."""
+    def execute(
+        self,
+        package: WorkPackage,
+        package_path: Path,
+        *,
+        resume_from: Stage | None = None,
+        builder_report: str = "",
+    ) -> StepOutcome:
+        """Full builder → verify → audit → correction loop for one package.
 
-        base_commit = read_repo(self.config.repo).head
-        self.state.base_commit = base_commit
-        self.state.resulting_commit = None
-        self.state.verification_status = None
-        self.state.last_completed_stage = Stage.NOT_STARTED.value
-        self._persist()
-        outcome, builder = self.run_builder(package)
-        if outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED or builder is None:
-            return outcome
+        ``resume_from`` names the last stage a previous run completed. Stages at
+        or before it are skipped; everything after it runs normally. A fresh run
+        passes nothing and starts from the beginning.
+        """
 
-        report = self.run_verification(package, outcome)
+        resuming = resume_from is not None
+        if resuming:
+            # Trust the boundary the previous run recorded rather than today's
+            # HEAD: resume.validate has already confirmed they agree.
+            base_commit = self.state.base_commit or read_repo(self.config.repo).head
+        else:
+            base_commit = read_repo(self.config.repo).head
+            self.state.base_commit = base_commit
+            self.state.resulting_commit = None
+            self.state.verification_status = None
+            self.state.last_completed_stage = Stage.NOT_STARTED.value
+            self.state.builder_report_path = None
+            self._persist()
+
+        skip_build = resuming and stage_reached(resume_from, Stage.BUILT)
+        skip_verification = resuming and stage_reached(resume_from, Stage.VERIFIED)
+        skip_audit = resuming and stage_reached(resume_from, Stage.AUDITED)
+
+        if skip_build:
+            # The builder process is gone; its report is not. Downstream stages
+            # only ever read raw_report, so a transcript-backed stand-in carries
+            # everything they need without pretending a new run happened.
+            outcome = StepOutcome(status=WorkflowStatus.CODEX_REVIEW)
+            outcome.say(
+                f"skipping build: already completed by "
+                f"{self.state.builder or 'a previous run'}"
+            )
+            builder = agents.AgentRun(
+                name=self.state.builder or "previous-builder",
+                command=[],
+                exit_code=0,
+                stdout="",
+                stderr="",
+                raw_report=builder_report,
+                extra={"resumed": True},
+            )
+        else:
+            outcome, builder = self.run_builder(package)
+            if (
+                outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED
+                or builder is None
+            ):
+                return outcome
+
+        if skip_verification:
+            outcome.say("skipping verification: already passed for this boundary")
+            report = self.reconstruct_verification(package)
+        else:
+            report = self.run_verification(package, outcome)
+        outcome.verification = report
         effective_risk, rationale = assess_risk(
             package.risk, report.changed_files, self.config.high_risk_paths
         )
@@ -893,6 +979,22 @@ class Engine:
                 package.status = PackageStatus.VERIFIED
             save_package(package_path, package)
             self.state.transition(WorkflowStatus.IDLE, "package complete without audit")
+            self._persist()
+            outcome.status = WorkflowStatus.IDLE
+            return outcome
+
+        if skip_audit:
+            # The independent review already happened and approved this exact
+            # boundary. Re-running it would spend a second review and risk a
+            # second recorded approval for one piece of work.
+            outcome.say(
+                "skipping audit: an independent review already approved this boundary"
+            )
+            self.maybe_commit(package, outcome, report, audited=True)
+            save_package(package_path, package)
+            self.state.transition(
+                WorkflowStatus.IDLE, "package complete on resume after audit"
+            )
             self._persist()
             outcome.status = WorkflowStatus.IDLE
             return outcome
@@ -1012,6 +1114,9 @@ class Engine:
             self.state.claude_cost_usd_this_package = 0.0
             self.state.claude_cost_unknown_runs = 0
             self.state.provisional_review_cycles = 0
+            # Mark the audit done *before* committing, so an interruption
+            # between the two resumes at commit rather than re-auditing.
+            self._complete_stage(Stage.AUDITED)
             self.maybe_commit(package, outcome, report, audited=True)
             self.state.last_independent_audit_commit = (
                 outcome.commit or read_repo(self.config.repo).head

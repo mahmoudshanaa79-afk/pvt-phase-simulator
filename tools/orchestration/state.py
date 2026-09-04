@@ -156,6 +156,9 @@ class WorkflowState:
     base_commit: str | None = None
     #: Commit produced by the current package, once it exists.
     resulting_commit: str | None = None
+    #: Where the builder's transcript was written, so a resumed audit can still
+    #: read what the builder reported after that process is gone.
+    builder_report_path: str | None = None
     #: Every builder handover, with the reason, so history explains itself.
     role_transitions: list[dict[str, Any]] = field(default_factory=list)
     history: list[dict[str, Any]] = field(default_factory=list)
@@ -230,6 +233,7 @@ class WorkflowState:
             "verification_status": self.verification_status,
             "base_commit": self.base_commit,
             "resulting_commit": self.resulting_commit,
+            "builder_report_path": self.builder_report_path,
             "role_transitions": self.role_transitions[-100:],
             "history": self.history[-200:],
         }
