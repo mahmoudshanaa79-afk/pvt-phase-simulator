@@ -159,6 +159,15 @@ class WorkflowState:
     #: Where the builder's transcript was written, so a resumed audit can still
     #: read what the builder reported after that process is gone.
     builder_report_path: str | None = None
+    #: Recorded proof of the builder run, validated before it is ever reused.
+    builder_evidence: dict[str, Any] | None = None
+    #: Digest of the working tree at the moment verification passed. Reusing
+    #: verification or audit evidence requires this to still match.
+    tree_fingerprint: str | None = None
+    #: One entry per implementation revision - the original build and every
+    #: correction - recording who authored it. The author of the *current*
+    #: revision is the agent that may not audit it.
+    revisions: list[dict[str, Any]] = field(default_factory=list)
     #: Every builder handover, with the reason, so history explains itself.
     role_transitions: list[dict[str, Any]] = field(default_factory=list)
     history: list[dict[str, Any]] = field(default_factory=list)
@@ -191,6 +200,7 @@ class WorkflowState:
             "blocking_findings",
             "safe_defer_findings",
             "deferred_independent_audits",
+            "revisions",
             "role_transitions",
             "history",
         ):
@@ -234,6 +244,9 @@ class WorkflowState:
             "base_commit": self.base_commit,
             "resulting_commit": self.resulting_commit,
             "builder_report_path": self.builder_report_path,
+            "builder_evidence": self.builder_evidence,
+            "tree_fingerprint": self.tree_fingerprint,
+            "revisions": self.revisions[-50:],
             "role_transitions": self.role_transitions[-100:],
             "history": self.history[-200:],
         }

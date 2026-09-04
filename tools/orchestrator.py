@@ -449,7 +449,7 @@ def cmd_resume(config, args) -> int:
         print(f"reviewer (required) : {plan.reviewer_required.value} [{availability}]")
 
     if plan.nothing_to_do:
-        print("package already committed; nothing to resume.")
+        print("package already committed with no outstanding review; nothing to do.")
         state.transition(WorkflowStatus.IDLE, "resume found the package complete")
         save_state(config.state_path, state)
         return 0
@@ -474,12 +474,12 @@ def cmd_resume(config, args) -> int:
                 heartbeat=_heartbeat(config, state),
                 preferred_builder=plan.builder,
             )
-            outcome = engine.execute(
-                package,
-                package_path,
-                resume_from=plan.completed,
-                builder_report=plan.builder_report,
-            )
+            if plan.review_only:
+                outcome = engine.review_only(
+                    package, package_path, builder_report=plan.builder_report
+                )
+            else:
+                outcome = engine.execute(package, package_path, resume_plan=plan)
     except LockHeld as error:
         print(f"another orchestrator run holds the lock: {error}")
         return 1
@@ -519,6 +519,33 @@ def cmd_packages(config, args) -> int:
     return 0
 
 
+def _autopilot_resume_plan(config, state, package):
+    """A resume plan for an interrupted package, or None to start fresh.
+
+    Autopilot must not rebuild work that already completed. When the persisted
+    state describes this package mid-flight, resume it; when the state and the
+    repository disagree, return None so the normal path re-derives everything
+    rather than acting on a plan that cannot be trusted.
+    """
+
+    if state.current_work_package != package.name:
+        return None
+    allowed, _why = resume.resumable(state, package.name)
+    if not allowed:
+        return None
+    try:
+        return resume.plan(
+            config,
+            state,
+            package,
+            read_repo(config.repo),
+            roles.availability_map(config),
+        )
+    except resume.ResumeRefused as error:
+        print(f"resume refused ({error}); starting this package fresh")
+        return None
+
+
 def cmd_autopilot(config, args) -> int:
     """Run eligible packages sequentially with bounded package-level progress."""
 
@@ -554,9 +581,18 @@ def cmd_autopilot(config, args) -> int:
                     return 2
                 attempted.add(package.name)
                 print(f"\n=== AUTOPILOT: {package.name} ===")
-                outcome = Engine(
-                    config, state, heartbeat=_heartbeat(config, state)
-                ).execute(package, package_path)
+                engine = Engine(config, state, heartbeat=_heartbeat(config, state))
+                plan = _autopilot_resume_plan(config, state, package)
+                if plan is None:
+                    outcome = engine.execute(package, package_path)
+                elif plan.review_only:
+                    print(f"resuming: {plan.describe()}")
+                    outcome = engine.review_only(
+                        package, package_path, builder_report=plan.builder_report
+                    )
+                else:
+                    print(f"resuming: {plan.describe()}")
+                    outcome = engine.execute(package, package_path, resume_plan=plan)
                 for line in outcome.messages:
                     print(line)
                 if outcome.status in {

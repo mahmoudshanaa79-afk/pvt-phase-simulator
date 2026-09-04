@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from . import agents, auditdebt, prompts, roles
+from . import evidence as evidence_mod
 from .config import OrchestratorConfig
 from .gitops import commit_paths, read_repo
 from .heartbeat import Heartbeat
@@ -287,7 +288,35 @@ class Engine:
             return "provisional", f"{reason}; {fallback}"
         return "deferred", f"{reason}; provisional fallback refused: {fallback}"
 
-    def _current_builder(self) -> AgentIdentity:
+    def _record_revision(self, author: AgentIdentity, kind: str) -> None:
+        """Record who authored the current implementation revision.
+
+        Ownership is per revision, not per package. After Codex corrects work
+        that Claude built, the diff under review is Codex's, and Codex is the
+        agent that may not audit it.
+        """
+
+        self.state.revisions.append(
+            {
+                "package": self.state.current_work_package,
+                "revision": len(self.state.revisions) + 1,
+                "author": author.value,
+                "kind": kind,
+                "at": time.time(),
+            }
+        )
+        self._persist()
+
+    def current_author(self) -> AgentIdentity:
+        """The agent that authored the diff currently under review."""
+
+        for entry in reversed(self.state.revisions):
+            raw = entry.get("author")
+            if raw:
+                try:
+                    return AgentIdentity(str(raw))
+                except ValueError:
+                    continue
         if self.roles is not None:
             return self.roles.builder
         if self.state.builder:
@@ -296,6 +325,124 @@ class Engine:
             except ValueError:
                 pass
         return AgentIdentity.CODEX
+
+    def _current_builder(self) -> AgentIdentity:
+        """Backwards-compatible alias; ownership now follows the revision."""
+
+        return self.current_author()
+
+    def settle_audit_debt(
+        self,
+        package: WorkPackage,
+        audit: agents.AgentRun,
+        outcome: StepOutcome,
+    ) -> auditdebt.AuditDebt | None:
+        """Clear this package's outstanding debt when a real reviewer approves.
+
+        Clearing is independent of whether the implementation is already
+        committed: the debt is about who reviewed the work, not about where the
+        work landed. Reconciliation itself refuses a reviewer that built the
+        code and refuses to approve one debt twice.
+        """
+
+        debts = auditdebt.load(self.state.deferred_independent_audits)
+        outstanding = [
+            debt for debt in auditdebt.open_debts(debts) if debt.package == package.name
+        ]
+        if not outstanding:
+            return None
+        reviewer = roles.COUNTERPART[self.current_author()].value
+        cleared: auditdebt.AuditDebt | None = None
+        for debt in outstanding:
+            try:
+                cleared = auditdebt.reconcile(
+                    debts,
+                    identifier=debt.id,
+                    reviewer=reviewer,
+                    evidence=(
+                        f"independent {reviewer} audit approved "
+                        f"({audit.transcript_path or 'transcript preserved'})"
+                    ),
+                )
+            except auditdebt.DebtError as error:
+                outcome.say(f"audit debt {debt.id} not cleared: {error}")
+                continue
+            outcome.say(f"cleared audit debt {debt.id} (reviewed by {reviewer})")
+        self.state.deferred_independent_audits = auditdebt.dump(debts)
+        if not auditdebt.open_debts(debts):
+            self.state.audit_required = False
+            self.state.audit_reason = None
+        self._persist()
+        self._beat(audit_debt=len(auditdebt.open_debts(debts)))
+        return cleared
+
+    def review_only(
+        self,
+        package: WorkPackage,
+        package_path: Path,
+        *,
+        builder_report: str = "",
+    ) -> StepOutcome:
+        """Run only the missing independent review for committed work.
+
+        Used when a package was committed with a deferred audit and the required
+        reviewer has since returned. It never rebuilds, never re-verifies, never
+        commits and never re-counts the package - the implementation is already
+        in history; only the review was missing.
+        """
+
+        outcome = StepOutcome(status=WorkflowStatus.AUDIT_PENDING)
+        outcome.say("independent review only: implementation is already committed")
+        report = self.reconstruct_verification(package)
+        if not report.protected_ok:
+            return self._escalate(
+                outcome,
+                f"protected artifacts changed since the commit: "
+                f"{report.protected_detail}",
+            )
+
+        audit = self.run_audit(
+            package,
+            outcome,
+            codex_report=builder_report,
+            verification=report,
+            base_commit=self.state.base_commit,
+        )
+        if audit is None:
+            if outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED:
+                return outcome
+            return self._escalate(
+                outcome,
+                outcome.review_unavailable_reason
+                or "the independent reviewer produced no usable result",
+            )
+
+        contract = audit.contract or {}
+        verdict = contract.get("verdict")
+        blocking = agents.blocking_findings(contract)
+        outcome.say(f"verdict: {verdict} ({len(blocking)} blocking findings)")
+        if verdict != "APPROVED" or blocking:
+            self.state.blocking_findings = blocking
+            self._persist()
+            return self._escalate(
+                outcome,
+                f"independent review of committed work returned {verdict} with "
+                f"{len(blocking)} blocking findings; the commit stands but the "
+                "debt is not cleared",
+            )
+
+        self.settle_audit_debt(package, audit, outcome)
+        self.state.last_independent_audit_commit = (
+            self.state.resulting_commit or read_repo(self.config.repo).head
+        )
+        package.status = PackageStatus.COMMITTED
+        save_package(package_path, package)
+        self.state.transition(
+            WorkflowStatus.APPROVED, "deferred independent audit completed"
+        )
+        self._persist()
+        outcome.status = WorkflowStatus.APPROVED
+        return outcome
 
     def record_audit_debt(
         self,
@@ -509,6 +656,14 @@ class Engine:
         )
         if run.transcript_path is not None:
             self.state.builder_report_path = str(run.transcript_path)
+            self.state.builder_evidence = evidence_mod.record_builder_evidence(
+                builder=run.name,
+                package=package.name,
+                workflow_id=self.state.workflow_id,
+                report_path=run.transcript_path,
+            ).to_dict()
+        self.state.revisions = []
+        self._record_revision(builder, "build")
         self._complete_stage(Stage.BUILT)
         return outcome, run
 
@@ -526,12 +681,22 @@ class Engine:
         commands = (
             tuple(package.required_tests) + tuple(package.required_quality_gates)
         ) or None
+
+        def beat_between_gates(
+            index: int, total: int, command: tuple[str, ...]
+        ) -> None:
+            self._beat(
+                verification_gate=f"{index}/{total}: {' '.join(command[:3])}",
+                current_command=" ".join(command),
+            )
+
         report = verify(
             self.config,
             allowed_files=package.allowed_files,
             protected_files=package.protected_files,
             commands=commands,
             label=package.name,
+            on_command=beat_between_gates,
         )
         outcome.verification = report
         outcome.say(f"local verification passed={report.passed}")
@@ -539,8 +704,15 @@ class Engine:
             outcome.say(report.summary())
         self.state.verification_status = "passed" if report.passed else "failed"
         if report.passed:
+            # Bind this result to the exact tree it describes, so a later run
+            # can prove the tree has not changed underneath it.
+            self.state.tree_fingerprint = evidence_mod.tree_fingerprint(
+                self.config, package, base_commit=self.state.base_commit
+            )
             self._complete_stage(Stage.VERIFIED)
         else:
+            # A failed verification leaves no reusable evidence behind.
+            self.state.tree_fingerprint = None
             self._persist()
         self._beat(
             verification_gate="complete",
@@ -886,6 +1058,7 @@ class Engine:
         package: WorkPackage,
         package_path: Path,
         *,
+        resume_plan: Any | None = None,
         resume_from: Stage | None = None,
         builder_report: str = "",
     ) -> StepOutcome:
@@ -896,6 +1069,12 @@ class Engine:
         passes nothing and starts from the beginning.
         """
 
+        # The plan is the authority. Deriving skipping from a stage marker alone
+        # loses the planner's decisions - most importantly that a verification
+        # whose evidence no longer matches the tree MUST run again.
+        if resume_plan is not None:
+            resume_from = resume_plan.completed
+            builder_report = builder_report or resume_plan.builder_report
         resuming = resume_from is not None
         if resuming:
             # Trust the boundary the previous run recorded rather than today's
@@ -910,9 +1089,14 @@ class Engine:
             self.state.builder_report_path = None
             self._persist()
 
-        skip_build = resuming and stage_reached(resume_from, Stage.BUILT)
-        skip_verification = resuming and stage_reached(resume_from, Stage.VERIFIED)
-        skip_audit = resuming and stage_reached(resume_from, Stage.AUDITED)
+        if resume_plan is not None:
+            skip_build = resume_plan.skips(Stage.BUILT)
+            skip_verification = resume_plan.skips(Stage.VERIFIED)
+            skip_audit = resume_plan.skips(Stage.AUDITED)
+        else:
+            skip_build = resuming and stage_reached(resume_from, Stage.BUILT)
+            skip_verification = resuming and stage_reached(resume_from, Stage.VERIFIED)
+            skip_audit = resuming and stage_reached(resume_from, Stage.AUDITED)
 
         if skip_build:
             # The builder process is gone; its report is not. Downstream stages
@@ -923,14 +1107,27 @@ class Engine:
                 f"skipping build: already completed by "
                 f"{self.state.builder or 'a previous run'}"
             )
+            try:
+                validated = evidence_mod.load_builder_evidence(
+                    evidence_mod.BuilderEvidence.from_dict(self.state.builder_evidence),
+                    package=package.name,
+                    expected_builder=self.state.builder,
+                )
+            except evidence_mod.EvidenceRefused as error:
+                if not builder_report:
+                    return self._escalate(
+                        outcome, f"cannot reuse the builder's work: {error}"
+                    )
+                outcome.say(f"builder evidence not validated: {error}")
+                validated = builder_report
             builder = agents.AgentRun(
                 name=self.state.builder or "previous-builder",
                 command=[],
                 exit_code=0,
                 stdout="",
                 stderr="",
-                raw_report=builder_report,
-                extra={"resumed": True},
+                raw_report=validated,
+                extra={"persisted_evidence": True, "resumed": True},
             )
         else:
             outcome, builder = self.run_builder(package)
@@ -1117,6 +1314,7 @@ class Engine:
             # Mark the audit done *before* committing, so an interruption
             # between the two resumes at commit rather than re-auditing.
             self._complete_stage(Stage.AUDITED)
+            self.settle_audit_debt(package, audit, outcome)
             self.maybe_commit(package, outcome, report, audited=True)
             self.state.last_independent_audit_commit = (
                 outcome.commit or read_repo(self.config.repo).head
@@ -1206,20 +1404,23 @@ class Engine:
             outcome.say(f"correction order: {path}")
 
             try:
-                fix = self._run_codex(
-                    self.config,
-                    path,
-                    stem=self._stamp(
-                        package,
-                        f"correction-report-{self.state.codex_correction_cycles}",
-                    ),
-                )
+                corrector = self.assign_roles().builder
+            except roles.NoBuilderAvailable as error:
+                return self._escalate(outcome, str(error))
+            outcome.say(f"correction author: {corrector.value}")
+            try:
+                fix = self._dispatch_builder(corrector, package, path)
             except agents.AgentUnavailable as error:
                 return self._escalate(outcome, str(error))
             if fix.contract is None:
                 return self._escalate(
-                    outcome, f"Codex correction contract unusable: {fix.contract_error}"
+                    outcome,
+                    f"{corrector.value} correction contract unusable: "
+                    f"{fix.contract_error}",
                 )
+            # The diff under review is now this agent's work, so the reviewer
+            # selected below must be the other one.
+            self._record_revision(corrector, "correction")
 
             report = self.run_verification(package, outcome)
             if not report.passed:
@@ -1237,7 +1438,18 @@ class Engine:
                 package, effective_risk, report, needs_audit=needs_audit
             )
             outcome.say(f"review mode after correction: {mode} ({mode_reason})")
-            if mode == "blocked":
+            if mode == "deferred":
+                # review_mode returns "deferred" in v2; the old "blocked" name
+                # never matched, which let an unreviewable correction fall
+                # through to the auditor path.
+                debt = self.record_audit_debt(
+                    package,
+                    resulting_commit=read_repo(self.config.repo).head,
+                    base_commit=base_commit,
+                    effective_risk=effective_risk,
+                    reason=mode_reason,
+                )
+                outcome.say(f"DEFERRED_INDEPENDENT_AUDIT recorded as {debt.id}")
                 return self._escalate(outcome, mode_reason)
             if mode == "none":
                 self.state.work_packages_since_audit += 1

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -235,6 +236,7 @@ def verify(
     protected_files: tuple[str, ...] = (),
     commands: tuple[tuple[str, ...], ...] | None = None,
     label: str = "verification",
+    on_command: Callable[[int, int, tuple[str, ...]], None] | None = None,
 ) -> VerificationReport:
     """Run the full local gate and persist every output, including failures."""
 
@@ -248,7 +250,13 @@ def verify(
     check_ok, check_detail = diff_check(config.repo)
 
     selected = commands if commands is not None else config.verification_commands
-    results = [run_command(config, command) for command in selected]
+    # Report progress between gates. A single gate can legitimately run for many
+    # minutes, so without this a healthy long run looks like a dead one.
+    results = []
+    for index, command in enumerate(selected, start=1):
+        if on_command is not None:
+            on_command(index, len(selected), command)
+        results.append(run_command(config, command))
 
     report = VerificationReport(
         passed=all(r.ok for r in results) and protected_ok and scope_ok and check_ok,

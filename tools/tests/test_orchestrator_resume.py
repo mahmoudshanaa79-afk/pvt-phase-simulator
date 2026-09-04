@@ -117,7 +117,34 @@ def prepare(
         setattr(state, key, value)
     if dirty:
         (repo / "work.txt").write_text("built earlier\n", encoding="utf-8")
+    if verification == "passed" and "tree_fingerprint" not in overrides:
+        # A passed verification is only reusable together with the fingerprint
+        # of the tree it described, so a realistic state carries both.
+        from orchestration.evidence import tree_fingerprint
+
+        state.tree_fingerprint = tree_fingerprint(
+            _fingerprint_config(repo), make_package(), base_commit=state.base_commit
+        )
     return state
+
+
+def _fingerprint_config(repo: Path):
+    """A minimal config for fingerprinting; only ``repo`` is consulted."""
+
+    from orchestration.config import AgentConfig, Limits, OrchestratorConfig
+
+    return OrchestratorConfig(
+        repo=repo,
+        ai_dir=repo / ".ai",
+        codex=AgentConfig(executable="codex-stub"),
+        claude=AgentConfig(executable="claude-stub"),
+        limits=Limits(),
+        verification_commands=(),
+        fast_verification_commands=(),
+        protected_artifacts={},
+        protected_paths=(),
+        high_risk_paths=(),
+    )
 
 
 def plan_for(config, repo, state, package=None):
@@ -145,15 +172,17 @@ class TestResumePlanning:
     def test_verify_complete_resumes_at_audit(self, config, repo) -> None:
         state = prepare(repo, completed=Stage.VERIFIED)
         plan = plan_for(config, repo, state)
-        assert plan.skip_build
-        assert plan.skip_verification
-        assert not plan.skip_audit
+        assert plan.skips(Stage.BUILT)
+        assert plan.skips(Stage.VERIFIED)
+        assert not plan.skips(Stage.AUDITED)
         assert plan.first_stage_to_run == "audit"
 
     def test_audit_complete_resumes_at_commit(self, config, repo) -> None:
         state = prepare(repo, completed=Stage.AUDITED)
         plan = plan_for(config, repo, state)
-        assert plan.skip_build and plan.skip_verification and plan.skip_audit
+        assert plan.skips(Stage.BUILT)
+        assert plan.skips(Stage.VERIFIED)
+        assert plan.skips(Stage.AUDITED)
         assert plan.first_stage_to_run == "commit"
 
     def test_committed_package_has_nothing_to_do(self, config, repo) -> None:
@@ -186,9 +215,10 @@ class TestResumePlanning:
     def test_a_failed_verification_is_rerun_not_skipped(self, config, repo) -> None:
         state = prepare(repo, completed=Stage.VERIFIED, verification="failed")
         plan = plan_for(config, repo, state)
-        assert plan.skip_build
-        assert not plan.skip_verification
-        assert "re-run" in plan.reason
+        assert plan.skips(Stage.BUILT)
+        assert not plan.skips(Stage.VERIFIED)
+        assert Stage.VERIFIED in plan.must_rerun
+        assert "failed" in plan.reason
 
     def test_recorded_roles_are_carried_and_stay_independent(
         self, config, repo
@@ -225,7 +255,9 @@ class TestResumePlanning:
     def test_describe_names_what_is_skipped(self, config, repo) -> None:
         state = prepare(repo, completed=Stage.VERIFIED)
         text = plan_for(config, repo, state).describe()
-        assert "build" in text and "verification" in text
+        assert "skipping" in text
+        assert "build" in text
+        assert "reusing" in text
 
 
 # ------------------------------------------------------------------- refusal

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .auditdebt import AuditDebt, load, open_debts
 from .config import OrchestratorConfig
+from .evidence import tree_fingerprint
 from .gitops import RepoFacts
 from .roles import COUNTERPART, AgentIdentity, Availability
 from .state import Stage, WorkflowState, WorkflowStatus, stage_reached
@@ -41,34 +42,69 @@ class ResumePlan:
     debt: AuditDebt | None = None
     builder_report: str = ""
 
+    #: Stages this plan requires to run again even though an earlier stage
+    #: marker is at or past them. The executor obeys this rather than
+    #: re-deriving skipping from ``completed``.
+    must_rerun: frozenset[Stage] = frozenset()
+    #: A committed package whose only outstanding work is the independent
+    #: review it never received.
+    review_only: bool = False
+    #: What persisted evidence this plan intends to reuse.
+    reused_evidence: tuple[str, ...] = ()
+
     @property
     def nothing_to_do(self) -> bool:
-        return self.completed is Stage.COMMITTED
+        return (
+            self.completed is Stage.COMMITTED
+            and not self.review_only
+            and self.debt is None
+        )
+
+    def skips(self, stage: Stage) -> bool:
+        """Whether this plan skips one stage. The plan is the authority."""
+
+        if stage in self.must_rerun:
+            return False
+        return {
+            Stage.BUILT: self.skip_build,
+            Stage.VERIFIED: self.skip_verification,
+            Stage.AUDITED: self.skip_audit,
+        }.get(stage, False)
 
     @property
     def first_stage_to_run(self) -> str:
         if self.nothing_to_do:
             return "none"
-        if not self.skip_build:
+        if self.review_only:
+            return "review"
+        if not self.skips(Stage.BUILT):
             return "build"
-        if not self.skip_verification:
+        if not self.skips(Stage.VERIFIED):
             return "verify"
-        if not self.skip_audit:
+        if not self.skips(Stage.AUDITED):
             return "audit"
         return "commit"
 
     def describe(self) -> str:
         skipped = [
             name
-            for name, skipped_flag in (
-                ("build", self.skip_build),
-                ("verification", self.skip_verification),
-                ("audit", self.skip_audit),
+            for name, stage in (
+                ("build", Stage.BUILT),
+                ("verification", Stage.VERIFIED),
+                ("audit", Stage.AUDITED),
             )
-            if skipped_flag
+            if self.skips(stage)
         ]
+        rerun = sorted(stage.value for stage in self.must_rerun)
         joined = ", ".join(skipped) if skipped else "nothing"
-        return f"completed={self.completed.value}; skipping {joined}"
+        text = f"completed={self.completed.value}; skipping {joined}"
+        if rerun:
+            text += f"; must rerun {', '.join(rerun)}"
+        if self.reused_evidence:
+            text += f"; reusing {', '.join(self.reused_evidence)}"
+        if self.review_only:
+            text += "; independent review only"
+        return text
 
 
 def _completed_stage(state: WorkflowState) -> Stage:
@@ -183,6 +219,31 @@ def validate(
     return completed
 
 
+def verification_evidence_valid(
+    config: OrchestratorConfig,
+    state: WorkflowState,
+    package: WorkPackage,
+) -> tuple[bool, str]:
+    """Whether the recorded verification still describes this working tree.
+
+    HEAD is not enough. A package's entire diff normally lives in the working
+    tree, so an edit to any non-protected file leaves HEAD untouched while
+    making the recorded verification describe something that no longer exists.
+    """
+
+    if state.verification_status != "passed":
+        return False, f"recorded verification status is {state.verification_status!r}"
+    if not state.tree_fingerprint:
+        return False, "no working-tree fingerprint was recorded with the verification"
+    current = tree_fingerprint(config, package, base_commit=state.base_commit)
+    if current != state.tree_fingerprint:
+        return False, (
+            "the working tree changed since verification passed "
+            f"(recorded {state.tree_fingerprint[:12]}, now {current[:12]})"
+        )
+    return True, "working-tree fingerprint matches the recorded verification"
+
+
 def plan(
     config: OrchestratorConfig,
     state: WorkflowState,
@@ -209,25 +270,41 @@ def plan(
 
     debt = _open_debt_for(state, package.name)
 
-    # A verification that was running when the process died is not a completed
-    # verification, whatever the stage marker says about earlier work.
-    verification_trustworthy = state.verification_status == "passed"
-    skip_verification = (
-        stage_reached(completed, Stage.VERIFIED) and verification_trustworthy
-    )
+    # A verification is reusable only if it passed *and* the tree it described
+    # is still the tree in front of us.
+    evidence_ok, evidence_reason = verification_evidence_valid(config, state, package)
+
+    must_rerun: set[Stage] = set()
+    reused: list[str] = []
+
+    if stage_reached(completed, Stage.VERIFIED) and not evidence_ok:
+        # Verification cannot be reused, and neither can anything that was only
+        # justified by it: an audit approved a tree that no longer exists.
+        must_rerun.add(Stage.VERIFIED)
+        if stage_reached(completed, Stage.AUDITED):
+            must_rerun.add(Stage.AUDITED)
+    elif stage_reached(completed, Stage.VERIFIED):
+        reused.append("verification")
+    if stage_reached(completed, Stage.BUILT):
+        reused.append("builder report")
+    if stage_reached(completed, Stage.AUDITED) and Stage.AUDITED not in must_rerun:
+        reused.append("independent audit")
+
+    # A committed package with an open debt is not finished: it still owes the
+    # independent review it never received, and that review is all it needs.
+    review_only = completed is Stage.COMMITTED and debt is not None
 
     reason = f"resuming {package.name} from {completed.value}"
-    if stage_reached(completed, Stage.VERIFIED) and not verification_trustworthy:
-        reason += (
-            "; verification is re-run because its recorded status is "
-            f"{state.verification_status!r}"
-        )
+    if must_rerun:
+        reason += f"; {evidence_reason}"
+    if review_only:
+        reason += "; committed work still owes an independent review"
 
     return ResumePlan(
         package=package.name,
         completed=completed,
         skip_build=stage_reached(completed, Stage.BUILT),
-        skip_verification=skip_verification,
+        skip_verification=stage_reached(completed, Stage.VERIFIED),
         skip_audit=stage_reached(completed, Stage.AUDITED),
         reason=reason,
         builder=builder,
@@ -235,6 +312,9 @@ def plan(
         reviewer_available=reviewer_available,
         debt=debt,
         builder_report=_read_builder_report(state),
+        must_rerun=frozenset(must_rerun),
+        review_only=review_only,
+        reused_evidence=tuple(reused),
     )
 
 
