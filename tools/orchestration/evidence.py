@@ -100,20 +100,44 @@ def _untracked_paths(repo: Path) -> list[str]:
 
 
 def _submodule_state(repo: Path, relative: str, index_sha: str) -> str:
-    """Describe a submodule without hashing its whole content tree.
+    """Describe a submodule, or refuse when it is not eligible for reuse.
 
-    The index gitlink alone says only which commit the parent *expects*. It says
-    nothing about the commit actually checked out, and nothing about uncommitted
-    edits inside the submodule - so a submodule advanced or dirtied underneath a
-    verification would leave the fingerprint unchanged. Recording the checked-out
-    HEAD and a dirty flag closes both without walking the submodule's files.
+    Only a pristine submodule can be summarised safely: initialized as its own
+    worktree, readable, clean, and checked out at the commit the parent records.
+    Anything else is refused outright rather than compressed into a flag, because
+    a summary like "dirty" is not enough to tell two different dirty trees apart.
+
+    The independence check is not a formality. Git resolves commands from a
+    directory upwards, so an uninitialized submodule directory answers
+    ``rev-parse HEAD`` with the *parent* repository's HEAD - a plausible-looking
+    value that describes the wrong repository entirely.
     """
 
     working = repo / relative
     if not working.exists():
-        # Declared in the index but not checked out. That is a real, describable
-        # state, not a failure to read one.
-        return f"submodule:index={index_sha}:head=absent:dirty=unknown"
+        raise SubmoduleNotReusable(
+            f"submodule {relative!r} is not checked out; initialize it or "
+            "resolve it manually before reusing evidence"
+        )
+    if not (working / ".git").exists():
+        raise SubmoduleNotReusable(
+            f"submodule {relative!r} exists but is not an independent git "
+            "worktree; git would answer from the parent repository instead"
+        )
+
+    try:
+        toplevel = git(working, "rev-parse", "--show-toplevel").strip()
+    except (RuntimeError, OSError) as error:
+        raise SubmoduleUnreadable(
+            f"cannot resolve the worktree of submodule {relative!r}: {error}"
+        ) from error
+    if not toplevel:
+        raise SubmoduleUnreadable(f"submodule {relative!r} reported no worktree root")
+    if Path(toplevel).resolve() != working.resolve():
+        raise SubmoduleNotReusable(
+            f"submodule {relative!r} resolves to {toplevel!r}, not to itself; "
+            "git commands there would describe another repository"
+        )
 
     try:
         head = git(working, "rev-parse", "HEAD").strip()
@@ -130,9 +154,20 @@ def _submodule_state(repo: Path, relative: str, index_sha: str) -> str:
         raise SubmoduleUnreadable(
             f"cannot read the working tree of submodule {relative!r}: {error}"
         ) from error
+    if status.strip():
+        raise SubmoduleNotReusable(
+            f"submodule {relative!r} has uncommitted or untracked changes; "
+            "evidence recorded against it cannot be reused"
+        )
 
-    dirty = "yes" if status.strip() else "no"
-    return f"submodule:index={index_sha}:head={head}:dirty={dirty}"
+    if head != index_sha:
+        raise SubmoduleNotReusable(
+            f"submodule {relative!r} is checked out at {head[:12]} but the "
+            f"parent index records {index_sha[:12]}"
+        )
+
+    # Clean, initialized and matching: path, index and HEAD fully describe it.
+    return f"submodule:path={relative}:index={index_sha}:head={head}"
 
 
 def tree_fingerprint(
@@ -250,8 +285,18 @@ class EvidenceRefused(RuntimeError):
     """Persisted evidence cannot be trusted for this run."""
 
 
-class SubmoduleUnreadable(RuntimeError):
-    """A submodule's state could not be read, so the tree cannot be described."""
+class SubmoduleNotReusable(RuntimeError):
+    """A submodule's state makes the tree ineligible for evidence reuse.
+
+    Covers every disqualifying condition, not only unreadable ones: dirty,
+    untracked content, uninitialized, not an independent worktree, or a HEAD
+    that disagrees with the index. All of them mean the same thing in practice -
+    the tree cannot be described well enough to justify skipping work.
+    """
+
+
+class SubmoduleUnreadable(SubmoduleNotReusable):
+    """A submodule's state could not be read at all."""
 
 
 def record_builder_evidence(

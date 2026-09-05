@@ -740,10 +740,17 @@ class Engine:
         self.state.verification_status = "passed" if report.passed else "failed"
         if report.passed:
             # Bind this result to the exact tree it describes, so a later run
-            # can prove the tree has not changed underneath it.
-            self.state.tree_fingerprint = evidence_mod.tree_fingerprint(
-                self.config, package, base_commit=self.state.base_commit
-            )
+            # can prove the tree has not changed underneath it. A tree that
+            # cannot be described - a dirty or uninitialized submodule - simply
+            # records no fingerprint, which later reads as "not reusable"
+            # rather than failing the verification that just passed.
+            try:
+                self.state.tree_fingerprint = evidence_mod.tree_fingerprint(
+                    self.config, package, base_commit=self.state.base_commit
+                )
+            except evidence_mod.SubmoduleNotReusable as error:
+                self.state.tree_fingerprint = None
+                outcome.say(f"no reusable tree fingerprint recorded: {error}")
             self._complete_stage(Stage.VERIFIED)
         else:
             # A failed verification leaves no reusable evidence behind.
