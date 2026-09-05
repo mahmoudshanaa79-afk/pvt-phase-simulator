@@ -744,13 +744,14 @@ class Engine:
             # cannot be described - a dirty or uninitialized submodule - simply
             # records no fingerprint, which later reads as "not reusable"
             # rather than failing the verification that just passed.
-            try:
+            reusable, reuse_reason = evidence_mod.fingerprint_reusable(self.config)
+            if reusable:
                 self.state.tree_fingerprint = evidence_mod.tree_fingerprint(
                     self.config, package, base_commit=self.state.base_commit
                 )
-            except evidence_mod.SubmoduleNotReusable as error:
+            else:
                 self.state.tree_fingerprint = None
-                outcome.say(f"no reusable tree fingerprint recorded: {error}")
+                outcome.say(f"no reusable tree fingerprint recorded: {reuse_reason}")
             self._complete_stage(Stage.VERIFIED)
         else:
             # A failed verification leaves no reusable evidence behind.

@@ -23,7 +23,7 @@ from orchestration.config import (  # noqa: E402
     OrchestratorConfig,
 )
 from orchestration.engine import Engine  # noqa: E402
-from orchestration.gitops import read_repo  # noqa: E402
+from orchestration.gitops import git, read_repo  # noqa: E402
 from orchestration.roles import AgentIdentity  # noqa: E402
 from orchestration.state import Stage, WorkflowState, WorkflowStatus  # noqa: E402
 from orchestration.workpackage import (  # noqa: E402
@@ -225,14 +225,15 @@ def _make_submodule(repo: Path, tmp_path: Path, name: str = "sub"):
 
 
 class TestSubmoduleReusePolicy:
-    """A submodule is reusable only when it is pristine; otherwise refuse."""
+    """Any tracked submodule disables evidence reuse. Nothing else changes."""
 
-    def _state(self, repo) -> WorkflowState:
+    def _state(self, repo, *, completed=Stage.BUILT) -> WorkflowState:
         state = WorkflowState()
         state.current_work_package = "demo"
         state.builder = "codex"
         state.base_commit = read_repo(repo).head
-        state.last_completed_stage = Stage.BUILT.value
+        state.last_completed_stage = completed.value
+        state.verification_status = "passed"
         state.workflow_status = WorkflowStatus.LOCAL_VERIFY
         (repo / "work.txt").write_text("built\n", encoding="utf-8")
         return state
@@ -247,151 +248,17 @@ class TestSubmoduleReusePolicy:
         )
 
     # 1 -----------------------------------------------------------------
-    def test_a_clean_initialized_submodule_gives_a_stable_fingerprint(
-        self, config, repo, tmp_path
+    def test_no_submodules_means_the_fingerprint_is_reusable(
+        self, config, repo
     ) -> None:
-        _make_submodule(repo, tmp_path)
-        first = evidence.tree_fingerprint(config, make_package())
-        assert evidence.tree_fingerprint(config, make_package()) == first
+        assert evidence.submodule_paths(repo) == ()
+        reusable, reason = evidence.fingerprint_reusable(config)
+        assert reusable, reason
 
-    def test_a_clean_submodule_records_path_index_and_head(
-        self, config, repo, tmp_path
+    def test_a_repository_without_submodules_resumes_normally(
+        self, config, repo
     ) -> None:
-        _inner, working = _make_submodule(repo, tmp_path)
-        head = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=working,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        described = evidence._submodule_state(repo, "sub", head)
-        assert "path=sub" in described
-        assert f"index={head}" in described
-        assert f"head={head}" in described
-
-    # 2 -----------------------------------------------------------------
-    def test_a_dirty_tracked_file_refuses(self, config, repo, tmp_path) -> None:
-        _inner, working = _make_submodule(repo, tmp_path)
-        (working / "a.txt").write_text("edited\n", encoding="utf-8")
-        with pytest.raises(evidence.SubmoduleNotReusable, match="uncommitted"):
-            evidence.tree_fingerprint(config, make_package())
-        with pytest.raises(resume_mod.ResumeRefused):
-            self._resume(config, repo)
-
-    # 3 -----------------------------------------------------------------
-    def test_different_dirty_content_is_still_refused(
-        self, config, repo, tmp_path
-    ) -> None:
-        """Two different dirty trees must both refuse, not compare equal."""
-
-        _inner, working = _make_submodule(repo, tmp_path)
-        (working / "a.txt").write_text("edit one\n", encoding="utf-8")
-        with pytest.raises(evidence.SubmoduleNotReusable):
-            evidence.tree_fingerprint(config, make_package())
-        (working / "a.txt").write_text("edit two\n", encoding="utf-8")
-        with pytest.raises(evidence.SubmoduleNotReusable):
-            evidence.tree_fingerprint(config, make_package())
-
-    # 4 -----------------------------------------------------------------
-    def test_an_untracked_file_refuses(self, config, repo, tmp_path) -> None:
-        _inner, working = _make_submodule(repo, tmp_path)
-        (working / "stray.txt").write_text("stray\n", encoding="utf-8")
-        with pytest.raises(evidence.SubmoduleNotReusable, match="untracked"):
-            evidence.tree_fingerprint(config, make_package())
-        with pytest.raises(resume_mod.ResumeRefused):
-            self._resume(config, repo)
-
-    # 5 -----------------------------------------------------------------
-    def test_an_advanced_submodule_head_refuses(self, config, repo, tmp_path) -> None:
-        _inner, working = _make_submodule(repo, tmp_path)
-        (working / "a.txt").write_text("two\n", encoding="utf-8")
-        subprocess.run(["git", "add", "-A"], cwd=working, check=True)
-        subprocess.run(["git", "commit", "-qm", "two"], cwd=working, check=True)
-        with pytest.raises(evidence.SubmoduleNotReusable, match="checked out at"):
-            evidence.tree_fingerprint(config, make_package())
-        with pytest.raises(resume_mod.ResumeRefused):
-            self._resume(config, repo)
-
-    # 6 -----------------------------------------------------------------
-    def test_an_uninitialized_submodule_refuses(self, config, repo, tmp_path) -> None:
-        _inner, working = _make_submodule(repo, tmp_path)
-        shutil.rmtree(working)
-        with pytest.raises(evidence.SubmoduleNotReusable, match="not checked out"):
-            evidence.tree_fingerprint(config, make_package())
-        with pytest.raises(resume_mod.ResumeRefused):
-            self._resume(config, repo)
-
-    # 7 -----------------------------------------------------------------
-    def test_a_directory_that_is_not_an_independent_worktree_refuses(
-        self, config, repo, tmp_path
-    ) -> None:
-        """Git resolves upwards, so a bare directory answers from the parent."""
-
-        _inner, working = _make_submodule(repo, tmp_path)
-        shutil.rmtree(working)
-        working.mkdir()
-        (working / "a.txt").write_text("looks right\n", encoding="utf-8")
-        assert not (working / ".git").exists()
-
-        with pytest.raises(
-            evidence.SubmoduleNotReusable, match="not an independent git worktree"
-        ):
-            evidence.tree_fingerprint(config, make_package())
-        with pytest.raises(resume_mod.ResumeRefused):
-            self._resume(config, repo)
-
-    def test_the_parent_head_is_never_mistaken_for_the_submodule_head(
-        self, config, repo, tmp_path
-    ) -> None:
-        """Proves the hazard is real and that the check is what blocks it."""
-
-        _inner, working = _make_submodule(repo, tmp_path)
-        shutil.rmtree(working)
-        working.mkdir()
-
-        # Git really does answer from the parent here.
-        leaked = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=working,
-            capture_output=True,
-            text=True,
-        )
-        assert leaked.returncode == 0
-        assert leaked.stdout.strip() == read_repo(repo).head
-
-        # And the fingerprint refuses rather than recording that value.
-        with pytest.raises(evidence.SubmoduleNotReusable):
-            evidence._submodule_state(repo, "sub", "0" * 40)
-
-    # 8 -----------------------------------------------------------------
-    def test_an_unreadable_submodule_refuses(
-        self, config, repo, tmp_path, monkeypatch
-    ) -> None:
-        _make_submodule(repo, tmp_path)
-        from orchestration import evidence as evidence_module
-
-        real_git = evidence_module.git
-
-        def exploding_git(target, *args, **kwargs):
-            if "HEAD" in args:
-                raise RuntimeError("object store is unreadable")
-            return real_git(target, *args, **kwargs)
-
-        monkeypatch.setattr(evidence_module, "git", exploding_git)
-        with pytest.raises(evidence.SubmoduleUnreadable, match="cannot read HEAD"):
-            evidence.tree_fingerprint(config, make_package())
-        with pytest.raises(resume_mod.ResumeRefused):
-            self._resume(config, repo)
-
-    # 9 -----------------------------------------------------------------
-    def test_a_clean_matching_submodule_allows_evidence_reuse(
-        self, config, repo, tmp_path
-    ) -> None:
-        _make_submodule(repo, tmp_path)
-        state = self._state(repo)
-        state.last_completed_stage = Stage.VERIFIED.value
-        state.verification_status = "passed"
+        state = self._state(repo, completed=Stage.VERIFIED)
         state.tree_fingerprint = evidence.tree_fingerprint(
             config, make_package(), base_commit=state.base_commit
         )
@@ -400,24 +267,98 @@ class TestSubmoduleReusePolicy:
         )
         assert ok, reason
 
-    def test_a_submodule_going_dirty_after_verification_refuses_reuse(
+    # 2 -----------------------------------------------------------------
+    def test_any_initialized_submodule_refuses_reuse(
+        self, config, repo, tmp_path
+    ) -> None:
+        _make_submodule(repo, tmp_path)
+        assert evidence.submodule_paths(repo) == ("sub",)
+        reusable, reason = evidence.fingerprint_reusable(config)
+        assert not reusable
+        assert "submodule" in reason
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    # 3 -----------------------------------------------------------------
+    def test_an_uninitialized_submodule_refuses_reuse(
         self, config, repo, tmp_path
     ) -> None:
         _inner, working = _make_submodule(repo, tmp_path)
-        state = self._state(repo)
-        state.last_completed_stage = Stage.VERIFIED.value
-        state.verification_status = "passed"
-        state.tree_fingerprint = evidence.tree_fingerprint(
-            config, make_package(), base_commit=state.base_commit
-        )
-        (working / "a.txt").write_text("changed after\n", encoding="utf-8")
-        with pytest.raises(resume_mod.ResumeRefused):
-            resume_mod.verification_evidence_valid(config, state, make_package())
+        shutil.rmtree(working)
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
 
-    def test_a_verification_over_a_dirty_submodule_records_no_fingerprint(
+    # 4 -----------------------------------------------------------------
+    def test_a_submodule_with_assume_unchanged_refuses_reuse(
         self, config, repo, tmp_path
     ) -> None:
-        """The gate still passes; it simply leaves nothing reusable behind."""
+        """The policy does not depend on status flags, so hiding it changes
+        nothing."""
+
+        _inner, working = _make_submodule(repo, tmp_path)
+        git(repo, "update-index", "--assume-unchanged", "sub")
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    # 5 -----------------------------------------------------------------
+    def test_a_submodule_with_skip_worktree_refuses_reuse(
+        self, config, repo, tmp_path
+    ) -> None:
+        _inner, working = _make_submodule(repo, tmp_path)
+        git(repo, "update-index", "--skip-worktree", "sub")
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    # 6 -----------------------------------------------------------------
+    def test_a_dirty_submodule_refuses_reuse(self, config, repo, tmp_path) -> None:
+        _inner, working = _make_submodule(repo, tmp_path)
+        (working / "a.txt").write_text("edited\n", encoding="utf-8")
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    def test_an_untracked_file_in_a_submodule_refuses_reuse(
+        self, config, repo, tmp_path
+    ) -> None:
+        _inner, working = _make_submodule(repo, tmp_path)
+        (working / "stray.txt").write_text("stray\n", encoding="utf-8")
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    def test_a_mismatched_submodule_head_refuses_reuse(
+        self, config, repo, tmp_path
+    ) -> None:
+        _inner, working = _make_submodule(repo, tmp_path)
+        (working / "a.txt").write_text("two\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=working, check=True)
+        subprocess.run(["git", "commit", "-qm", "two"], cwd=working, check=True)
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    def test_a_directory_that_is_not_a_worktree_refuses_reuse(
+        self, config, repo, tmp_path
+    ) -> None:
+        """No git command is run inside it, so the parent-HEAD leak cannot
+        arise at all."""
+
+        _inner, working = _make_submodule(repo, tmp_path)
+        shutil.rmtree(working)
+        working.mkdir()
+        (working / "a.txt").write_text("looks right\n", encoding="utf-8")
+        assert not evidence.fingerprint_reusable(config)[0]
+        with pytest.raises(resume_mod.ResumeRefused, match="submodule"):
+            self._resume(config, repo)
+
+    # 7 -----------------------------------------------------------------
+    def test_a_fresh_run_is_unaffected_by_a_submodule(
+        self, config, repo, tmp_path
+    ) -> None:
+        """The rule withholds reuse; it must never block ordinary execution."""
 
         from orchestration.engine import StepOutcome
 
@@ -430,14 +371,70 @@ class TestSubmoduleReusePolicy:
             codex_runner=recording_builder("codex", []),
             claude_runner=lambda *a, **k: None,
         )
-        # The submodule is in scope here, so the gates themselves pass and the
-        # only question left is whether a fingerprint gets recorded.
         package = make_package(allowed_files=("work.txt", "sub"))
         outcome = StepOutcome(status=WorkflowStatus.LOCAL_VERIFY)
         report = engine.run_verification(package, outcome)
+
         assert report.passed, report.summary()
         assert state.tree_fingerprint is None
         assert any("no reusable tree fingerprint" in m for m in outcome.messages)
+
+    def test_a_full_build_still_completes_with_a_submodule_present(
+        self, config, repo, tmp_path
+    ) -> None:
+        _make_submodule(repo, tmp_path)
+        state = WorkflowState()
+        log: list[str] = []
+        engine = Engine(
+            config,
+            state,
+            codex_runner=recording_builder("codex", log),
+            claude_runner=lambda *a, **k: None,
+        )
+        package = make_package(
+            audit_policy=AuditPolicy.NONE,
+            commit_policy=CommitPolicy.AFTER_VERIFY,
+            allowed_files=("work.txt", "sub"),
+        )
+        outcome = engine.execute(package, saved_package(config, package))
+        assert log == ["codex:build"]
+        assert outcome.status is WorkflowStatus.IDLE
+
+    def test_the_fingerprint_never_walks_into_a_submodule(
+        self, config, repo, tmp_path, monkeypatch
+    ) -> None:
+        """Nothing may run git inside a submodule working tree."""
+
+        _inner, working = _make_submodule(repo, tmp_path)
+        from orchestration import evidence as evidence_module
+
+        real_git = evidence_module.git
+        targets: list[str] = []
+
+        def recording_git(target, *args, **kwargs):
+            targets.append(str(target))
+            return real_git(target, *args, **kwargs)
+
+        monkeypatch.setattr(evidence_module, "git", recording_git)
+        evidence.tree_fingerprint(config, make_package())
+        assert all(str(working) not in target for target in targets)
+
+    def test_resume_from_nothing_is_still_allowed_with_a_submodule(
+        self, config, repo, tmp_path
+    ) -> None:
+        """Refusal is about reuse; a run with nothing completed reuses nothing."""
+
+        _make_submodule(repo, tmp_path)
+        state = self._state(repo, completed=Stage.NOT_STARTED)
+        plan = resume_mod.plan(
+            config,
+            state,
+            make_package(),
+            read_repo(repo),
+            roles.availability_map(config),
+        )
+        assert not plan.skips(Stage.BUILT)
+        assert plan.first_stage_to_run == "build"
 
 
 # ============================================ strict workflow identity

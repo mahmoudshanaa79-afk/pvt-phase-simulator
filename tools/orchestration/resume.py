@@ -14,7 +14,7 @@ from pathlib import Path
 
 from .auditdebt import AuditDebt, load, open_debts
 from .config import OrchestratorConfig
-from .evidence import SubmoduleNotReusable, tree_fingerprint
+from .evidence import fingerprint_reusable, tree_fingerprint
 from .gitops import RepoFacts
 from .roles import COUNTERPART, AgentIdentity, Availability
 from .state import Stage, WorkflowState, WorkflowStatus, stage_reached
@@ -168,12 +168,13 @@ def validate(
 
     completed = _completed_stage(state)
 
-    try:
-        tree_fingerprint(config, package, base_commit=state.base_commit)
-    except SubmoduleNotReusable as error:
+    # Reuse is what resume exists for, so a repository whose fingerprints can
+    # never be trusted has nothing to resume into: it needs a fresh run.
+    reusable, reuse_reason = fingerprint_reusable(config)
+    if not reusable and completed is not Stage.NOT_STARTED:
         raise ResumeRefused(
-            f"the working tree cannot be described safely: {error}"
-        ) from error
+            f"{reuse_reason}; run this package fresh rather than resuming it"
+        )
 
     protected_ok, protected_detail = check_protected_artifacts(config)
     if not protected_ok:
@@ -242,11 +243,10 @@ def verification_evidence_valid(
         return False, f"recorded verification status is {state.verification_status!r}"
     if not state.tree_fingerprint:
         return False, "no working-tree fingerprint was recorded with the verification"
-    try:
-        current = tree_fingerprint(config, package, base_commit=state.base_commit)
-    except SubmoduleNotReusable as error:
-        # The tree cannot be described, so no claim about it can be trusted.
-        raise ResumeRefused(str(error)) from error
+    reusable, reuse_reason = fingerprint_reusable(config)
+    if not reusable:
+        return False, reuse_reason
+    current = tree_fingerprint(config, package, base_commit=state.base_commit)
     if current != state.tree_fingerprint:
         return False, (
             "the working tree changed since verification passed "

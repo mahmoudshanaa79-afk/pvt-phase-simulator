@@ -99,75 +99,40 @@ def _untracked_paths(repo: Path) -> list[str]:
     return [path.replace("\\", "/") for path in raw.split("\0") if path]
 
 
-def _submodule_state(repo: Path, relative: str, index_sha: str) -> str:
-    """Describe a submodule, or refuse when it is not eligible for reuse.
+def submodule_paths(repo: Path) -> tuple[str, ...]:
+    """Every tracked submodule path, read from the parent index."""
 
-    Only a pristine submodule can be summarised safely: initialized as its own
-    worktree, readable, clean, and checked out at the commit the parent records.
-    Anything else is refused outright rather than compressed into a flag, because
-    a summary like "dirty" is not enough to tell two different dirty trees apart.
+    return tuple(
+        relative
+        for relative, meta in _tracked_entries(repo)
+        if meta.startswith(f"{GITLINK_MODE}:")
+    )
 
-    The independence check is not a formality. Git resolves commands from a
-    directory upwards, so an uninitialized submodule directory answers
-    ``rev-parse HEAD`` with the *parent* repository's HEAD - a plausible-looking
-    value that describes the wrong repository entirely.
+
+def fingerprint_reusable(config: OrchestratorConfig) -> tuple[bool, str]:
+    """Whether a fingerprint of this repository may justify skipping work.
+
+    A submodule is a second repository with its own index, its own status flags
+    and its own ways of hiding a change. Proving one clean enough to trust is a
+    lot of machinery for a guarantee that stays only as strong as its weakest
+    assumption, and this project has no submodules at all. So the rule is blunt:
+    if any tracked submodule exists, no fingerprint here is reusable, and a
+    resumed run redoes the work rather than trusting a summary of it.
+
+    This never blocks ordinary execution. A fresh build or verification runs
+    exactly as before; only evidence *reuse* is withheld.
     """
 
-    working = repo / relative
-    if not working.exists():
-        raise SubmoduleNotReusable(
-            f"submodule {relative!r} is not checked out; initialize it or "
-            "resolve it manually before reusing evidence"
+    submodules = submodule_paths(config.repo)
+    if submodules:
+        listed = ", ".join(submodules[:3])
+        if len(submodules) > 3:
+            listed += f", and {len(submodules) - 3} more"
+        return False, (
+            f"repository contains tracked submodule(s) ({listed}); tree "
+            "fingerprints are not reusable for stage skipping"
         )
-    if not (working / ".git").exists():
-        raise SubmoduleNotReusable(
-            f"submodule {relative!r} exists but is not an independent git "
-            "worktree; git would answer from the parent repository instead"
-        )
-
-    try:
-        toplevel = git(working, "rev-parse", "--show-toplevel").strip()
-    except (RuntimeError, OSError) as error:
-        raise SubmoduleUnreadable(
-            f"cannot resolve the worktree of submodule {relative!r}: {error}"
-        ) from error
-    if not toplevel:
-        raise SubmoduleUnreadable(f"submodule {relative!r} reported no worktree root")
-    if Path(toplevel).resolve() != working.resolve():
-        raise SubmoduleNotReusable(
-            f"submodule {relative!r} resolves to {toplevel!r}, not to itself; "
-            "git commands there would describe another repository"
-        )
-
-    try:
-        head = git(working, "rev-parse", "HEAD").strip()
-    except (RuntimeError, OSError) as error:
-        raise SubmoduleUnreadable(
-            f"cannot read HEAD of submodule {relative!r}: {error}"
-        ) from error
-    if not head:
-        raise SubmoduleUnreadable(f"submodule {relative!r} reported no HEAD")
-
-    try:
-        status = git(working, "status", "--porcelain", "--untracked-files=normal")
-    except (RuntimeError, OSError) as error:
-        raise SubmoduleUnreadable(
-            f"cannot read the working tree of submodule {relative!r}: {error}"
-        ) from error
-    if status.strip():
-        raise SubmoduleNotReusable(
-            f"submodule {relative!r} has uncommitted or untracked changes; "
-            "evidence recorded against it cannot be reused"
-        )
-
-    if head != index_sha:
-        raise SubmoduleNotReusable(
-            f"submodule {relative!r} is checked out at {head[:12]} but the "
-            f"parent index records {index_sha[:12]}"
-        )
-
-    # Clean, initialized and matching: path, index and HEAD fully describe it.
-    return f"submodule:path={relative}:index={index_sha}:head={head}"
+    return True, "no tracked submodules"
 
 
 def tree_fingerprint(
@@ -193,14 +158,9 @@ def tree_fingerprint(
         if _excluded(relative):
             continue
         if index_meta.startswith(f"{GITLINK_MODE}:"):
-            entries.append(
-                (
-                    relative,
-                    _submodule_state(
-                        config.repo, relative, index_meta.split(":", 1)[1]
-                    ),
-                )
-            )
+            # Recorded, never walked. Its mere presence already makes this
+            # fingerprint ineligible for reuse; see fingerprint_reusable.
+            entries.append((relative, f"submodule:{index_meta.split(':', 1)[1]}"))
             continue
         candidate = config.repo / relative
         entries.append(
@@ -283,20 +243,6 @@ class BuilderEvidence:
 
 class EvidenceRefused(RuntimeError):
     """Persisted evidence cannot be trusted for this run."""
-
-
-class SubmoduleNotReusable(RuntimeError):
-    """A submodule's state makes the tree ineligible for evidence reuse.
-
-    Covers every disqualifying condition, not only unreadable ones: dirty,
-    untracked content, uninitialized, not an independent worktree, or a HEAD
-    that disagrees with the index. All of them mean the same thing in practice -
-    the tree cannot be described well enough to justify skipping work.
-    """
-
-
-class SubmoduleUnreadable(SubmoduleNotReusable):
-    """A submodule's state could not be read at all."""
 
 
 def record_builder_evidence(
