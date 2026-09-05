@@ -1,0 +1,69 @@
+{
+  "name": "02_field_units",
+  "objective": "Let users work in practical field units while the engine stays internally SI. Support pressure in Pa, MPa, bar and psi, and temperature in K, degrees Celsius and degrees Fahrenheit. Every conversion happens at the application boundary, once, on the way in and on the way out. Exports state their units explicitly.",
+  "risk": "MEDIUM",
+  "allowed_files": [
+    "src/pvt_phase_simulator_ui/**",
+    "tests/test_app_*.py",
+    "docs/STREAMLIT_APPLICATION.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master"
+  ],
+  "scientific_invariants": [
+    "The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.",
+    "No thermodynamic relation may be implemented, restated or approximated in the application layer.",
+    "Unavailable quantities are reported as unavailable and never fabricated or interpolated.",
+    "Structured failures remain failures; only CriticalPointStatus.CONVERGED is a certified critical point."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [
+    "01_model_and_limitations"
+  ],
+  "status": "PENDING",
+  "notes": "The engine keeps receiving SI and keeps returning SI. Conversion factors are exact where they are exact; a round-trip through a unit must not silently lose precision. No thermodynamics is duplicated."
+}

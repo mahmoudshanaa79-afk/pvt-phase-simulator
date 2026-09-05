@@ -1,0 +1,70 @@
+{
+  "name": "05_v1_2_release_qa",
+  "objective": "Final application-level verification of the complete v1.2 product. Exercise first use, every navigation page, flash, sweeps, field units, save and load, exports, the report, stale-result protection, invalid-input protection, deployment smoke readiness, and the truthfulness of the documentation against what the application actually does. No new features.",
+  "risk": "LOW",
+  "allowed_files": [
+    "tests/test_app_*.py",
+    "docs/STREAMLIT_APPLICATION.md",
+    "README.md",
+    "src/pvt_phase_simulator_ui/**"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master"
+  ],
+  "scientific_invariants": [
+    "The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.",
+    "No thermodynamic relation may be implemented, restated or approximated in the application layer.",
+    "Unavailable quantities are reported as unavailable and never fabricated or interpolated.",
+    "Structured failures remain failures; only CriticalPointStatus.CONVERGED is a certified critical point."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [
+    "04_engineering_report"
+  ],
+  "status": "PENDING",
+  "notes": "This package closes gaps it finds; it does not add capability. If the documentation and the application disagree, the documentation is corrected to match the application, never the reverse."
+}
