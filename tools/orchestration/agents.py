@@ -409,3 +409,146 @@ def run_claude_audit(
         run.contract_error = str(error)
     run.transcript_path = _persist(config, "claude_audits", stem, run)
     return run
+
+
+#: Tools Claude may use while *building*. Unlike an audit, a build must write.
+BUILD_ALLOWED_TOOLS = "Read,Glob,Grep,Bash,Edit,Write,MultiEdit,TodoWrite"
+
+
+def _claude_envelope_text(stdout: str) -> tuple[str, float | None]:
+    """Unwrap Claude's JSON envelope into (assistant text, reported cost)."""
+
+    text = stdout
+    envelope: dict[str, Any] | None = None
+    try:
+        envelope = json.loads(stdout)
+        if isinstance(envelope, dict):
+            text = str(envelope.get("result", stdout))
+    except json.JSONDecodeError:
+        envelope = None
+    reported = (envelope or {}).get("total_cost_usd")
+    cost = float(reported) if isinstance(reported, (int, float)) else None
+    return text, cost
+
+
+def run_claude_builder(
+    config: OrchestratorConfig,
+    work_order: Path,
+    *,
+    stem: str,
+) -> AgentRun:
+    """Invoke Claude Code as a builder when it has taken over from Codex.
+
+    This is the failover counterpart of :func:`run_codex`, and it is deliberately
+    a different entry point from :func:`run_claude_audit`: building needs write
+    tools, auditing must never have them, and keeping the two transports separate
+    is what stops an audit from silently gaining edit permission.
+    """
+
+    executable = _resolve(config.claude, "Claude Code")
+    command = [
+        executable,
+        "--print",
+        "--output-format",
+        "json",
+        "--permission-mode",
+        "acceptEdits",
+        "--allowed-tools",
+        BUILD_ALLOWED_TOOLS,
+        "--add-dir",
+        str(config.repo),
+        "--max-budget-usd",
+        str(config.limits.max_claude_cost_usd_per_run),
+        *config.claude.args,
+    ]
+    started = time.time()
+    completed = subprocess.run(
+        command,
+        cwd=str(config.repo),
+        input=work_order.read_text(encoding="utf-8"),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=config.claude.timeout_seconds,
+    )
+    text, cost = _claude_envelope_text(completed.stdout)
+    run = AgentRun(
+        name="claude",
+        command=command,
+        exit_code=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        raw_report=text,
+        duration_seconds=time.time() - started,
+        cost_usd=cost,
+        extra={"role": "builder", "cost_reported": cost is not None},
+    )
+    try:
+        run.contract = validate_builder_contract(parse_contract(text))
+    except ContractError as error:
+        run.contract_error = str(error)
+    run.transcript_path = _persist(config, "claude_builds", stem, run)
+    return run
+
+
+def run_codex_audit(
+    config: OrchestratorConfig,
+    prompt: Path,
+    *,
+    stem: str,
+) -> AgentRun:
+    """Invoke Codex as the *independent* reviewer of work Claude built.
+
+    Distinct from :func:`run_codex_review`, which is the non-independent
+    provisional fallback used when Codex reviews work Codex itself built. This
+    one carries the full auditor contract because it genuinely is independent.
+    """
+
+    executable = _resolve(config.codex, "Codex")
+    report_file = config.subdir("codex_audits") / f"{stem}.last-message.txt"
+    command = [
+        executable,
+        "exec",
+        "-s",
+        "read-only",
+        "-C",
+        str(config.repo),
+        "--output-last-message",
+        str(report_file),
+        *config.codex.args,
+    ]
+    started = time.time()
+    completed = subprocess.run(
+        command,
+        cwd=str(config.repo),
+        input=prompt.read_text(encoding="utf-8"),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=config.codex.timeout_seconds,
+    )
+    raw = (
+        report_file.read_text(encoding="utf-8")
+        if report_file.exists()
+        else completed.stdout
+    )
+    run = AgentRun(
+        name="codex",
+        command=command,
+        exit_code=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        raw_report=raw,
+        duration_seconds=time.time() - started,
+        extra={"role": "independent_reviewer"},
+    )
+    try:
+        run.contract = validate_audit_contract(parse_contract(raw))
+    except ContractError as error:
+        run.contract_error = str(error)
+    run.transcript_path = _persist(config, "codex_audits", stem, run)
+    return run

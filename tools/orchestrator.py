@@ -20,7 +20,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 
-from orchestration import agents  # noqa: E402
+from orchestration import agents, auditdebt, resume, roles  # noqa: E402
+from orchestration import heartbeat as hb  # noqa: E402
 from orchestration.config import ConfigError, load_config  # noqa: E402
 from orchestration.engine import Engine  # noqa: E402
 from orchestration.gitops import read_repo  # noqa: E402
@@ -100,11 +101,13 @@ def cmd_status(config, args) -> int:
     for finding in state.blocking_findings[:5]:
         print(f"                         {finding.get('id')}: {finding.get('summary')}")
     print(f"Safe-defer findings    : {len(state.safe_defer_findings)}")
-    print(f"Deferred audit debt    : {len(state.deferred_independent_audits)}")
-    for debt in state.deferred_independent_audits[:5]:
+    debts = auditdebt.load(state.deferred_independent_audits)
+    outstanding = auditdebt.open_debts(debts)
+    print(f"Deferred audit debt    : {len(outstanding)} open / {len(debts)} recorded")
+    for debt in outstanding[:5]:
         print(
-            f"                         {debt.get('package')}: "
-            f"{debt.get('resulting_commit')}"
+            f"                         {debt.id}: built by {debt.builder}, "
+            f"awaiting {debt.reviewer_required}"
         )
     print(
         f"Auditor spend          : ${state.claude_cost_usd_this_package:.4f}"
@@ -139,7 +142,157 @@ def cmd_status(config, args) -> int:
     else:
         next_action = f"`run` work package '{package.name}' (risk {effective.value})"
     print(f"Next action            : {next_action}")
+
+    if getattr(args, "verbose", False):
+        _print_runtime_detail(config, state, next_action)
     return 0
+
+
+def _print_runtime_detail(config, state, next_action: str) -> None:
+    """The live view: is anything actually working on this right now?"""
+
+    record = hb.read_heartbeat(config)
+    print()
+    print("---- runtime ----------------------------------------------")
+    if record is None:
+        print("No runtime status recorded. Nothing has run since .ai/runtime was")
+        print("last cleared, so there is no live process to describe.")
+        return
+
+    alive = hb.process_alive(record.pid)
+    running = record.is_running()
+    if record.finished:
+        process_state = "finished"
+    elif not alive:
+        process_state = "DEAD (process gone)"
+    elif record.is_stale():
+        age = hb.format_duration(record.age_seconds())
+        process_state = f"STALE (no beat for {age})"
+    else:
+        process_state = "alive"
+
+    debts = auditdebt.load(state.deferred_independent_audits)
+    corrections = (
+        f"{state.codex_correction_cycles}/{config.limits.max_codex_correction_cycles}"
+    )
+
+    print(f"WORKFLOW ID     : {record.workflow_id}")
+    package_name = record.package or state.current_work_package or "(none)"
+    print(f"ACTIVE PACKAGE  : {package_name}")
+    print(f"STATE           : {record.workflow_status or state.workflow_status.value}")
+    print(f"STAGE           : {record.stage or state.last_completed_stage or '(none)'}")
+    print(f"BUILDER         : {record.builder or state.builder or '(unassigned)'}")
+    print(f"REVIEWER        : {record.reviewer or state.reviewer or '(unassigned)'}")
+    gate = record.verification_gate or record.current_command or "-"
+    print(f"CURRENT GATE    : {gate}")
+    print(f"PROCESS         : {process_state} (pid {record.pid})")
+    print(f"ELAPSED         : {hb.format_duration(record.elapsed_seconds())}")
+    print(f"LAST HEARTBEAT  : {hb.format_duration(record.age_seconds())} ago")
+    print(f"CORRECTIONS     : {corrections}")
+    print(f"AUDIT DEBT      : {auditdebt.summary(debts)}")
+    print(f"SCIENCE FIREWALL: {record.science_firewall}")
+    print(f"RUNNING         : {'YES' if running else 'NO'}")
+    print(f"NEXT ACTION     : {record.next_action or next_action}")
+
+
+# ------------------------------------------------------------- audit debt
+
+
+def cmd_reconcile(config, args) -> int:
+    """Clear one deferred independent audit with evidence of a real review."""
+
+    state = load_state(config.state_path)
+    debts = auditdebt.load(state.deferred_independent_audits)
+    outstanding = auditdebt.open_debts(debts)
+
+    if not args.debt:
+        if not outstanding:
+            print("No outstanding independent-audit debt.")
+            return 0
+        print("Outstanding independent-audit debt:")
+        for debt in outstanding:
+            print(f"  {debt.id}")
+            print(f"      package  : {debt.package}")
+            print(f"      built by : {debt.builder}")
+            print(f"      needs    : {debt.reviewer_required}")
+            print(f"      reason   : {debt.reason}")
+        print()
+        print("Clear one with:")
+        print(
+            "  python tools/orchestrator.py reconcile --debt <id> "
+            "--reviewer <agent> --evidence <text>"
+        )
+        return 0
+
+    if not args.reviewer or not args.evidence:
+        print("reconcile requires --reviewer and --evidence")
+        return 1
+
+    kind = (
+        auditdebt.EvidenceKind.AGENT
+        if args.reviewer in {"codex", "claude"}
+        else auditdebt.EvidenceKind.EXTERNAL
+    )
+    try:
+        debt = auditdebt.reconcile(
+            debts,
+            identifier=args.debt,
+            reviewer=args.reviewer,
+            evidence=args.evidence,
+            kind=kind,
+            builder=getattr(args, "builder", None),
+        )
+    except auditdebt.DebtError as error:
+        print(f"refused: {error}")
+        return 1
+
+    state.deferred_independent_audits = auditdebt.dump(debts)
+    remaining = auditdebt.open_debts(debts)
+    if not remaining:
+        state.audit_required = False
+        state.audit_reason = None
+    save_state(config.state_path, state)
+    print(f"cleared {debt.id}")
+    print(f"  built by  : {debt.builder}")
+    print(f"  reviewed  : {debt.cleared_by} ({debt.evidence_kind})")
+    print(f"  evidence  : {debt.evidence}")
+    print(f"  remaining : {len(remaining)} open debt(s)")
+    return 0
+
+
+def _heartbeat(config, state) -> hb.Heartbeat:
+    """Start (or continue) the runtime status for this invocation.
+
+    The workflow id is carried on the state so a resumed run keeps the same
+    identity rather than looking like a brand new one.
+    """
+
+    beat = hb.Heartbeat(config, workflow_id=state.workflow_id)
+    state.workflow_id = beat.record.workflow_id
+    beat.beat(
+        package=state.current_work_package,
+        workflow_status=state.workflow_status.value,
+        builder=state.builder,
+        reviewer=state.reviewer,
+        stage=state.last_completed_stage,
+        max_corrections=config.limits.max_codex_correction_cycles,
+        correction_count=state.codex_correction_cycles,
+        audit_debt=len(
+            auditdebt.open_debts(auditdebt.load(state.deferred_independent_audits))
+        ),
+    )
+    return beat
+
+
+def _goal(config, args) -> str:
+    """Which release this invocation is driving.
+
+    Explicit --goal wins, then the configured release_goal. Nothing here knows
+    about any particular version number.
+    """
+
+    override = getattr(args, "goal", None)
+    return str(override or config.release_goal)
 
 
 # ------------------------------------------------------------------ run/audit
@@ -152,7 +305,7 @@ def cmd_run(config, args) -> int:
         print("No eligible work package. Define one in .ai/work_packages/.")
         return 1
 
-    engine = Engine(config, state)
+    engine = Engine(config, state, heartbeat=_heartbeat(config, state))
     if args.dry_run:
         outcome = engine.plan(package)
         print("DRY RUN — no agent invoked, git untouched\n")
@@ -198,7 +351,7 @@ def cmd_audit(config, args) -> int:
     if package is None:
         print("No work package to audit.")
         return 1
-    engine = Engine(config, state)
+    engine = Engine(config, state, heartbeat=_heartbeat(config, state))
     report = verify(config, label=f"{package.name}-audit-preflight")
     outcome_holder = engine.plan(package)
     outcome_holder.status = state.workflow_status
@@ -244,28 +397,99 @@ def cmd_verify(config, args) -> int:
 
 
 def cmd_resume(config, args) -> int:
+    """Continue an interrupted package from the last stage that completed."""
+
     state = load_state(config.state_path)
     facts = read_repo(config.repo)
     print(f"workflow status: {state.workflow_status.value}")
-    if state.workflow_status is WorkflowStatus.HUMAN_ACTION_REQUIRED:
-        print(f"blocked on: {state.last_error}")
-        print("resolve the issue, then run `stop` to clear or `run` to continue.")
-        return 2
-    if state.workflow_status not in INTERRUPTIBLE_STATES:
+
+    package, package_path = _resolve_package(config, state.current_work_package)
+    if package is None or package_path is None:
+        print(
+            f"no work package named {state.current_work_package!r} is available; "
+            "nothing to resume."
+        )
+        return 1
+
+    allowed, why = resume.resumable(state, package.name)
+    print(f"resumable: {'yes' if allowed else 'no'} ({why})")
+    if not allowed:
+        if state.workflow_status is WorkflowStatus.HUMAN_ACTION_REQUIRED:
+            print("resolve the issue, then run `stop` to clear or `run` to continue.")
+            return 2
         print("nothing to resume; use `run`.")
         return 0
-    print(f"interrupted during {state.workflow_status.value}; re-verifying from git")
-    report = verify(config, label="resume")
-    print(report.summary() or "  (no commands configured)")
-    print(
-        f"tree {'clean' if facts.is_clean else 'dirty'}; "
-        f"verification passed={report.passed}"
-    )
-    print(
-        "re-run `run` to continue from this boundary; "
-        "completed commits are not repeated."
-    )
-    return 0
+
+    try:
+        plan = resume.plan(
+            config,
+            state,
+            package,
+            facts,
+            roles.availability_map(config),
+        )
+    except resume.ResumeRefused as error:
+        # Persisted state and repository disagree. Record the refusal rather
+        # than guessing which one is right.
+        state.transition(
+            WorkflowStatus.HUMAN_ACTION_REQUIRED, f"resume refused: {error}"
+        )
+        state.last_error = f"resume refused: {error}"
+        save_state(config.state_path, state)
+        print(f"REFUSED: {error}")
+        print("state and repository disagree; resolve manually, then `run`.")
+        return 2
+
+    print(f"plan: {plan.describe()}")
+    print(f"first stage to run: {plan.first_stage_to_run}")
+    if plan.builder:
+        print(f"builder (recorded)  : {plan.builder.value}")
+    if plan.reviewer_required:
+        availability = "available" if plan.reviewer_available else "UNAVAILABLE"
+        print(f"reviewer (required) : {plan.reviewer_required.value} [{availability}]")
+
+    if plan.nothing_to_do:
+        print("package already committed with no outstanding review; nothing to do.")
+        state.transition(WorkflowStatus.IDLE, "resume found the package complete")
+        save_state(config.state_path, state)
+        return 0
+
+    if plan.debt is not None and not plan.reviewer_available:
+        print(
+            f"deferred audit {plan.debt.id} still needs "
+            f"{plan.debt.reviewer_required}, which is unavailable; not resuming."
+        )
+        return 2
+
+    if getattr(args, "dry_run", False):
+        print("(dry run: no agent invoked)")
+        return 0
+
+    lock = OrchestratorLock(config.lock_path)
+    try:
+        with lock.acquire():
+            engine = Engine(
+                config,
+                state,
+                heartbeat=_heartbeat(config, state),
+                preferred_builder=plan.builder,
+            )
+            if plan.review_only:
+                outcome = engine.review_only(
+                    package, package_path, builder_report=plan.builder_report
+                )
+            else:
+                outcome = engine.execute(package, package_path, resume_plan=plan)
+    except LockHeld as error:
+        print(f"another orchestrator run holds the lock: {error}")
+        return 1
+
+    for message in outcome.messages:
+        print(f"  {message}")
+    print(f"status: {outcome.status.value}")
+    if outcome.commit:
+        print(f"commit: {outcome.commit[:12]}")
+    return 0 if outcome.status is not WorkflowStatus.HUMAN_ACTION_REQUIRED else 2
 
 
 def cmd_stop(config, args) -> int:
@@ -295,6 +519,36 @@ def cmd_packages(config, args) -> int:
     return 0
 
 
+def _autopilot_resume_plan(config, state, package):
+    """A resume plan for an interrupted package, or None to start fresh.
+
+    Autopilot must not rebuild work that already completed. When the persisted
+    state describes this package mid-flight, resume it; when the state and the
+    repository disagree, return None so the normal path re-derives everything
+    rather than acting on a plan that cannot be trusted.
+    """
+
+    if state.current_work_package != package.name:
+        return None
+    allowed, _why = resume.resumable(state, package.name)
+    if not allowed:
+        return None
+    try:
+        return resume.plan(
+            config,
+            state,
+            package,
+            read_repo(config.repo),
+            roles.availability_map(config),
+        )
+    except resume.ResumeRefused:
+        # A refusal means the persisted state and the repository disagree.
+        # Rebuilding from scratch on top of that disagreement is exactly the
+        # unsafe act the refusal exists to prevent, so it is raised, not
+        # swallowed.
+        raise
+
+
 def cmd_autopilot(config, args) -> int:
     """Run eligible packages sequentially with bounded package-level progress."""
 
@@ -310,7 +564,9 @@ def cmd_autopilot(config, args) -> int:
                         "all eligible packages completed; release-level audit required",
                     )
                     state.audit_required = True
-                    state.audit_reason = "comprehensive v1.1 release audit required"
+                    state.audit_reason = (
+                        f"comprehensive {_goal(config, args)} release audit required"
+                    )
                     save_state(config.state_path, state)
                     print("All eligible work packages completed.")
                     print("Final status: READY_FOR_CLAUDE_RELEASE_AUDIT")
@@ -328,7 +584,27 @@ def cmd_autopilot(config, args) -> int:
                     return 2
                 attempted.add(package.name)
                 print(f"\n=== AUTOPILOT: {package.name} ===")
-                outcome = Engine(config, state).execute(package, package_path)
+                engine = Engine(config, state, heartbeat=_heartbeat(config, state))
+                try:
+                    plan = _autopilot_resume_plan(config, state, package)
+                except resume.ResumeRefused as error:
+                    reason = f"resume refused for {package.name}: {error}"
+                    state.transition(WorkflowStatus.HUMAN_ACTION_REQUIRED, reason)
+                    state.last_error = reason
+                    save_state(config.state_path, state)
+                    print(reason)
+                    print("autopilot stopped: HUMAN_ACTION_REQUIRED")
+                    return 2
+                if plan is None:
+                    outcome = engine.execute(package, package_path)
+                elif plan.review_only:
+                    print(f"resuming: {plan.describe()}")
+                    outcome = engine.review_only(
+                        package, package_path, builder_report=plan.builder_report
+                    )
+                else:
+                    print(f"resuming: {plan.describe()}")
+                    outcome = engine.execute(package, package_path, resume_plan=plan)
                 for line in outcome.messages:
                     print(line)
                 if outcome.status in {
@@ -354,7 +630,7 @@ def cmd_autopilot(config, args) -> int:
 
 
 def cmd_release_audit(config, args) -> int:
-    """Run the comprehensive independent audit over all deferred v1.1 work."""
+    """Run the comprehensive independent audit over all deferred release work."""
 
     state = load_state(config.state_path)
     available, location = agents.agent_available(config.claude)
@@ -370,7 +646,8 @@ def cmd_release_audit(config, args) -> int:
         print("Resume command: python tools/orchestrator.py release-audit")
         return 2
 
-    report = verify(config, label="openphase-v1.1-release-audit-preflight")
+    goal = _goal(config, args)
+    report = verify(config, label=f"openphase-{goal}-release-audit-preflight")
     if not report.passed:
         reason = "release-audit preflight verification failed"
         state.transition(WorkflowStatus.HUMAN_ACTION_REQUIRED, reason)
@@ -381,9 +658,9 @@ def cmd_release_audit(config, args) -> int:
         return 2
 
     package = WorkPackage(
-        name="openphase_v1_1_release_audit",
+        name=f"openphase_{config.goal_slug}_release_audit",
         objective=(
-            "Comprehensively audit OpenPhase v1.1: every commit since the last "
+            f"Comprehensively audit OpenPhase {goal}: every commit since the last "
             "independent audit, all deferred packages, application architecture, "
             "scientific separation, result/export/error integrity, Streamlit "
             "behavior, tests, deployment readiness, security, documentation "
@@ -403,7 +680,7 @@ def cmd_release_audit(config, args) -> int:
         audit_policy=AuditPolicy.IMMEDIATE,
         commit_policy=CommitPolicy.MANUAL,
     )
-    engine = Engine(config, state)
+    engine = Engine(config, state, heartbeat=_heartbeat(config, state))
     outcome = engine.plan(package)
     outcome.status = state.workflow_status
     debt_summary = "\n".join(str(item) for item in state.deferred_independent_audits)
@@ -443,15 +720,15 @@ def cmd_release_audit(config, args) -> int:
         state.audit_required = False
         state.audit_reason = None
         state.last_independent_audit_commit = read_repo(config.repo).head
-        state.transition(WorkflowStatus.APPROVED, "v1.1 release audit approved")
+        state.transition(WorkflowStatus.APPROVED, f"{goal} release audit approved")
         save_state(config.state_path, state)
         print("INDEPENDENT_AUDIT_APPROVED")
         return 0
 
     correction = WorkPackage(
-        name="openphase_v1_1_release_audit_corrections",
+        name=f"openphase_{config.goal_slug}_release_audit_corrections",
         objective=(
-            "Close only the blocking findings from the comprehensive v1.1 "
+            f"Close only the blocking findings from the comprehensive {goal} "
             "release audit:\n"
             + "\n".join(
                 f"- {item.get('id')}: {item.get('summary')}" for item in blocking
@@ -478,7 +755,7 @@ def cmd_release_audit(config, args) -> int:
     correction_path = (
         config.ai_dir
         / "work_packages"
-        / "openphase_v1_1_release_audit_corrections.json"
+        / f"openphase_{config.goal_slug}_release_audit_corrections.json"
     )
     save_package(correction_path, correction)
     state.blocking_findings = blocking
@@ -502,6 +779,7 @@ COMMANDS = {
     "packages": cmd_packages,
     "autopilot": cmd_autopilot,
     "release-audit": cmd_release_audit,
+    "reconcile": cmd_reconcile,
 }
 
 
@@ -520,6 +798,28 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-dirty", action="store_true", help="permit a dirty tree"
     )
     parser.add_argument("--config", default=None, help="path to .ai/config.json")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="status: include live runtime detail from the heartbeat",
+    )
+    parser.add_argument(
+        "--goal",
+        default=None,
+        help="release goal to drive, e.g. v1.2 (defaults to the configured goal)",
+    )
+    parser.add_argument("--debt", default=None, help="audit-debt id to reconcile")
+    parser.add_argument(
+        "--reviewer", default=None, help="agent that performed the independent review"
+    )
+    parser.add_argument(
+        "--evidence", default=None, help="evidence for an external independent review"
+    )
+    parser.add_argument(
+        "--builder",
+        default=None,
+        help="name the builder of a legacy debt that recorded no provenance",
+    )
     args = parser.parse_args(argv)
 
     try:

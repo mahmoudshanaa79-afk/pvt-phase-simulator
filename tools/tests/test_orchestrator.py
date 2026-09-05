@@ -578,7 +578,17 @@ class TestEndToEnd:
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"{package.name}.json"
         save_package(path, package)
-        engine = Engine(config, state, codex_runner=codex, claude_runner=claude)
+        engine = Engine(
+            config,
+            state,
+            codex_runner=codex,
+            claude_runner=claude,
+            # Corrections are authored by the reviewer, so Claude needs a
+            # builder transport, and Codex needs an auditor transport for the
+            # re-audit that follows.
+            claude_builder_runner=codex_stub(),
+            codex_auditor_runner=claude,
+        )
         return engine.execute(package, path)
 
     def test_low_risk_commits_without_audit(self, config) -> None:
@@ -812,7 +822,14 @@ class TestEndToEnd:
     def test_dry_run_invokes_nothing(self, config) -> None:
         state = WorkflowState()
         claude = claude_stub()
-        engine = Engine(config, state, codex_runner=codex_stub(), claude_runner=claude)
+        engine = Engine(
+            config,
+            state,
+            codex_runner=codex_stub(),
+            claude_runner=claude,
+            claude_builder_runner=codex_stub(),
+            codex_auditor_runner=claude,
+        )
         before = read_repo(config.repo).head
         outcome = engine.plan(make_package(risk=Risk.HIGH))
         assert claude.calls["n"] == 0
@@ -959,7 +976,14 @@ class TestAuditorBudget:
         )
         state.current_work_package = package.name  # same package: budget carries over
         claude = claude_stub("APPROVED")
-        engine = Engine(config, state, codex_runner=codex_stub(), claude_runner=claude)
+        engine = Engine(
+            config,
+            state,
+            codex_runner=codex_stub(),
+            claude_runner=claude,
+            claude_builder_runner=codex_stub(),
+            codex_auditor_runner=claude,
+        )
         outcome = engine.execute(package, path)
         assert outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED
         assert claude.calls["n"] == 0  # refused before spending
@@ -989,7 +1013,14 @@ class TestAuditorBudget:
         )
         state = WorkflowState()
         claude = claude_stub("NOT_APPROVED", [BLOCKER], cost=5.0)
-        engine = Engine(tight, state, codex_runner=codex_stub(), claude_runner=claude)
+        engine = Engine(
+            tight,
+            state,
+            codex_runner=codex_stub(),
+            claude_runner=claude,
+            claude_builder_runner=codex_stub(),
+            codex_auditor_runner=claude,
+        )
         outcome = engine.execute(package, path)
         assert outcome.status is WorkflowStatus.HUMAN_ACTION_REQUIRED
         assert "budget" in (outcome.human_action or "").lower()
@@ -1226,7 +1257,9 @@ class TestAutopilotCli:
         calls: list[str] = []
 
         class FakeEngine:
-            def __init__(self, config, state):
+            def __init__(self, config, state, **kwargs):
+                # Mirrors the real Engine, which now also takes runners,
+                # a heartbeat and a preferred builder.
                 self.state = state
 
             def execute(self, package, path):
@@ -1253,7 +1286,9 @@ class TestAutopilotCli:
         save_package(directory / "demo.json", make_package())
 
         class NoProgressEngine:
-            def __init__(self, config, state):
+            def __init__(self, config, state, **kwargs):
+                # Mirrors the real Engine, which now also takes runners,
+                # a heartbeat and a preferred builder.
                 pass
 
             def execute(self, package, path):

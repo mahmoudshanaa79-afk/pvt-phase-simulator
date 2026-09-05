@@ -2,3 +2,6 @@
 # committed deliberately; live locks and pycache are not.
 orchestrator.lock
 __pycache__/
+# Live runtime status. Rewritten every few seconds while a package is in
+# flight, and excluded from tree fingerprints for the same reason.
+runtime/
