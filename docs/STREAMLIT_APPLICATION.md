@@ -58,6 +58,21 @@ equation is implemented in the UI package.
 
 ## Inputs and views
 
+The default Overview includes an always-visible **Model and limitations** panel.
+It names the Peng–Robinson EOS and its default-zero binary-interaction policy,
+lists the property-verified components, distinguishes supported calculations
+from unsupported commercial-PVT workflows, and states the critical-point and
+unavailable-value safeguards. It explicitly says that the application is not a
+commercial PVT package or a substitute for engineering review.
+
+The panel does not maintain a second copy of repository facts. Component names,
+property verification states, and property citations come from the packaged
+component database; the validation state count, systems, and observed domain
+come from the protected Module 17 artifact; and the experimental citation comes
+from the checked source manifest. The recorded citations and exact artifact path
+are available in the panel's **Recorded provenance** expander. Opening the panel
+does not run a scientific calculation.
+
 The persistent Fluid inputs form supports the verified v1.0 Methane, Ethane,
 and Propane components. Composition is entered in mol %, temperature in K, and
 pressure in MPa. On submission, the panel shows the composition total and rejects

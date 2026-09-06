@@ -1,12 +1,12 @@
 {
   "project": "pvt-phase-simulator",
   "phase": "post-v1.0-extensions",
-  "workflow_status": "IDLE",
+  "workflow_status": "CLAUDE_RUNNING",
   "last_scientific_commit": "d2a0a74",
   "last_independent_audit_commit": "c29ae4961543e74a271e8e2e54de22852892cf00",
-  "work_packages_since_audit": 2,
-  "current_work_package": null,
-  "current_risk": null,
+  "work_packages_since_audit": 0,
+  "current_work_package": "01_model_and_limitations",
+  "current_risk": "LOW",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
@@ -15,7 +15,7 @@
       "id": "D-1",
       "severity": "D",
       "blocks": false,
-      "summary": "Display-format precision (%.10g -> %.15g) was widened for all five input fields, not just the two needed for the new critical-solver-seed example; harmless and justified by the same 'preserve exact editable values' objective, but broader than strictly necessary."
+      "summary": "adapters.py's COMPONENT_NAMES was changed from a hardcoded literal to a value derived from COMPONENTS; harmless and value-preserving (confirmed by test run) but technically broader than the 'documentation/presentation only, new panel' framing of the work package."
     }
   ],
   "deferred_independent_audits": [
@@ -58,6 +58,34 @@
   "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
   "last_error": null,
+  "workflow_id": "c3d365745ae6",
+  "builder": "codex",
+  "reviewer": "claude",
+  "last_completed_stage": "audited",
+  "verification_status": "passed",
+  "base_commit": "46b1d8e75c60d76b5e7d920ef30f6c1f14da051d",
+  "resulting_commit": null,
+  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260906-004904-01_model_and_limitations-codex-report.md",
+  "builder_evidence": {
+    "builder": "codex",
+    "package": "01_model_and_limitations",
+    "workflow_id": "c3d365745ae6",
+    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260906-004904-01_model_and_limitations-codex-report.md",
+    "report_sha256": "aba55903df96e2d4cb704675c21b9a85475bea40f07260b49672cb6766daff05",
+    "revision": 1,
+    "kind": "build"
+  },
+  "tree_fingerprint": "26f7c0227453f1f2851c35ee7897ac909e05b24fb1876f0b9e11f4226cc01a00",
+  "revisions": [
+    {
+      "package": "01_model_and_limitations",
+      "revision": 1,
+      "author": "codex",
+      "kind": "build",
+      "at": 1788646855.9640622
+    }
+  ],
+  "role_transitions": [],
   "history": [
     {
       "from": "IDLE",
@@ -468,6 +496,46 @@
       "from": "HUMAN_ACTION_REQUIRED",
       "to": "IDLE",
       "reason": "manually stopped"
+    },
+    {
+      "from": "IDLE",
+      "to": "PLANNING",
+      "reason": "planning 01_model_and_limitations"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "Claude audit contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw audit preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\claude_audits\\20260906-012831-01_model_and_limitations-audit.md. Approval is NOT inferred."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "AUDIT_PENDING",
+      "reason": "temporary OAuth recovery restored the persisted VERIFIED audit boundary"
+    },
+    {
+      "from": "AUDIT_PENDING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
     }
   ]
 }

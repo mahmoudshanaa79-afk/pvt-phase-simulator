@@ -58,6 +58,7 @@ from pvt_phase_simulator_ui.exports import (
     export_json_bytes,
     export_sweep_csv_bytes,
 )
+from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
 from pvt_phase_simulator_ui.state import get_result, result_is_stale, store_result
 from pvt_phase_simulator_ui.styles import phase_split_bar
 from pvt_phase_simulator_ui.sweeps import (
@@ -265,8 +266,85 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
         st.dataframe(pd.DataFrame(phase_rows), hide_index=True, width="stretch")
 
 
+@st.cache_data(show_spinner=False, max_entries=1)
+def _model_scope() -> ModelScope:
+    return load_model_scope(ROOT)
+
+
+def _doi_link(doi: str | None) -> str:
+    if doi is None:
+        return "DOI unavailable"
+    return f"[DOI {doi}](https://doi.org/{doi})"
+
+
+def _render_model_scope_panel() -> None:
+    scope = _model_scope()
+    components = ", ".join(scope.verified_component_names)
+    systems = " and ".join(scope.validation_system_names)
+    temperature_min, temperature_max = scope.validation_temperature_range_k
+    pressure_min, pressure_max = scope.validation_pressure_range_mpa
+
+    with st.container(border=True):
+        st.subheader("Model and limitations", anchor="model-and-limitations")
+        st.markdown(
+            f"**Model.** {scope.eos_name} for {len(scope.verified_component_names)} "
+            f"property-verified components: **{components}**. The active "
+            "interaction policy is "
+            f"`{scope.interaction_policy.value}`: every omitted off-diagonal "
+            "binary interaction is **kij = 0**; no fitted interaction parameters "
+            "are used."
+        )
+        st.markdown(
+            "**Supported calculations.** Phase stability and isothermal flash; "
+            "bubble/dew phase-envelope tracing; mixture critical-point solving and "
+            "criticality scans; bounded pressure/temperature flash sweeps; and "
+            "repository-backed validation figures, diagnostics, and exports."
+        )
+        st.markdown(
+            f"**Validation scope.** The protected Module 17 artifact contains "
+            f"**{scope.validation_state_count} experimental VLE states** for "
+            f"**{systems}**, spanning {temperature_min:g}–{temperature_max:g} K and "
+            f"{pressure_min:g}–{pressure_max:g} MPa in the recorded states. This "
+            "does not establish accuracy for other components, mixtures, or "
+            "conditions."
+        )
+        st.markdown(
+            "**Known limitations.** Envelope continuation is bounded and may return "
+            "unavailable branches or structured terminations. Unavailable values "
+            "remain unavailable and are never fabricated or interpolated. Only "
+            "`CriticalPointStatus.CONVERGED` is a certified critical point. The "
+            "application provides no reservoir depletion, CCE/CVD, separator "
+            "trains, pseudocomponents or C7+, EOS tuning, kij fitting, new-component "
+            "support, or arbitrary reservoir-fluid validation."
+        )
+        st.warning(
+            "This is not a commercial PVT package and is not a substitute for "
+            "engineering review.",
+            icon=":material/warning:",
+        )
+        with st.expander("Recorded provenance", icon=":material/source:"):
+            for source in scope.property_sources:
+                st.markdown(
+                    f"**Component-property source — {source.name}.** "
+                    f"{source.citation} {_doi_link(source.doi)}"
+                )
+            st.markdown(
+                f"**Experimental-validation source — "
+                f"{scope.validation_source.name}.** "
+                f"{scope.validation_source.citation} "
+                f"{_doi_link(scope.validation_source.doi)}"
+            )
+            st.caption(
+                "Validation evidence is read from "
+                f"`{scope.validation_artifact.as_posix()}`; citations and component "
+                "verification status are read from repository-owned provenance "
+                "records."
+            )
+
+
 def render_overview(inputs: ScientificInputs | None) -> None:
     st.header("Overview")
+    _render_model_scope_panel()
     raw = get_result(session(), "flash")
     if raw is None:
         st.info(

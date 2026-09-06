@@ -30,8 +30,8 @@ from pvt_phase_simulator.plotting import (
     load_validation_plot_records,
 )
 
-COMPONENT_NAMES: Final = ("Methane", "Ethane", "Propane")
 COMPONENTS: Final = (METHANE, ETHANE, PROPANE)
+COMPONENT_NAMES: Final = tuple(component.name for component in COMPONENTS)
 COMPOSITION_TOTAL_MOL_PERCENT: Final = 100.0
 COMPOSITION_TOLERANCE_MOL_PERCENT: Final = 1.0e-8
 PA_PER_MPA: Final = 1.0e6

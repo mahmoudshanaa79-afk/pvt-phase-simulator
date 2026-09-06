@@ -20,6 +20,7 @@ from pvt_phase_simulator.eos.flash import FlashConvergenceStatus
 from pvt_phase_simulator_ui import app as ui_app
 from pvt_phase_simulator_ui import views
 from pvt_phase_simulator_ui.adapters import run_validated_flash
+from pvt_phase_simulator_ui.model_scope import load_model_scope
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -67,6 +68,47 @@ def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
         "Pressure (MPa)",
     ]
     assert [button.label for button in app.button] == ["RUN FLASH"]
+
+
+def test_overview_exposes_repository_backed_model_and_limitations_panel() -> None:
+    scope = load_model_scope(ROOT)
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+
+    assert not app.exception
+    assert "Model and limitations" in [item.value for item in app.subheader]
+    copy = "\n".join(item.value for item in app.markdown)
+    assert scope.eos_name in copy
+    assert ", ".join(scope.verified_component_names) in copy
+    assert scope.interaction_policy.value in copy
+    assert f"{scope.validation_state_count} experimental VLE states" in copy
+    assert all(system in copy for system in scope.validation_system_names)
+    assert "CriticalPointStatus.CONVERGED" in copy
+    assert "never fabricated or interpolated" in copy
+    assert all(source.citation in copy for source in scope.property_sources)
+    assert scope.validation_source.citation in copy
+    assert all(source.doi in copy for source in scope.property_sources if source.doi)
+    assert scope.validation_source.doi in copy
+    assert any("not a commercial PVT package" in item.value for item in app.warning)
+
+
+def test_model_scope_reads_recorded_component_and_validation_provenance() -> None:
+    scope = load_model_scope(ROOT)
+
+    assert scope.verified_component_names == ("Methane", "Ethane", "Propane")
+    assert scope.validation_state_count == 40
+    assert scope.validation_system_names == (
+        "Methane + Ethane",
+        "Methane + Propane",
+    )
+    assert scope.validation_temperature_range_k == (203.22, 283.38)
+    assert scope.validation_pressure_range_mpa == (0.891, 8.32)
+    assert {source.doi for source in scope.property_sources} == {
+        "10.1021/acs.jced.5c00110"
+    }
+    assert scope.validation_source.doi == "10.1021/acs.jced.5b00610"
+    assert scope.validation_artifact == Path(
+        "docs/validation/module17_vle_validation.csv"
+    )
 
 
 def test_example_selection_populates_inputs_without_populating_results() -> None:

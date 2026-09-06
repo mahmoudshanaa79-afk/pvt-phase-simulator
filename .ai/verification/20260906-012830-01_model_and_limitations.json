@@ -1,0 +1,95 @@
+{
+  "passed": true,
+  "protected_ok": true,
+  "protected_detail": {
+    "tests/golden_master/baseline.csv": "unchanged",
+    "data/component_properties.csv": "unchanged",
+    "docs/validation/module17_vle_validation.csv": "unchanged",
+    "docs/validation/module17_vle_validation_summary.json": "unchanged"
+  },
+  "scope_ok": true,
+  "scope_detail": "scope ok",
+  "diff_check_ok": true,
+  "diff_check_detail": "warning: in the working copy of 'docs/STREAMLIT_APPLICATION.md', LF will be replaced by CRLF the next time Git touches it\n",
+  "changed_files": [
+    "docs/STREAMLIT_APPLICATION.md",
+    "src/pvt_phase_simulator_ui/adapters.py",
+    "src/pvt_phase_simulator_ui/model_scope.py",
+    "src/pvt_phase_simulator_ui/views.py",
+    "tests/test_app_streamlit.py"
+  ],
+  "report_path": ".ai\\verification\\20260906-012830-01_model_and_limitations.json",
+  "commands": [
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-05T22:20:56.242941+00:00",
+      "ended": "2026-09-05T22:28:28.554228+00:00",
+      "stdout": "........................................................................ [  5%]\n........................................................................ [ 11%]\n........................................................................ [ 17%]\n........................................................................ [ 23%]\n........................................................................ [ 29%]\n........................................................................ [ 34%]\n........................................................................ [ 40%]\n........................................................................ [ 46%]\n........................................................................ [ 52%]\n........................................................................ [ 58%]\n........................................................................ [ 63%]\n........................................................................ [ 69%]\n........................................................................ [ 75%]\n........................................................................ [ 81%]\n........................................................................ [ 87%]\n........................................................................ [ 93%]\n........................................................................ [ 98%]\n..............                                                           [100%]\n1238 passed in 450.14s (0:07:30)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-05T22:28:28.562590+00:00",
+      "ended": "2026-09-05T22:28:28.803745+00:00",
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-05T22:28:28.812872+00:00",
+      "ended": "2026-09-05T22:28:29.057172+00:00",
+      "stdout": "193 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "mypy",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-05T22:28:29.069312+00:00",
+      "ended": "2026-09-05T22:28:30.519211+00:00",
+      "stdout": "Success: no issues found in 44 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "compileall",
+        "-q",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-05T22:28:30.530768+00:00",
+      "ended": "2026-09-05T22:28:30.767913+00:00",
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

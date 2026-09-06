@@ -1,0 +1,26 @@
+{
+  "name": "claude",
+  "command": [
+    "C:\\Users\\user\\AppData\\Roaming\\Claude\\claude-code\\2.1.237\\claude.exe",
+    "--print",
+    "--output-format",
+    "json",
+    "--permission-mode",
+    "plan",
+    "--allowed-tools",
+    "Read,Glob,Grep,Bash,TodoWrite",
+    "--disallowed-tools",
+    "Edit,Write,NotebookEdit,MultiEdit",
+    "--add-dir",
+    "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator",
+    "--max-budget-usd",
+    "5.0"
+  ],
+  "exit_code": 1,
+  "duration_seconds": 4.478816032409668,
+  "cost_usd": 0.0,
+  "contract": null,
+  "contract_error": "no <ORCHESTRATOR_RESULT> block found in agent output",
+  "stdout": "{\"is_error\":true,\"duration_api_ms\":0,\"num_turns\":1,\"stop_reason\":\"stop_sequence\",\"session_id\":\"9bc14a59-66da-4a97-bc2f-1fc7484ba3bf\",\"total_cost_usd\":0,\"usage\":{\"output_tokens_details\":{\"thinking_tokens\":0},\"input_tokens\":0,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":0,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{},\"permission_denials\":[],\"terminal_reason\":\"api_error\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Failed to authenticate: OAuth session expired and could not be refreshed\",\"type\":\"result\",\"duration_ms\":420,\"uuid\":\"74d52fe2-aef9-466f-a87e-96bf14569f29\"}\n",
+  "stderr": ""
+}
