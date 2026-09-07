@@ -65,6 +65,9 @@ INPUT_EXAMPLES: Final = (
 )
 
 _DEFAULT_INPUTS: Final = INPUT_EXAMPLES[0]
+_DEFAULT_PRESSURE_SWEEP_PA: Final = (1.0e6, 20.0e6)
+_DEFAULT_TEMPERATURE_SWEEP_K: Final = (240.0, 340.0)
+_DEFAULT_SWEEP_POINTS: Final = 21
 
 
 def initialize_session(state: MutableMapping[str, Any]) -> None:
@@ -88,6 +91,92 @@ def initialize_session(state: MutableMapping[str, Any]) -> None:
     state.setdefault("pressure_value", _DEFAULT_INPUTS.pressure_mpa)
     state.setdefault("rendered_temperature_value", state["temperature_value"])
     state.setdefault("rendered_pressure_value", state["pressure_value"])
+    state.setdefault("sweep_kind", "pressure")
+    state.setdefault("sweep_pressure_start_pa", _DEFAULT_PRESSURE_SWEEP_PA[0])
+    state.setdefault("sweep_pressure_end_pa", _DEFAULT_PRESSURE_SWEEP_PA[1])
+    state.setdefault("sweep_points_pressure", _DEFAULT_SWEEP_POINTS)
+    state.setdefault("sweep_temperature_start_k", _DEFAULT_TEMPERATURE_SWEEP_K[0])
+    state.setdefault("sweep_temperature_end_k", _DEFAULT_TEMPERATURE_SWEEP_K[1])
+    state.setdefault("sweep_points_temperature", _DEFAULT_SWEEP_POINTS)
+    state.setdefault(
+        "sweep_start_value",
+        pressure_from_pa(
+            _DEFAULT_PRESSURE_SWEEP_PA[0], PressureUnit(str(state["pressure_unit"]))
+        ),
+    )
+    state.setdefault(
+        "sweep_end_value",
+        pressure_from_pa(
+            _DEFAULT_PRESSURE_SWEEP_PA[1], PressureUnit(str(state["pressure_unit"]))
+        ),
+    )
+    state.setdefault("sweep_points_value", _DEFAULT_SWEEP_POINTS)
+    state.setdefault("rendered_sweep_kind", state["sweep_kind"])
+    state.setdefault("rendered_sweep_temperature_unit", state["temperature_unit"])
+    state.setdefault("rendered_sweep_pressure_unit", state["pressure_unit"])
+    state.setdefault("rendered_sweep_start_value", state["sweep_start_value"])
+    state.setdefault("rendered_sweep_end_value", state["sweep_end_value"])
+    state.setdefault("rendered_sweep_points_value", state["sweep_points_value"])
+
+
+def synchronize_sweep_inputs(state: MutableMapping[str, Any]) -> None:
+    """Preserve both sweep definitions across kind and presentation changes."""
+
+    initialize_session(state)
+    old_kind = str(state["rendered_sweep_kind"])
+    old_temperature_unit = TemperatureUnit(
+        str(state["rendered_sweep_temperature_unit"])
+    )
+    old_pressure_unit = PressureUnit(str(state["rendered_sweep_pressure_unit"]))
+
+    start = float(state["sweep_start_value"])
+    end = float(state["sweep_end_value"])
+    points = state["sweep_points_value"]
+    if isfinite(start) and isfinite(end):
+        if old_kind == "pressure":
+            state["sweep_pressure_start_pa"] = pressure_to_pa(start, old_pressure_unit)
+            state["sweep_pressure_end_pa"] = pressure_to_pa(end, old_pressure_unit)
+        elif old_kind == "temperature":
+            state["sweep_temperature_start_k"] = temperature_to_k(
+                start, old_temperature_unit
+            )
+            state["sweep_temperature_end_k"] = temperature_to_k(
+                end, old_temperature_unit
+            )
+    if isinstance(points, int) and not isinstance(points, bool):
+        state[f"sweep_points_{old_kind}"] = points
+
+    new_kind = str(state["sweep_kind"])
+    new_temperature_unit = TemperatureUnit(str(state["temperature_unit"]))
+    new_pressure_unit = PressureUnit(str(state["pressure_unit"]))
+    presentation_changed = (
+        old_kind != new_kind
+        or old_temperature_unit is not new_temperature_unit
+        or old_pressure_unit is not new_pressure_unit
+    )
+    if presentation_changed:
+        if new_kind == "pressure":
+            state["sweep_start_value"] = pressure_from_pa(
+                float(state["sweep_pressure_start_pa"]), new_pressure_unit
+            )
+            state["sweep_end_value"] = pressure_from_pa(
+                float(state["sweep_pressure_end_pa"]), new_pressure_unit
+            )
+        elif new_kind == "temperature":
+            state["sweep_start_value"] = temperature_from_k(
+                float(state["sweep_temperature_start_k"]), new_temperature_unit
+            )
+            state["sweep_end_value"] = temperature_from_k(
+                float(state["sweep_temperature_end_k"]), new_temperature_unit
+            )
+        state["sweep_points_value"] = state[f"sweep_points_{new_kind}"]
+
+    state["rendered_sweep_kind"] = new_kind
+    state["rendered_sweep_temperature_unit"] = new_temperature_unit.value
+    state["rendered_sweep_pressure_unit"] = new_pressure_unit.value
+    state["rendered_sweep_start_value"] = state["sweep_start_value"]
+    state["rendered_sweep_end_value"] = state["sweep_end_value"]
+    state["rendered_sweep_points_value"] = state["sweep_points_value"]
 
 
 def synchronize_unit_inputs(state: MutableMapping[str, Any]) -> None:
@@ -127,6 +216,7 @@ def synchronize_unit_inputs(state: MutableMapping[str, Any]) -> None:
     state["pressure_mpa"] = pressure_from_pa(
         float(state["pressure_pa"]), PressureUnit.MPA
     )
+    synchronize_sweep_inputs(state)
 
 
 def apply_selected_input_example(state: MutableMapping[str, Any]) -> None:

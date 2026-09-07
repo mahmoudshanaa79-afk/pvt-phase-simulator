@@ -23,6 +23,7 @@ from pvt_phase_simulator_ui.adapters import (
     run_validated_flash,
     validate_scientific_inputs,
 )
+from pvt_phase_simulator_ui.case_files import case_from_state, serialize_case
 from pvt_phase_simulator_ui.model_scope import load_model_scope
 from pvt_phase_simulator_ui.units import (
     PressureUnit,
@@ -32,6 +33,10 @@ from pvt_phase_simulator_ui.units import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _button(app: AppTest, label: str) -> object:
+    return next(button for button in app.button if button.label == label)
 
 
 def test_ui_and_styles_are_installed_packages() -> None:
@@ -80,7 +85,28 @@ def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
         "Temperature (K)",
         "Pressure (MPa)",
     ]
-    assert [button.label for button in app.button] == ["RUN FLASH"]
+    assert [button.label for button in app.button] == ["Load case", "RUN FLASH"]
+    assert app.button[0].disabled
+    assert [button.label for button in app.get("download_button")] == ["Save case"]
+
+
+def test_case_upload_with_out_of_range_integer_surfaces_clean_error() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    document = json.loads(serialize_case(case_from_state(app.session_state)))
+    document["inputs"]["temperature_k"] = 10**400
+    payload = json.dumps(document).encode()
+
+    app.file_uploader[0].set_value(
+        ("out-of-range.json", payload, "application/json")
+    ).run()
+    _button(app, "Load case").click().run()
+
+    assert not app.exception
+    assert any(
+        "Case load unavailable: Case file schema is invalid: "
+        "inputs.temperature_k must be a finite number." in error.value
+        for error in app.error
+    )
 
 
 def test_field_unit_selection_preserves_state_and_submits_si_to_engine() -> None:
@@ -94,7 +120,7 @@ def test_field_unit_selection_preserves_state_and_submits_si_to_engine() -> None
     assert fields["Temperature (°F)"] == pytest.approx(80.33)
     assert fields["Pressure (psi)"] == pytest.approx(725.1886886510841)
 
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
     submitted = app.session_state["submitted_inputs"]
     assert submitted.temperature_k == pytest.approx(300.0, abs=1e-13)
     assert submitted.pressure_pa == 5_000_000.0
@@ -108,7 +134,7 @@ def test_field_unit_selection_preserves_state_and_submits_si_to_engine() -> None
 
 def test_presentation_unit_change_does_not_stale_a_calculated_result() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
     result = app.session_state["results"]["flash"]
 
     app.segmented_control[0].set_value("°C")
@@ -120,7 +146,7 @@ def test_presentation_unit_change_does_not_stale_a_calculated_result() -> None:
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics["Temperature"] == "26.85 °C"
     assert metrics["Pressure"] == "50 bar"
-    assert len(app.get("download_button")) == 2
+    assert len(app.get("download_button")) == 3
 
 
 @pytest.mark.parametrize(
@@ -149,7 +175,7 @@ def test_non_exact_unit_round_trip_preserves_result_identity(
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     app.number_input[3].set_value(temperature_k)
     app.number_input[4].set_value(pressure_mpa)
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
     result = app.session_state["results"]["flash"]
     submitted = app.session_state["submitted_inputs"]
 
@@ -173,13 +199,13 @@ def test_non_exact_unit_round_trip_preserves_result_identity(
     assert app.session_state["results"]["flash"] is result
     assert app.session_state["current_inputs"].signature == submitted.signature
     assert not any("Stale result" in message.value for message in app.warning)
-    assert len(app.get("download_button")) == 2
+    assert len(app.get("download_button")) == 3
 
     app.number_input[3].set_value(displayed_temperature + 1.0e-9)
     app.run()
 
     assert any("Stale result" in message.value for message in app.warning)
-    assert app.get("download_button") == []
+    assert [button.label for button in app.get("download_button")] == ["Save case"]
 
 
 def test_overview_exposes_repository_backed_model_and_limitations_panel() -> None:
@@ -246,7 +272,7 @@ def test_custom_edits_after_example_selection_validate_and_submit_normally() -> 
     app.number_input[0].set_value(49.0)
     app.number_input[1].set_value(1.0)
     app.number_input[3].set_value(301.25)
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
 
     assert not app.exception
     submitted = app.session_state["submitted_inputs"]
@@ -277,14 +303,14 @@ def test_every_navigation_page_renders_without_hidden_calculation() -> None:
 def test_invalid_form_submission_never_creates_a_flash_result() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     app.number_input[0].set_value(40.0)
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
     assert "flash" not in app.session_state["results"]
     assert any("Submission unavailable" in error.value for error in app.error)
 
 
 def test_valid_two_phase_submission_preserves_science_and_success_semantics() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
 
     assert not app.exception
     result = app.session_state["results"]["flash"]
@@ -312,7 +338,7 @@ def test_valid_two_phase_submission_preserves_science_and_success_semantics() ->
 def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     app.number_input[4].set_value(20.0)
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
 
     assert not app.exception
     result = app.session_state["results"]["flash"]
@@ -328,11 +354,11 @@ def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> N
         for info in app.info
     )
     downloads = app.get("download_button")
-    assert [button.label for button in downloads] == ["Download CSV", "Download JSON"]
-    assert [button.key for button in downloads] == [
-        "download_current_case_csv",
-        "download_current_case_json",
-    ]
+    downloads_by_label = {button.label: button for button in downloads}
+    assert set(downloads_by_label) == {"Save case", "Download CSV", "Download JSON"}
+    assert downloads_by_label["Save case"].key == "save_openphase_case"
+    assert downloads_by_label["Download CSV"].key == "download_current_case_csv"
+    assert downloads_by_label["Download JSON"].key == "download_current_case_json"
 
 
 def test_structured_flash_failure_is_presented_as_an_error(
@@ -347,7 +373,7 @@ def test_structured_flash_failure_is_presented_as_an_error(
     monkeypatch.setattr(ui_app, "_cached_flash", lambda _inputs: failure)
 
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
 
     assert not app.exception
     stored = app.session_state["results"]["flash"]
@@ -374,10 +400,14 @@ def test_download_widgets_receive_real_payloads_and_mime_metadata(
     monkeypatch.setattr(views.st, "download_button", capture_download)
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     app.number_input[4].set_value(20.0)
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
 
     assert not app.exception
-    assert set(captured) == {"Download CSV", "Download JSON"}
+    assert set(captured) == {"Save case", "Download CSV", "Download JSON"}
+    saved_case = captured["Save case"]
+    assert saved_case["file_name"] == "openphase-case.json"
+    assert saved_case["mime"] == "application/json"
+    assert json.loads(saved_case["data"])["schema_version"] == "1.0.0"
     csv_download = captured["Download CSV"]
     json_download = captured["Download JSON"]
     assert csv_download["file_name"] == "pvt-current-case.csv"
@@ -406,9 +436,9 @@ def test_download_widgets_receive_real_payloads_and_mime_metadata(
 
 def test_changed_inputs_keep_result_visible_but_stale_and_disable_exports() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
-    app.button[0].click().run()
+    _button(app, "RUN FLASH").click().run()
     original = app.session_state["results"]["flash"]
-    assert len(app.get("download_button")) == 2
+    assert len(app.get("download_button")) == 3
 
     app.selectbox[0].select("Known single-phase case at 300 K and 20 MPa").run()
 
@@ -417,7 +447,7 @@ def test_changed_inputs_keep_result_visible_but_stale_and_disable_exports() -> N
     assert app.session_state["submitted_inputs"].pressure_mpa == 5.0
     assert app.number_input[4].value == 20.0
     assert any("Stale result" in message.value for message in app.warning)
-    assert app.get("download_button") == []
+    assert [button.label for button in app.get("download_button")] == ["Save case"]
     assert any(
         "Downloads are unavailable until RUN FLASH recalculates" in caption.value
         for caption in app.caption

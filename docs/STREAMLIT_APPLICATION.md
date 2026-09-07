@@ -40,6 +40,8 @@ package:
 
 - `streamlit_app.py` is the thin, stable root entrypoint.
 - `src/pvt_phase_simulator_ui/app.py` owns navigation and submitted inputs.
+- `src/pvt_phase_simulator_ui/case_files.py` owns the versioned, deterministic
+  JSON case-file boundary and restores validated inputs only.
 - `src/pvt_phase_simulator_ui/pages/` contains the six page scripts.
 - `src/pvt_phase_simulator_ui/adapters.py` validates inputs, converts boundary
   units to K and Pa, and selects public result fields without changing them.
@@ -93,6 +95,25 @@ values only; it never submits the form or starts a scientific calculation. Every
 populated value remains editable and passes through the same validation and
 conversion boundary when the user explicitly submits it.
 
+The sidebar **Save or load case** panel persists a complete reproducible input
+case as `openphase-case.json`. A case records the explicit `openphase.case`
+schema identifier and schema version `1.0.0`; the named component mol
+percentages; canonical temperature in K and pressure in Pa; selected
+temperature and pressure presentation units; the active engineering sweep; and
+the canonical bounds and point counts for both pressure and temperature sweeps.
+JSON output is UTF-8 with sorted object keys and compact separators, so an
+unchanged case serializes to the same bytes.
+
+Loading uses only the standard JSON parser. The complete document is checked
+before session input state changes: object shape, required and unknown fields,
+duplicate keys, schema identifier, exact supported version, component names,
+units, scientific inputs, composition total, and both sweep definitions. A
+malformed document, invalid schema, unsupported or future version, or invalid
+composition produces a specific application error. Invalid composition is
+never normalized or repaired. A successful load restores inputs without
+running flash, envelope, critical-point, criticality, or sweep calculations;
+the user must still explicitly submit or run the desired calculation.
+
 Valid composition is divided by 100 exactly for mole fractions. The selected
 temperature and pressure units are converted once to K and Pa at submission.
 Only the canonical K/Pa state is passed to the scientific APIs and stored in a
@@ -138,6 +159,9 @@ temperature, and internal-pressure signature used to produce it. Changed or
 invalid current input marks the prior result stale until explicitly recalculated.
 Stale results remain visible with a warning, but downloads are unavailable until
 the changed inputs have a current calculated result.
+
+Case files are distinct from result exports: they contain reproducible inputs
+only and do not serialize cached scientific result objects.
 
 Current-case and sweep JSON exports use schema version 1.1.0. Their metadata
 states the engine units (K and Pa) and selected presentation units. CSV headers

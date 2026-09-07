@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
@@ -12,6 +14,14 @@ from pvt_phase_simulator_ui.adapters import (
     ScientificInputs,
     composition_total,
     validate_scientific_inputs,
+)
+from pvt_phase_simulator_ui.case_files import (
+    CaseFileError,
+    OpenPhaseCase,
+    apply_case_to_state,
+    case_from_state,
+    load_case,
+    serialize_case,
 )
 from pvt_phase_simulator_ui.context import session
 from pvt_phase_simulator_ui.state import (
@@ -42,8 +52,67 @@ def _cached_flash(inputs: ScientificInputs) -> object:
     )
 
 
+def _load_case_inputs(
+    data: bytes | str, state: MutableMapping[str, Any]
+) -> OpenPhaseCase:
+    """Validate a complete file before atomically restoring input state."""
+
+    case = load_case(data)
+    apply_case_to_state(case, state)
+    return case
+
+
+def _case_controls() -> None:
+    """Render input-only case persistence without submitting a calculation."""
+
+    with st.expander("Save or load case"):
+        st.caption(
+            "Cases are versioned JSON inputs only. Loading validates the entire "
+            "file and never runs a calculation."
+        )
+        uploaded = st.file_uploader(
+            "OpenPhase case file",
+            type="json",
+            max_upload_size=1,
+            key="openphase_case_file",
+        )
+        load_requested = st.button(
+            "Load case",
+            disabled=uploaded is None,
+            key="load_openphase_case",
+            icon=":material/upload_file:",
+        )
+        if load_requested and uploaded is not None:
+            try:
+                _load_case_inputs(uploaded.getvalue(), session())
+            except CaseFileError as error:
+                st.error(f"Case load unavailable: {error}")
+            else:
+                st.success("Case loaded. Inputs restored; no calculation was run.")
+
+        try:
+            payload = serialize_case(case_from_state(session()))
+        except CaseFileError as error:
+            st.caption(f"Save unavailable until all case inputs are valid: {error}")
+        else:
+            st.download_button(
+                "Save case",
+                data=payload,
+                file_name="openphase-case.json",
+                mime="application/json",
+                key="save_openphase_case",
+                on_click="ignore",
+                width="content",
+                icon=":material/download:",
+            )
+
+
 def _input_form() -> tuple[ScientificInputs | None, bool]:
     with st.sidebar:
+        # Capture any field edits from the prior browser event before building
+        # the downloadable case, and before any load can replace widget state.
+        synchronize_unit_inputs(session())
+        _case_controls()
         st.subheader("Fluid inputs")
         st.caption("Display and entry units")
         st.segmented_control(

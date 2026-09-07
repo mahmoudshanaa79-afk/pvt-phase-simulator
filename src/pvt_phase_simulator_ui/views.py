@@ -61,7 +61,12 @@ from pvt_phase_simulator_ui.exports import (
     export_sweep_csv_bytes,
 )
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
-from pvt_phase_simulator_ui.state import get_result, result_is_stale, store_result
+from pvt_phase_simulator_ui.state import (
+    get_result,
+    result_is_stale,
+    store_result,
+    synchronize_sweep_inputs,
+)
 from pvt_phase_simulator_ui.styles import phase_split_bar
 from pvt_phase_simulator_ui.sweeps import (
     DEFAULT_SWEEP_POINTS,
@@ -1287,14 +1292,16 @@ def _sweep_controls(
 ) -> tuple[SweepKind, float, float, int]:
     """Collect sweep bounds; the fixed variable comes from the submitted case."""
 
+    synchronize_sweep_inputs(session())
     kind = cast(
         SweepKind,
         st.segmented_control(
             "Swept variable",
             options=["pressure", "temperature"],
-            default="pressure",
             format_func=lambda value: value.capitalize(),
             key="sweep_kind",
+            on_change=synchronize_sweep_inputs,
+            args=(session(),),
         )
         or "pressure",
     )
@@ -1304,8 +1311,6 @@ def _sweep_controls(
             f"{_display_temperature(inputs.temperature_k, units):g} "
             f"{units.temperature.value}."
         )
-        default_start = _display_pressure(1.0e6, units)
-        default_end = _display_pressure(20.0e6, units)
         label_start = f"Start pressure ({units.pressure.value})"
         label_end = f"End pressure ({units.pressure.value})"
     else:
@@ -1314,31 +1319,26 @@ def _sweep_controls(
             f"{_display_pressure(inputs.pressure_pa, units):g} "
             f"{units.pressure.value}."
         )
-        default_start = _display_temperature(240.0, units)
-        default_end = _display_temperature(340.0, units)
         label_start = f"Start temperature ({units.temperature.value})"
         label_end = f"End temperature ({units.temperature.value})"
 
     with st.container(horizontal=True):
         start = st.number_input(
             label_start,
-            value=default_start,
             step=1.0,
-            key=f"sweep_start_{kind}_{units.temperature}_{units.pressure}",
+            key="sweep_start_value",
         )
         end = st.number_input(
             label_end,
-            value=default_end,
             step=1.0,
-            key=f"sweep_end_{kind}_{units.temperature}_{units.pressure}",
+            key="sweep_end_value",
         )
         points = st.number_input(
             "Points",
             min_value=MIN_SWEEP_POINTS,
             max_value=MAX_SWEEP_POINTS,
-            value=DEFAULT_SWEEP_POINTS,
             step=1,
-            key=f"sweep_points_{kind}",
+            key="sweep_points_value",
         )
     return kind, float(start), float(end), int(points)
 
