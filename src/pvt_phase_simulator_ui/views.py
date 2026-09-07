@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Final, Literal, cast
@@ -25,7 +26,6 @@ from pvt_phase_simulator.eos.phase_envelope import (
 )
 from pvt_phase_simulator.plotting import (
     CompositionDisplay,
-    PressureUnit,
     plot_critical_solver_conditioning,
     plot_critical_solver_convergence,
     plot_critical_solver_path,
@@ -38,9 +38,11 @@ from pvt_phase_simulator.plotting import (
     plot_validation_retrospective_diagnostics,
     plot_validation_status,
 )
+from pvt_phase_simulator.plotting import (
+    PressureUnit as PlotPressureUnit,
+)
 from pvt_phase_simulator_ui.adapters import (
     COMPONENT_NAMES,
-    PA_PER_MPA,
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
@@ -50,7 +52,7 @@ from pvt_phase_simulator_ui.adapters import (
     status_text,
     validation_pressure_error_summary,
 )
-from pvt_phase_simulator_ui.context import session
+from pvt_phase_simulator_ui.context import session, unit_preferences
 from pvt_phase_simulator_ui.exports import (
     build_export_document,
     build_sweep_export_document,
@@ -71,8 +73,105 @@ from pvt_phase_simulator_ui.sweeps import (
     run_sweep,
     validate_sweep_request,
 )
+from pvt_phase_simulator_ui.units import (
+    DEFAULT_UNITS,
+    UnitPreferences,
+    pressure_from_pa,
+    temperature_from_k,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
+
+_CRITICAL_TEMPERATURE_TEXT: Final = re.compile(
+    r"(?P<label>(?:^|<br>)T=)"
+    r"(?P<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?) K"
+)
+_CRITICAL_PRESSURE_TEXT: Final = re.compile(
+    r"(?P<label>(?:^|<br>)P=)"
+    r"(?P<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?) Pa"
+)
+
+
+def _display_temperature(value_k: float, units: UnitPreferences) -> float:
+    return temperature_from_k(value_k, units.temperature)
+
+
+def _display_pressure(value_pa: float, units: UnitPreferences) -> float:
+    return pressure_from_pa(value_pa, units.pressure)
+
+
+def _format_plot_hover_value(value: float) -> str:
+    return f"{value:.12g}"
+
+
+def _convert_critical_hover_text(text: str, units: UnitPreferences) -> str:
+    def replace_temperature(match: re.Match[str]) -> str:
+        value = _display_temperature(float(match.group("value")), units)
+        return (
+            f"{match.group('label')}{_format_plot_hover_value(value)} "
+            f"{units.temperature.value}"
+        )
+
+    def replace_pressure(match: re.Match[str]) -> str:
+        value = _display_pressure(float(match.group("value")), units)
+        return (
+            f"{match.group('label')}{_format_plot_hover_value(value)} "
+            f"{units.pressure.value}"
+        )
+
+    text = _CRITICAL_TEMPERATURE_TEXT.sub(replace_temperature, text)
+    return _CRITICAL_PRESSURE_TEXT.sub(replace_pressure, text)
+
+
+def _convert_axis_values(values: Any, converter: Any) -> tuple[object, ...]:
+    if values is None:
+        return ()
+    return tuple(None if value is None else converter(float(value)) for value in values)
+
+
+def _presentation_figure(
+    figure: go.Figure,
+    units: UnitPreferences,
+    *,
+    x_quantity: Literal["temperature", "pressure"] | None = None,
+    y_quantity: Literal["temperature", "pressure"] | None = None,
+) -> go.Figure:
+    """Convert a source figure's SI axes once at the presentation boundary."""
+
+    converters = {
+        "temperature": lambda value: _display_temperature(value, units),
+        "pressure": lambda value: _display_pressure(value, units),
+    }
+    labels = {
+        "temperature": f"Temperature ({units.temperature.value})",
+        "pressure": f"Pressure ({units.pressure.value})",
+    }
+    for trace in figure.data:
+        if x_quantity is not None and getattr(trace, "x", None) is not None:
+            trace.x = _convert_axis_values(trace.x, converters[x_quantity])
+        if y_quantity is not None and getattr(trace, "y", None) is not None:
+            trace.y = _convert_axis_values(trace.y, converters[y_quantity])
+        text = getattr(trace, "text", None)
+        if getattr(trace, "name", None) == "Certified critical point":
+            if isinstance(text, str):
+                trace.text = _convert_critical_hover_text(text, units)
+            elif text is not None:
+                trace.text = tuple(
+                    _convert_critical_hover_text(value, units)
+                    if isinstance(value, str)
+                    else value
+                    for value in text
+                )
+        template = getattr(trace, "hovertemplate", None)
+        if isinstance(template, str):
+            trace.hovertemplate = template.replace(
+                " K", f" {units.temperature.value}"
+            ).replace(" Pa", f" {units.pressure.value}")
+    if x_quantity is not None:
+        figure.update_xaxes(title_text=labels[x_quantity])
+    if y_quantity is not None:
+        figure.update_yaxes(title_text=labels[y_quantity])
+    return figure
 
 
 def _value(item: object) -> str:
@@ -279,10 +378,16 @@ def _doi_link(doi: str | None) -> str:
 
 def _render_model_scope_panel() -> None:
     scope = _model_scope()
+    units = unit_preferences()
     components = ", ".join(scope.verified_component_names)
     systems = " and ".join(scope.validation_system_names)
-    temperature_min, temperature_max = scope.validation_temperature_range_k
-    pressure_min, pressure_max = scope.validation_pressure_range_mpa
+    temperature_min, temperature_max = (
+        _display_temperature(value, units)
+        for value in scope.validation_temperature_range_k
+    )
+    pressure_min, pressure_max = (
+        _display_pressure(value, units) for value in scope.validation_pressure_range_pa
+    )
 
     with st.container(border=True):
         st.subheader("Model and limitations", anchor="model-and-limitations")
@@ -303,8 +408,9 @@ def _render_model_scope_panel() -> None:
         st.markdown(
             f"**Validation scope.** The protected Module 17 artifact contains "
             f"**{scope.validation_state_count} experimental VLE states** for "
-            f"**{systems}**, spanning {temperature_min:g}–{temperature_max:g} K and "
-            f"{pressure_min:g}–{pressure_max:g} MPa in the recorded states. This "
+            f"**{systems}**, spanning {temperature_min:g}–{temperature_max:g} "
+            f"{units.temperature.value} and {pressure_min:g}–{pressure_max:g} "
+            f"{units.pressure.value} in the recorded states. This "
             "does not establish accuracy for other components, mixtures, or "
             "conditions."
         )
@@ -344,6 +450,7 @@ def _render_model_scope_panel() -> None:
 
 def render_overview(inputs: ScientificInputs | None) -> None:
     st.header("Overview")
+    units = unit_preferences()
     _render_model_scope_panel()
     raw = get_result(session(), "flash")
     if raw is None:
@@ -376,8 +483,15 @@ def render_overview(inputs: ScientificInputs | None) -> None:
                 icon=":material/error:",
             )
     state_columns = st.columns(4, vertical_alignment="center")
-    state_columns[0].metric("Temperature", f"{view.temperature_k:.6g} K")
-    state_columns[1].metric("Pressure", f"{view.pressure_pa / PA_PER_MPA:.6g} MPa")
+    state_columns[0].metric(
+        "Temperature",
+        f"{_display_temperature(view.temperature_k, units):.6g} "
+        f"{units.temperature.value}",
+    )
+    state_columns[1].metric(
+        "Pressure",
+        f"{_display_pressure(view.pressure_pa, units):.6g} {units.pressure.value}",
+    )
     state_columns[2].metric("Model", "Peng-Robinson")
     state_columns[3].metric("Interactions", "kij = 0")
     phase_columns = st.columns(4, vertical_alignment="center")
@@ -420,6 +534,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             flash_result=None if flash_stale else result,
             envelope_result=envelope_export,
             critical_result=critical_export,
+            units=units,
         )
         st.subheader("Export current case")
         with st.container(horizontal=True):
@@ -470,6 +585,7 @@ def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
 
 def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     st.header("Phase envelope")
+    units = unit_preferences()
     st.caption(
         "Independent bounded bubble and dew continuation · "
         "turning points are not critical points"
@@ -511,11 +627,16 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
         critical = None
     _wide_chart(
         _annotate_missing_envelope_branches(
-            plot_phase_envelope(
-                result,
-                pressure_unit=PressureUnit.MPA,
-                critical_point=critical,
-                metadata={"model": "Peng-Robinson EOS; kij=0"},
+            _presentation_figure(
+                plot_phase_envelope(
+                    result,
+                    pressure_unit=PlotPressureUnit.PA,
+                    critical_point=critical,
+                    metadata={"model": "Peng-Robinson EOS; kij=0"},
+                ),
+                units,
+                x_quantity="temperature",
+                y_quantity="pressure",
             ),
             result,
         ),
@@ -558,12 +679,16 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     if st.button("SHOW PHASE COMPOSITIONS", icon=":material/show_chart:"):
         try:
             _wide_chart(
-                plot_phase_compositions(
-                    result,
-                    branch=branch,
-                    component_index=COMPONENT_NAMES.index(component),
-                    display=CompositionDisplay.MOL_PERCENT,
-                    pressure_unit=PressureUnit.MPA,
+                _presentation_figure(
+                    plot_phase_compositions(
+                        result,
+                        branch=branch,
+                        component_index=COMPONENT_NAMES.index(component),
+                        display=CompositionDisplay.MOL_PERCENT,
+                        pressure_unit=PlotPressureUnit.PA,
+                    ),
+                    units,
+                    x_quantity="temperature",
                 ),
                 key="phase_compositions_chart",
             )
@@ -598,6 +723,7 @@ def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
 
 def render_critical_point(inputs: ScientificInputs | None) -> None:
     st.header("Critical point")
+    units = unit_preferences()
     st.caption(
         "Certification requires solver convergence on both criticality conditions. "
         "A zero minimum stability eigenvalue alone identifies a spinodal condition, "
@@ -655,9 +781,15 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
         if view.certified:
             st.success("CERTIFIED CRITICAL POINT", icon=":material/verified:")
             certified = st.columns(2)
-            certified[0].metric("Tc", f"{cast(float, view.temperature_k):.6g} K")
+            certified[0].metric(
+                "Tc",
+                f"{_display_temperature(cast(float, view.temperature_k), units):.6g} "
+                f"{units.temperature.value}",
+            )
             certified[1].metric(
-                "Pc", f"{cast(float, view.pressure_pa) / PA_PER_MPA:.6g} MPa"
+                "Pc",
+                f"{_display_pressure(cast(float, view.pressure_pa), units):.6g} "
+                f"{units.pressure.value}",
             )
         else:
             st.error(
@@ -709,7 +841,15 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     key="critical_convergence_chart",
                 )
                 _wide_chart(
-                    plot_critical_solver_path(result), key="critical_path_chart"
+                    _presentation_figure(
+                        plot_critical_solver_path(
+                            result, pressure_unit=PlotPressureUnit.PA
+                        ),
+                        units,
+                        x_quantity="temperature",
+                        y_quantity="pressure",
+                    ),
+                    key="critical_path_chart",
                 )
             if result.jacobian_condition_history:
                 _wide_chart(
@@ -723,11 +863,16 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
         if result_is_stale(session(), "critical", inputs):
             overlay = None
         _wide_chart(
-            plot_criticality_map(
-                cast(CriticalPointScanResult, scan_raw),
-                pressure_unit=PressureUnit.MPA,
-                critical_point=overlay,
-                metadata={"model": "Peng-Robinson EOS; kij=0"},
+            _presentation_figure(
+                plot_criticality_map(
+                    cast(CriticalPointScanResult, scan_raw),
+                    pressure_unit=PlotPressureUnit.PA,
+                    critical_point=overlay,
+                    metadata={"model": "Peng-Robinson EOS; kij=0"},
+                ),
+                units,
+                x_quantity="temperature",
+                y_quantity="pressure",
             ),
             key="criticality_map_chart",
         )
@@ -740,6 +885,7 @@ def _records() -> tuple[Any, ...]:
 
 def render_validation() -> None:
     st.header("Validation")
+    units = unit_preferences()
     st.info(
         "Existing experimental dataset: 40 methane/ethane and methane/propane "
         "VLE states. "
@@ -778,10 +924,21 @@ def render_validation() -> None:
     summary[3].metric("Worst absolute pressure error", _optional(worst_error) + "%")
     with st.status("Rendering Module 21 validation figures…") as status:
         figures = (
-            plot_validation_pressure_parity(
-                records, direction=selected, pressure_unit=PressureUnit.MPA
+            _presentation_figure(
+                plot_validation_pressure_parity(
+                    records,
+                    direction=selected,
+                    pressure_unit=PlotPressureUnit.PA,
+                ),
+                units,
+                x_quantity="pressure",
+                y_quantity="pressure",
             ),
-            plot_validation_pressure_error(records, direction=selected),
+            _presentation_figure(
+                plot_validation_pressure_error(records, direction=selected),
+                units,
+                x_quantity="temperature",
+            ),
             plot_validation_status(records, direction=selected),
         )
         composition_error: str | None
@@ -812,8 +969,13 @@ def render_validation() -> None:
     )
     try:
         _wide_chart(
-            plot_validation_retrospective_diagnostics(
-                records, pressure_unit=PressureUnit.MPA
+            _presentation_figure(
+                plot_validation_retrospective_diagnostics(
+                    records, pressure_unit=PlotPressureUnit.PA
+                ),
+                units,
+                x_quantity="pressure",
+                y_quantity="pressure",
             ),
             key="validation_retrospective",
         )
@@ -971,15 +1133,26 @@ def _rounded(value: float | None, digits: int) -> float | str:
     return "—" if value is None else round(float(value), digits)
 
 
-def _sweep_table(result: SweepResult) -> pd.DataFrame:
+def _sweep_table(
+    result: SweepResult, units: UnitPreferences = DEFAULT_UNITS
+) -> pd.DataFrame:
+    temperature_column = f"Temperature ({units.temperature.value})"
+    pressure_column = f"Pressure ({units.pressure.value})"
+    columns = list(SWEEP_TABLE_COLUMNS)
+    columns[2] = temperature_column
+    columns[3] = pressure_column
     rows = []
     for point in result.points:
         rows.append(
             {
                 "Point": point.index + 1,
                 "Status": "FAILED" if point.status == "failed" else "Calculated",
-                "Temperature (K)": _rounded(point.temperature_k, 4),
-                "Pressure (MPa)": _rounded(point.pressure_mpa, 5),
+                temperature_column: _rounded(
+                    _display_temperature(point.temperature_k, units), 4
+                ),
+                pressure_column: _rounded(
+                    _display_pressure(point.pressure_pa, units), 5
+                ),
                 "Phase": point.phase_state or "—",
                 "Convergence": point.convergence_status or "—",
                 "Stability": point.stability_status or "—",
@@ -993,11 +1166,13 @@ def _sweep_table(result: SweepResult) -> pd.DataFrame:
                 ),
             }
         )
-    return pd.DataFrame(rows, columns=list(SWEEP_TABLE_COLUMNS))
+    return pd.DataFrame(rows, columns=columns)
 
 
 def _sweep_series(
-    result: SweepResult, attribute: str
+    result: SweepResult,
+    attribute: str,
+    units: UnitPreferences = DEFAULT_UNITS,
 ) -> tuple[list[float], list[float | None]]:
     """Return every abscissa, with ``None`` wherever the quantity is absent.
 
@@ -1010,7 +1185,12 @@ def _sweep_series(
 
     x: list[float] = []
     y: list[float | None] = []
-    for value, point in zip(result.abscissae(), result.points, strict=True):
+    for point in result.points:
+        value = (
+            _display_pressure(point.pressure_pa, units)
+            if result.request.kind == "pressure"
+            else _display_temperature(point.temperature_k, units)
+        )
         x.append(value)
         if point.status == "failed":
             y.append(None)
@@ -1020,22 +1200,31 @@ def _sweep_series(
     return x, y
 
 
-def _sweep_failure_marks(result: SweepResult) -> list[float]:
+def _sweep_failure_marks(
+    result: SweepResult, units: UnitPreferences = DEFAULT_UNITS
+) -> list[float]:
     return [
-        value
-        for value, point in zip(result.abscissae(), result.points, strict=True)
+        (
+            _display_pressure(point.pressure_pa, units)
+            if result.request.kind == "pressure"
+            else _display_temperature(point.temperature_k, units)
+        )
+        for point in result.points
         if point.status == "failed"
     ]
 
 
-def _sweep_axis_title(result: SweepResult) -> str:
-    return result.request.axis_label
+def _sweep_axis_title(result: SweepResult, units: UnitPreferences) -> str:
+    unit = units.pressure if result.request.kind == "pressure" else units.temperature
+    return f"{result.request.kind.capitalize()} ({unit.value})"
 
 
-def _mark_failed_points(figure: go.Figure, result: SweepResult) -> go.Figure:
+def _mark_failed_points(
+    figure: go.Figure, result: SweepResult, units: UnitPreferences
+) -> go.Figure:
     """Draw failed abscissae explicitly so a gap is never read as smooth."""
 
-    failures = _sweep_failure_marks(result)
+    failures = _sweep_failure_marks(result, units)
     for index, value in enumerate(failures):
         figure.add_vline(
             x=value,
@@ -1048,8 +1237,10 @@ def _mark_failed_points(figure: go.Figure, result: SweepResult) -> go.Figure:
     return figure
 
 
-def _vapor_fraction_figure(result: SweepResult) -> go.Figure:
-    x, y = _sweep_series(result, "vapor_fraction")
+def _vapor_fraction_figure(
+    result: SweepResult, units: UnitPreferences = DEFAULT_UNITS
+) -> go.Figure:
+    x, y = _sweep_series(result, "vapor_fraction", units)
     figure = go.Figure()
     figure.add_trace(
         go.Scatter(
@@ -1062,20 +1253,22 @@ def _vapor_fraction_figure(result: SweepResult) -> go.Figure:
     )
     figure.update_layout(
         title="Vapor fraction",
-        xaxis_title=_sweep_axis_title(result),
+        xaxis_title=_sweep_axis_title(result, units),
         yaxis_title="Vapor fraction (-)",
     )
-    return _mark_failed_points(figure, result)
+    return _mark_failed_points(figure, result, units)
 
 
-def _z_factor_figure(result: SweepResult) -> go.Figure:
+def _z_factor_figure(
+    result: SweepResult, units: UnitPreferences = DEFAULT_UNITS
+) -> go.Figure:
     figure = go.Figure()
     for attribute, label in (
         ("liquid_z", "Liquid Z"),
         ("vapor_z", "Vapor Z"),
         ("single_phase_z", "Single-phase Z"),
     ):
-        x, y = _sweep_series(result, attribute)
+        x, y = _sweep_series(result, attribute, units)
         if all(value is None for value in y):
             continue
         figure.add_trace(
@@ -1083,13 +1276,15 @@ def _z_factor_figure(result: SweepResult) -> go.Figure:
         )
     figure.update_layout(
         title="Compressibility factors",
-        xaxis_title=_sweep_axis_title(result),
+        xaxis_title=_sweep_axis_title(result, units),
         yaxis_title="Z (-)",
     )
-    return _mark_failed_points(figure, result)
+    return _mark_failed_points(figure, result, units)
 
 
-def _sweep_controls(inputs: ScientificInputs) -> tuple[SweepKind, float, float, int]:
+def _sweep_controls(
+    inputs: ScientificInputs, units: UnitPreferences
+) -> tuple[SweepKind, float, float, int]:
     """Collect sweep bounds; the fixed variable comes from the submitted case."""
 
     kind = cast(
@@ -1106,32 +1301,36 @@ def _sweep_controls(inputs: ScientificInputs) -> tuple[SweepKind, float, float, 
     if kind == "pressure":
         st.caption(
             f"Pressure is swept at the submitted temperature of "
-            f"{inputs.temperature_k:g} K."
+            f"{_display_temperature(inputs.temperature_k, units):g} "
+            f"{units.temperature.value}."
         )
-        default_start, default_end = 1.0, 20.0
-        label_start, label_end = "Start pressure (MPa)", "End pressure (MPa)"
+        default_start = _display_pressure(1.0e6, units)
+        default_end = _display_pressure(20.0e6, units)
+        label_start = f"Start pressure ({units.pressure.value})"
+        label_end = f"End pressure ({units.pressure.value})"
     else:
         st.caption(
             f"Temperature is swept at the submitted pressure of "
-            f"{inputs.pressure_mpa:g} MPa."
+            f"{_display_pressure(inputs.pressure_pa, units):g} "
+            f"{units.pressure.value}."
         )
-        default_start, default_end = 240.0, 340.0
-        label_start, label_end = "Start temperature (K)", "End temperature (K)"
+        default_start = _display_temperature(240.0, units)
+        default_end = _display_temperature(340.0, units)
+        label_start = f"Start temperature ({units.temperature.value})"
+        label_end = f"End temperature ({units.temperature.value})"
 
     with st.container(horizontal=True):
         start = st.number_input(
             label_start,
-            min_value=0.0,
             value=default_start,
             step=1.0,
-            key=f"sweep_start_{kind}",
+            key=f"sweep_start_{kind}_{units.temperature}_{units.pressure}",
         )
         end = st.number_input(
             label_end,
-            min_value=0.0,
             value=default_end,
             step=1.0,
-            key=f"sweep_end_{kind}",
+            key=f"sweep_end_{kind}_{units.temperature}_{units.pressure}",
         )
         points = st.number_input(
             "Points",
@@ -1148,6 +1347,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
     """Bounded sweeps that call the existing verified flash API at every point."""
 
     st.header("Engineering sweeps")
+    units = unit_preferences()
     st.caption(
         "Every point is one call into the existing verified flash and stability "
         "API. A point that fails stays reported as FAILED and is never "
@@ -1163,7 +1363,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
         )
 
     kind, start, end, points = (
-        _sweep_controls(inputs)
+        _sweep_controls(inputs, units)
         if inputs
         else (
             "pressure",
@@ -1183,9 +1383,9 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
 
     if run and action_inputs is not None:
         fixed = (
-            action_inputs.temperature_k
+            _display_temperature(action_inputs.temperature_k, units)
             if kind == "pressure"
-            else action_inputs.pressure_mpa
+            else _display_pressure(action_inputs.pressure_pa, units)
         )
         try:
             request = validate_sweep_request(
@@ -1195,6 +1395,8 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
                 start=start,
                 end=end,
                 points=points,
+                temperature_unit=units.temperature,
+                pressure_unit=units.pressure,
             )
         except SweepValidationError as error:
             st.error(f"Submission unavailable: {error}")
@@ -1231,21 +1433,21 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
             "interpolated across."
         )
 
-    _wide_chart(_vapor_fraction_figure(sweep), key="sweep_vapor_fraction")
-    _wide_chart(_z_factor_figure(sweep), key="sweep_z_factors")
+    _wide_chart(_vapor_fraction_figure(sweep, units), key="sweep_vapor_fraction")
+    _wide_chart(_z_factor_figure(sweep, units), key="sweep_z_factors")
 
     st.subheader("Phase-state results")
-    st.dataframe(_sweep_table(sweep), width="stretch", hide_index=True)
+    st.dataframe(_sweep_table(sweep, units), width="stretch", hide_index=True)
     st.caption(
         "Displayed values are rounded for reading. Exports carry full precision."
     )
 
-    document = build_sweep_export_document(sweep)
+    document = build_sweep_export_document(sweep, units)
     st.subheader("Export sweep")
     with st.container(horizontal=True):
         st.download_button(
             "Download CSV",
-            data=export_sweep_csv_bytes(sweep),
+            data=export_sweep_csv_bytes(sweep, units),
             file_name="pvt-engineering-sweep.csv",
             mime="text/csv;charset=utf-8",
             key="download_sweep_csv",

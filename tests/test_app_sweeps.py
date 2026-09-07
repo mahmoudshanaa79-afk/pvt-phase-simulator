@@ -27,10 +27,12 @@ from pvt_phase_simulator_ui.sweeps import (
     MIN_SWEEP_POINTS,
     SweepValidationError,
     run_pressure_sweep,
+    run_sweep,
     run_temperature_sweep,
     sweep_axis_values,
     validate_sweep_request,
 )
+from pvt_phase_simulator_ui.units import PressureUnit, TemperatureUnit, UnitPreferences
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSITION = (50.0, 0.0, 50.0)
@@ -201,6 +203,51 @@ def test_sweep_calls_the_flash_api_exactly_once_per_point() -> None:
     assert len(calls) == 5
     assert [temperature for temperature, _ in calls] == [300.0] * 5
     assert [pressure for _, pressure in calls] == [1e6, 2e6, 3e6, 4e6, 5e6]
+
+
+def test_field_unit_sweep_calls_engine_with_k_and_pa() -> None:
+    calls: list[tuple[float, float]] = []
+
+    def spy(_: object, temperature_k: float, pressure_pa: float) -> Any:
+        calls.append((temperature_k, pressure_pa))
+        return _two_phase_api()
+
+    request = validate_sweep_request(
+        "pressure",
+        COMPOSITION,
+        fixed_value=80.33,
+        start=14.503773773,
+        end=43.511321319,
+        points=3,
+        temperature_unit=TemperatureUnit.FAHRENHEIT,
+        pressure_unit=PressureUnit.PSI,
+    )
+    result = run_sweep(request, flash_api=spy)
+
+    assert [temperature for temperature, _ in calls] == pytest.approx([300.0] * 3)
+    assert [pressure for _, pressure in calls] == pytest.approx(
+        [100_000.0, 200_000.0, 300_000.0], rel=2e-11
+    )
+    assert result.abscissae() == request.axis_values()
+
+
+def test_negative_celsius_sweep_bounds_are_valid_above_absolute_zero() -> None:
+    request = validate_sweep_request(
+        "temperature",
+        COMPOSITION,
+        fixed_value=50.0,
+        start=-30.0,
+        end=30.0,
+        points=3,
+        temperature_unit=TemperatureUnit.CELSIUS,
+        pressure_unit=PressureUnit.BAR,
+    )
+
+    result = run_sweep(request, flash_api=_two_phase_api)
+    assert [point.temperature_k for point in result.points] == pytest.approx(
+        [243.15, 273.15, 303.15]
+    )
+    assert all(point.pressure_pa == 5_000_000.0 for point in result.points)
 
 
 # ------------------------------------------------------------- point kinds
@@ -514,6 +561,36 @@ def test_sweep_json_preserves_full_precision() -> None:
     assert two_phase[0]["vapor_z"]["value"] == 0.5986875870131091
 
 
+def test_sweep_exports_name_selected_and_engine_units() -> None:
+    result = _mixed_sweep()
+    units = UnitPreferences(TemperatureUnit.FAHRENHEIT, PressureUnit.PSI)
+    document = build_sweep_export_document(result, units)
+
+    assert document["metadata"]["engine_units"] == {
+        "temperature": "K",
+        "pressure": "Pa",
+    }
+    assert document["metadata"]["presentation_units"] == {
+        "temperature": "°F",
+        "pressure": "psi",
+    }
+    first = document["points"][0]
+    assert first["temperature_unit"] == "°F"
+    assert first["pressure_unit"] == "psi"
+    assert first["temperature_k"] == result.points[0].temperature_k
+    assert first["pressure_pa"] == result.points[0].pressure_pa
+
+    rows = list(
+        csv.DictReader(
+            StringIO(export_sweep_csv_bytes(result, units).decode("utf-8-sig"))
+        )
+    )
+    assert rows[0]["temperature_unit"] == "°F"
+    assert rows[0]["pressure_unit"] == "psi"
+    assert float(rows[0]["temperature_k"]) == result.points[0].temperature_k
+    assert float(rows[0]["pressure_pa"]) == result.points[0].pressure_pa
+
+
 def test_sweep_json_omits_a_timestamp_to_stay_reproducible() -> None:
     document = build_sweep_export_document(_mixed_sweep())
     metadata = document["metadata"]
@@ -582,12 +659,13 @@ def test_sweep_module_implements_no_thermodynamics() -> None:
     assert not any(term in source.lower() for term in forbidden_terms)
 
 
-def test_sweep_layer_calls_the_audited_flash_entry_point() -> None:
+def test_sweep_layer_calls_the_audited_flash_api_with_validated_si_inputs() -> None:
     source = (ROOT / "src" / "pvt_phase_simulator_ui" / "sweeps.py").read_text(
         encoding="utf-8"
     )
-    assert "run_validated_flash" in source
-    assert "from pvt_phase_simulator_ui.adapters import" in source
+    assert "calculate_two_phase_flash" in source
+    assert "validate_scientific_inputs" in source
+    assert "inputs.temperature_k, inputs.pressure_pa" in source
 
 
 def test_sweep_feature_adds_nothing_to_the_protected_science_package() -> None:

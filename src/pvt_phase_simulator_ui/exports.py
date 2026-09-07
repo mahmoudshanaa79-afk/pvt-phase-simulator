@@ -22,9 +22,15 @@ from pvt_phase_simulator_ui.adapters import (
     adapt_flash_result,
 )
 from pvt_phase_simulator_ui.sweeps import SweepPoint, SweepResult
+from pvt_phase_simulator_ui.units import (
+    DEFAULT_UNITS,
+    UnitPreferences,
+    pressure_from_pa,
+    temperature_from_k,
+)
 
 EXPORT_SCHEMA_NAME = "pvt-phase-simulator-current-case"
-EXPORT_SCHEMA_VERSION = "1.0.0"
+EXPORT_SCHEMA_VERSION = "1.1.0"
 
 
 def _enum_value(value: object) -> str:
@@ -115,12 +121,26 @@ def _flash_export(result: TwoPhaseFlashResult) -> dict[str, object]:
     }
 
 
-def _envelope_point_export(point: PhaseEnvelopePoint) -> dict[str, object]:
+def _display_state(
+    temperature_k: float, pressure_pa: float, units: UnitPreferences
+) -> dict[str, object]:
+    return {
+        "temperature": temperature_from_k(temperature_k, units.temperature),
+        "temperature_unit": units.temperature.value,
+        "pressure": pressure_from_pa(pressure_pa, units.pressure),
+        "pressure_unit": units.pressure.value,
+        "temperature_k": temperature_k,
+        "pressure_pa": pressure_pa,
+    }
+
+
+def _envelope_point_export(
+    point: PhaseEnvelopePoint, units: UnitPreferences
+) -> dict[str, object]:
     saturation = point.saturation_result
     return {
         "status": _enum_value(point.status),
-        "temperature_k": point.temperature_k,
-        "pressure_pa": point.pressure_pa,
+        **_display_state(point.temperature_k, point.pressure_pa, units),
         "parent_composition": saturation.parent_composition,
         "incipient_composition": saturation.incipient_composition,
         "k_values": saturation.k_values,
@@ -134,7 +154,7 @@ def _envelope_point_export(point: PhaseEnvelopePoint) -> dict[str, object]:
 
 
 def _envelope_branch_export(
-    branch: PhaseEnvelopeBranchResult,
+    branch: PhaseEnvelopeBranchResult, units: UnitPreferences
 ) -> dict[str, object]:
     return {
         "branch_kind": _enum_value(branch.branch_kind),
@@ -142,21 +162,35 @@ def _envelope_branch_export(
         "termination_message": branch.termination_message,
         "accepted_point_count": len(branch.points),
         "rejected_attempt_count": len(branch.rejected_attempts),
-        "points": [_envelope_point_export(point) for point in branch.points],
+        "points": [_envelope_point_export(point, units) for point in branch.points],
     }
 
 
-def _envelope_export(result: PhaseEnvelopeResult) -> dict[str, object]:
+def _envelope_export(
+    result: PhaseEnvelopeResult, units: UnitPreferences
+) -> dict[str, object]:
     return {
         "calculation_status": "calculated",
-        "bubble_branch": _envelope_branch_export(result.bubble_branch),
-        "dew_branch": _envelope_branch_export(result.dew_branch),
+        "bubble_branch": _envelope_branch_export(result.bubble_branch, units),
+        "dew_branch": _envelope_branch_export(result.dew_branch, units),
     }
 
 
-def _critical_export(result: MixtureCriticalPointResult) -> dict[str, object]:
+def _critical_export(
+    result: MixtureCriticalPointResult, units: UnitPreferences
+) -> dict[str, object]:
     view = adapt_critical_result(result)
     reason = "No certified critical value is available from this production result."
+    display_temperature = (
+        None
+        if view.temperature_k is None
+        else temperature_from_k(view.temperature_k, units.temperature)
+    )
+    display_pressure = (
+        None
+        if view.pressure_pa is None
+        else pressure_from_pa(view.pressure_pa, units.pressure)
+    )
     return {
         "calculation_status": "calculated",
         "solver_status": _enum_value(view.status),
@@ -169,6 +203,14 @@ def _critical_export(result: MixtureCriticalPointResult) -> dict[str, object]:
         "pressure_pa": _optional_result_value(
             view.pressure_pa, not_applicable=False, reason=reason
         ),
+        "temperature": _optional_result_value(
+            display_temperature, not_applicable=False, reason=reason
+        ),
+        "temperature_unit": units.temperature.value,
+        "pressure": _optional_result_value(
+            display_pressure, not_applicable=False, reason=reason
+        ),
+        "pressure_unit": units.pressure.value,
         "lambda_min": _optional_result_value(
             result.lambda_min, not_applicable=False, reason=reason
         ),
@@ -190,6 +232,7 @@ def build_export_document(
     flash_result: TwoPhaseFlashResult | None = None,
     envelope_result: PhaseEnvelopeResult | None = None,
     critical_result: MixtureCriticalPointResult | None = None,
+    units: UnitPreferences = DEFAULT_UNITS,
 ) -> dict[str, object]:
     """Build an export solely from submitted inputs and already-held results."""
 
@@ -214,6 +257,11 @@ def build_export_document(
         "metadata": {
             "eos": "Peng-Robinson",
             "unit_system": "SI",
+            "engine_units": {"temperature": "K", "pressure": "Pa"},
+            "presentation_units": {
+                "temperature": units.temperature.value,
+                "pressure": units.pressure.value,
+            },
             "binary_interaction_assumption": "kij = 0",
             "verified_component_scope": list(COMPONENT_NAMES),
             "export_timestamp": {
@@ -222,8 +270,7 @@ def build_export_document(
             },
         },
         "case": {
-            "temperature_k": inputs.temperature_k,
-            "pressure_pa": inputs.pressure_pa,
+            **_display_state(inputs.temperature_k, inputs.pressure_pa, units),
             "pressure_mpa": inputs.pressure_mpa,
             "model": "Peng-Robinson",
             "binary_interaction_assumption": "kij = 0",
@@ -238,12 +285,12 @@ def build_export_document(
             "phase_envelope": (
                 {"calculation_status": "not_calculated"}
                 if envelope_result is None
-                else _envelope_export(envelope_result)
+                else _envelope_export(envelope_result, units)
             ),
             "critical_point": (
                 {"calculation_status": "not_calculated"}
                 if critical_result is None
-                else _critical_export(critical_result)
+                else _critical_export(critical_result, units)
             ),
         },
     }
@@ -304,7 +351,7 @@ def export_csv_bytes(document: Mapping[str, object]) -> bytes:
 
 
 SWEEP_EXPORT_SCHEMA_NAME = "pvt-phase-simulator-engineering-sweep"
-SWEEP_EXPORT_SCHEMA_VERSION = "1.0.0"
+SWEEP_EXPORT_SCHEMA_VERSION = "1.1.0"
 
 #: Ordered CSV columns for the tabular sweep export. Engineers read a sweep as a
 #: table of states, so this export is one row per point rather than the
@@ -312,6 +359,10 @@ SWEEP_EXPORT_SCHEMA_VERSION = "1.0.0"
 SWEEP_CSV_COLUMNS: Final = (
     "index",
     "status",
+    "temperature",
+    "temperature_unit",
+    "pressure",
+    "pressure_unit",
     "temperature_k",
     "pressure_mpa",
     "pressure_pa",
@@ -329,7 +380,7 @@ SWEEP_CSV_COLUMNS: Final = (
 )
 
 
-def _sweep_point_export(point: SweepPoint) -> dict[str, object]:
+def _sweep_point_export(point: SweepPoint, units: UnitPreferences) -> dict[str, object]:
     """Export one point without inventing a value the result did not supply."""
 
     failed = point.status == "failed"
@@ -348,9 +399,8 @@ def _sweep_point_export(point: SweepPoint) -> dict[str, object]:
     return {
         "index": point.index,
         "status": point.status,
-        "temperature_k": point.temperature_k,
+        **_display_state(point.temperature_k, point.pressure_pa, units),
         "pressure_mpa": point.pressure_mpa,
-        "pressure_pa": point.pressure_pa,
         "phase_state": _optional_result_value(
             point.phase_state, not_applicable=failed, reason=failed_reason
         ),
@@ -377,10 +427,15 @@ def _sweep_point_export(point: SweepPoint) -> dict[str, object]:
     }
 
 
-def build_sweep_export_document(result: SweepResult) -> dict[str, object]:
+def build_sweep_export_document(
+    result: SweepResult, units: UnitPreferences | None = None
+) -> dict[str, object]:
     """Build a sweep export from an already-computed sweep, calculating nothing."""
 
     request = result.request
+    selected_units = units or UnitPreferences(
+        temperature=request.temperature_unit, pressure=request.pressure_unit
+    )
     components = [
         {"name": name, "composition_mol_percent": mol_percent}
         for name, mol_percent in zip(
@@ -395,6 +450,11 @@ def build_sweep_export_document(result: SweepResult) -> dict[str, object]:
         "metadata": {
             "eos": "Peng-Robinson",
             "unit_system": "SI",
+            "engine_units": {"temperature": "K", "pressure": "Pa"},
+            "presentation_units": {
+                "temperature": selected_units.temperature.value,
+                "pressure": selected_units.pressure.value,
+            },
             "binary_interaction_assumption": "kij = 0",
             "verified_component_scope": list(COMPONENT_NAMES),
             "export_timestamp": {
@@ -404,10 +464,17 @@ def build_sweep_export_document(result: SweepResult) -> dict[str, object]:
         },
         "request": {
             "kind": request.kind,
-            "fixed_temperature_k": request.fixed_temperature_k,
-            "fixed_pressure_mpa": request.fixed_pressure_mpa,
+            "fixed_temperature": request.fixed_temperature,
+            "fixed_temperature_unit": request.temperature_unit.value,
+            "fixed_pressure": request.fixed_pressure,
+            "fixed_pressure_unit": request.pressure_unit.value,
             "start": request.start,
             "end": request.end,
+            "sweep_unit": (
+                request.pressure_unit.value
+                if request.kind == "pressure"
+                else request.temperature_unit.value
+            ),
             "points": request.points,
             "components": components,
         },
@@ -416,17 +483,31 @@ def build_sweep_export_document(result: SweepResult) -> dict[str, object]:
             "calculated_points": result.calculated_count,
             "failed_points": result.failed_count,
         },
-        "points": [_sweep_point_export(point) for point in result.points],
+        "points": [
+            _sweep_point_export(point, selected_units) for point in result.points
+        ],
     }
 
 
-def export_sweep_csv_bytes(result: SweepResult) -> bytes:
+def export_sweep_csv_bytes(
+    result: SweepResult, units: UnitPreferences | None = None
+) -> bytes:
     """Serialize one full-precision row per swept point, failures included."""
 
     output = StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
     writer.writerow(SWEEP_CSV_COLUMNS)
+    selected_units = units or UnitPreferences(
+        temperature=result.request.temperature_unit,
+        pressure=result.request.pressure_unit,
+    )
     for point in result.points:
-        row = [getattr(point, column) for column in SWEEP_CSV_COLUMNS]
+        exported = _sweep_point_export(point, selected_units)
+        row = []
+        for column in SWEEP_CSV_COLUMNS:
+            value = exported.get(column)
+            if isinstance(value, Mapping) and "value" in value:
+                value = value["value"]
+            row.append(value)
         writer.writerow([_csv_value(value) for value in row])
     return output.getvalue().encode("utf-8-sig")

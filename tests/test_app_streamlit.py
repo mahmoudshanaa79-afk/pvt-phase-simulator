@@ -19,8 +19,17 @@ import pvt_phase_simulator_ui.styles
 from pvt_phase_simulator.eos.flash import FlashConvergenceStatus
 from pvt_phase_simulator_ui import app as ui_app
 from pvt_phase_simulator_ui import views
-from pvt_phase_simulator_ui.adapters import run_validated_flash
+from pvt_phase_simulator_ui.adapters import (
+    run_validated_flash,
+    validate_scientific_inputs,
+)
 from pvt_phase_simulator_ui.model_scope import load_model_scope
+from pvt_phase_simulator_ui.units import (
+    PressureUnit,
+    TemperatureUnit,
+    pressure_from_pa,
+    temperature_from_k,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,6 +64,10 @@ def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     assert not app.exception
     assert [selector.label for selector in app.selectbox] == ["Example case"]
+    assert [(control.label, control.options) for control in app.segmented_control] == [
+        ("Temperature unit", ["K", "°C", "°F"]),
+        ("Pressure unit", ["Pa", "MPa", "bar", "psi"]),
+    ]
     assert app.selectbox[0].options == [
         "Default two-phase-oriented case",
         "Known single-phase case at 300 K and 20 MPa",
@@ -68,6 +81,105 @@ def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
         "Pressure (MPa)",
     ]
     assert [button.label for button in app.button] == ["RUN FLASH"]
+
+
+def test_field_unit_selection_preserves_state_and_submits_si_to_engine() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+
+    app.segmented_control[0].set_value("°F")
+    app.segmented_control[1].set_value("psi")
+    app.run()
+
+    fields = {field.label: field.value for field in app.number_input}
+    assert fields["Temperature (°F)"] == pytest.approx(80.33)
+    assert fields["Pressure (psi)"] == pytest.approx(725.1886886510841)
+
+    app.button[0].click().run()
+    submitted = app.session_state["submitted_inputs"]
+    assert submitted.temperature_k == pytest.approx(300.0, abs=1e-13)
+    assert submitted.pressure_pa == 5_000_000.0
+    result = app.session_state["results"]["flash"]
+    assert result.temperature_k == submitted.temperature_k
+    assert result.pressure_pa == submitted.pressure_pa
+    metrics = {metric.label: metric.value for metric in app.metric}
+    assert metrics["Temperature"] == "80.33 °F"
+    assert metrics["Pressure"] == "725.189 psi"
+
+
+def test_presentation_unit_change_does_not_stale_a_calculated_result() -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.button[0].click().run()
+    result = app.session_state["results"]["flash"]
+
+    app.segmented_control[0].set_value("°C")
+    app.segmented_control[1].set_value("bar")
+    app.run()
+
+    assert app.session_state["results"]["flash"] is result
+    assert not any("Stale result" in message.value for message in app.warning)
+    metrics = {metric.label: metric.value for metric in app.metric}
+    assert metrics["Temperature"] == "26.85 °C"
+    assert metrics["Pressure"] == "50 bar"
+    assert len(app.get("download_button")) == 2
+
+
+@pytest.mark.parametrize(
+    ("temperature_k", "pressure_mpa", "temperature_unit", "pressure_unit"),
+    [
+        (
+            373.7993794602593,
+            4.045258429683001,
+            TemperatureUnit.FAHRENHEIT,
+            PressureUnit.BAR,
+        ),
+        (
+            287.1234567890123,
+            16.725351632253563,
+            TemperatureUnit.CELSIUS,
+            PressureUnit.PSI,
+        ),
+    ],
+)
+def test_non_exact_unit_round_trip_preserves_result_identity(
+    temperature_k: float,
+    pressure_mpa: float,
+    temperature_unit: TemperatureUnit,
+    pressure_unit: PressureUnit,
+) -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.number_input[3].set_value(temperature_k)
+    app.number_input[4].set_value(pressure_mpa)
+    app.button[0].click().run()
+    result = app.session_state["results"]["flash"]
+    submitted = app.session_state["submitted_inputs"]
+
+    displayed_temperature = temperature_from_k(
+        submitted.temperature_k, temperature_unit
+    )
+    displayed_pressure = pressure_from_pa(submitted.pressure_pa, pressure_unit)
+    round_tripped = validate_scientific_inputs(
+        submitted.composition_mol_percent,
+        displayed_temperature,
+        displayed_pressure,
+        temperature_unit=temperature_unit,
+        pressure_unit=pressure_unit,
+    )
+    assert round_tripped.signature != submitted.signature
+
+    app.segmented_control[0].set_value(temperature_unit.value)
+    app.segmented_control[1].set_value(pressure_unit.value)
+    app.run()
+
+    assert app.session_state["results"]["flash"] is result
+    assert app.session_state["current_inputs"].signature == submitted.signature
+    assert not any("Stale result" in message.value for message in app.warning)
+    assert len(app.get("download_button")) == 2
+
+    app.number_input[3].set_value(displayed_temperature + 1.0e-9)
+    app.run()
+
+    assert any("Stale result" in message.value for message in app.warning)
+    assert app.get("download_button") == []
 
 
 def test_overview_exposes_repository_backed_model_and_limitations_panel() -> None:

@@ -14,16 +14,19 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Final, Literal
 
-from pvt_phase_simulator.eos.flash import TwoPhaseFlashResult
+from pvt_phase_simulator.eos.flash import TwoPhaseFlashResult, calculate_two_phase_flash
 from pvt_phase_simulator_ui.adapters import (
-    PA_PER_MPA,
     FlashCallable,
     InputValidationError,
     ScientificInputs,
     adapt_flash_result,
     flash_presentation_kind,
-    run_validated_flash,
     validate_scientific_inputs,
+)
+from pvt_phase_simulator_ui.units import (
+    PressureUnit,
+    TemperatureUnit,
+    pressure_from_pa,
 )
 
 #: Sweeps are an engineering overview, not a continuation study. The bounds keep
@@ -63,27 +66,30 @@ class SweepRequest:
 
     kind: SweepKind
     composition_mol_percent: tuple[float, float, float]
-    fixed_temperature_k: float | None
-    fixed_pressure_mpa: float | None
+    fixed_temperature: float | None
+    fixed_pressure: float | None
     start: float
     end: float
     points: int
+    temperature_unit: TemperatureUnit = TemperatureUnit.KELVIN
+    pressure_unit: PressureUnit = PressureUnit.MPA
 
     @property
     def axis_label(self) -> str:
-        return "Pressure (MPa)" if self.kind == "pressure" else "Temperature (K)"
+        unit = self.pressure_unit if self.kind == "pressure" else self.temperature_unit
+        return f"{self.kind.capitalize()} ({unit.value})"
 
     def axis_values(self) -> tuple[float, ...]:
         return sweep_axis_values(self.start, self.end, self.points)
 
     def state_at(self, value: float) -> tuple[float, float]:
-        """Return the (temperature K, pressure MPa) state for one swept value."""
+        """Return a state in the request's explicitly recorded field units."""
 
         if self.kind == "pressure":
-            assert self.fixed_temperature_k is not None
-            return self.fixed_temperature_k, value
-        assert self.fixed_pressure_mpa is not None
-        return value, self.fixed_pressure_mpa
+            assert self.fixed_temperature is not None
+            return self.fixed_temperature, value
+        assert self.fixed_pressure is not None
+        return value, self.fixed_pressure
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +98,6 @@ class SweepPoint:
 
     index: int
     temperature_k: float
-    pressure_mpa: float
     pressure_pa: float
     status: PointStatus
     phase_state: str | None
@@ -106,6 +111,12 @@ class SweepPoint:
     iteration_count: int | None
     failure_reason: str | None
     error: str | None
+
+    @property
+    def pressure_mpa(self) -> float:
+        """Compatibility presentation of the canonical pressure in MPa."""
+
+        return pressure_from_pa(self.pressure_pa, PressureUnit.MPA)
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,14 +135,14 @@ class SweepResult:
         return sum(1 for point in self.points if point.status == "failed")
 
     def abscissae(self) -> tuple[float, ...]:
-        """The swept coordinate for every point, in request order."""
+        """The requested swept coordinates in their explicitly recorded unit."""
 
-        if self.request.kind == "pressure":
-            return tuple(point.pressure_mpa for point in self.points)
-        return tuple(point.temperature_k for point in self.points)
+        return self.request.axis_values()
 
 
-def _validate_axis(start: float, end: float, points: int) -> tuple[float, float, int]:
+def _validate_axis(
+    start: float, end: float, points: int, *, require_positive: bool
+) -> tuple[float, float, int]:
     if isinstance(points, bool) or not isinstance(points, int):
         raise SweepValidationError("Number of points must be an integer.")
     if points < MIN_SWEEP_POINTS or points > MAX_SWEEP_POINTS:
@@ -143,7 +154,7 @@ def _validate_axis(start: float, end: float, points: int) -> tuple[float, float,
     last = float(end)
     if not isfinite(first) or not isfinite(last):
         raise SweepValidationError("Sweep bounds must be finite.")
-    if first <= 0.0 or last <= 0.0:
+    if require_positive and (first <= 0.0 or last <= 0.0):
         raise SweepValidationError("Sweep bounds must be positive.")
     if first == last:
         raise SweepValidationError("Sweep start and end must differ.")
@@ -158,6 +169,8 @@ def validate_sweep_request(
     start: float,
     end: float,
     points: int,
+    temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
+    pressure_unit: PressureUnit | str = PressureUnit.MPA,
 ) -> SweepRequest:
     """Validate a sweep before any production call is attempted.
 
@@ -167,33 +180,52 @@ def validate_sweep_request(
 
     if kind not in ("pressure", "temperature"):
         raise SweepValidationError("Sweep kind must be 'pressure' or 'temperature'.")
-    first, last, count = _validate_axis(start, end, points)
+    first, last, count = _validate_axis(
+        start, end, points, require_positive=kind == "pressure"
+    )
 
     fixed = float(fixed_value)
-    if not isfinite(fixed) or fixed <= 0.0:
+    if not isfinite(fixed):
         raise SweepValidationError(
-            "Fixed temperature must be positive and finite."
+            "Fixed temperature must be finite."
             if kind == "pressure"
-            else "Fixed pressure must be positive and finite."
+            else "Fixed pressure must be finite."
         )
 
-    temperature = fixed if kind == "pressure" else first
-    pressure = first if kind == "pressure" else fixed
     try:
-        validated = validate_scientific_inputs(
-            composition_mol_percent, temperature, pressure
+        selected_temperature_unit = TemperatureUnit(temperature_unit)
+        selected_pressure_unit = PressureUnit(pressure_unit)
+    except ValueError as error:
+        raise SweepValidationError(str(error)) from error
+    states = (
+        (fixed, first) if kind == "pressure" else (first, fixed),
+        (fixed, last) if kind == "pressure" else (last, fixed),
+    )
+    try:
+        validated_states = tuple(
+            validate_scientific_inputs(
+                composition_mol_percent,
+                temperature,
+                pressure,
+                temperature_unit=selected_temperature_unit,
+                pressure_unit=selected_pressure_unit,
+            )
+            for temperature, pressure in states
         )
     except InputValidationError as error:
         raise SweepValidationError(str(error)) from error
+    validated = validated_states[0]
 
     return SweepRequest(
         kind=kind,
         composition_mol_percent=validated.composition_mol_percent,
-        fixed_temperature_k=fixed if kind == "pressure" else None,
-        fixed_pressure_mpa=None if kind == "pressure" else fixed,
+        fixed_temperature=fixed if kind == "pressure" else None,
+        fixed_pressure=None if kind == "pressure" else fixed,
         start=first,
         end=last,
         points=count,
+        temperature_unit=selected_temperature_unit,
+        pressure_unit=selected_pressure_unit,
     )
 
 
@@ -203,17 +235,15 @@ def _enum_value(value: object) -> str:
 
 def _failed_point(
     index: int,
-    temperature_k: float,
-    pressure_mpa: float,
+    inputs: ScientificInputs,
     error: str,
 ) -> SweepPoint:
     """A point the production API could not evaluate stays explicitly failed."""
 
     return SweepPoint(
         index=index,
-        temperature_k=temperature_k,
-        pressure_mpa=pressure_mpa,
-        pressure_pa=pressure_mpa * PA_PER_MPA,
+        temperature_k=inputs.temperature_k,
+        pressure_pa=inputs.pressure_pa,
         status="failed",
         phase_state=None,
         convergence_status=None,
@@ -241,7 +271,6 @@ def _adapt_point(
     return SweepPoint(
         index=index,
         temperature_k=inputs.temperature_k,
-        pressure_mpa=inputs.pressure_mpa,
         pressure_pa=inputs.pressure_pa,
         status=status,
         phase_state=_enum_value(view.phase_state),
@@ -271,25 +300,22 @@ def run_sweep(
     points: list[SweepPoint] = []
 
     for index, value in enumerate(axis):
-        temperature_k, pressure_mpa = request.state_at(value)
+        temperature, pressure = request.state_at(value)
+        inputs = validate_scientific_inputs(
+            request.composition_mol_percent,
+            temperature,
+            pressure,
+            temperature_unit=request.temperature_unit,
+            pressure_unit=request.pressure_unit,
+        )
         try:
-            if flash_api is None:
-                inputs, result = run_validated_flash(
-                    request.composition_mol_percent, temperature_k, pressure_mpa
-                )
-            else:
-                inputs, result = run_validated_flash(
-                    request.composition_mol_percent,
-                    temperature_k,
-                    pressure_mpa,
-                    flash_api=flash_api,
-                )
+            api = calculate_two_phase_flash if flash_api is None else flash_api
+            result = api(inputs.mixture(), inputs.temperature_k, inputs.pressure_pa)
         except Exception as error:  # noqa: BLE001 - a failed point stays failed
             points.append(
                 _failed_point(
                     index,
-                    temperature_k,
-                    pressure_mpa,
+                    inputs,
                     f"{type(error).__name__}: {error}",
                 )
             )

@@ -6,11 +6,11 @@ from pathlib import Path
 
 import streamlit as st
 
+from pvt_phase_simulator.eos.flash import calculate_two_phase_flash
 from pvt_phase_simulator_ui.adapters import (
     InputValidationError,
     ScientificInputs,
     composition_total,
-    run_validated_flash,
     validate_scientific_inputs,
 )
 from pvt_phase_simulator_ui.context import session
@@ -19,6 +19,13 @@ from pvt_phase_simulator_ui.state import (
     apply_selected_input_example,
     initialize_session,
     store_result,
+    synchronize_unit_inputs,
+)
+from pvt_phase_simulator_ui.units import (
+    PRESSURE_UNITS,
+    TEMPERATURE_UNITS,
+    PressureUnit,
+    TemperatureUnit,
 )
 
 PAGES_DIRECTORY = Path(__file__).with_name("pages")
@@ -28,17 +35,32 @@ PAGES_DIRECTORY = Path(__file__).with_name("pages")
 def _cached_flash(inputs: ScientificInputs) -> object:
     """Cache an unchanged submitted case without changing its calculations."""
 
-    _, result = run_validated_flash(
-        inputs.composition_mol_percent,
+    return calculate_two_phase_flash(
+        inputs.mixture(),
         inputs.temperature_k,
-        inputs.pressure_mpa,
+        inputs.pressure_pa,
     )
-    return result
 
 
 def _input_form() -> tuple[ScientificInputs | None, bool]:
     with st.sidebar:
         st.subheader("Fluid inputs")
+        st.caption("Display and entry units")
+        st.segmented_control(
+            "Temperature unit",
+            options=[unit.value for unit in TEMPERATURE_UNITS],
+            key="temperature_unit",
+            on_change=synchronize_unit_inputs,
+            args=(session(),),
+        )
+        st.segmented_control(
+            "Pressure unit",
+            options=[unit.value for unit in PRESSURE_UNITS],
+            key="pressure_unit",
+            on_change=synchronize_unit_inputs,
+            args=(session(),),
+        )
+        synchronize_unit_inputs(session())
         st.selectbox(
             "Example case",
             options=[example.label for example in INPUT_EXAMPLES],
@@ -59,7 +81,12 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
             None,
         )
         st.caption("Examples fill the inputs only; they do not run a calculation.")
-        st.caption("Verified components · precise mol %, K, and MPa entry")
+        temperature_unit = str(session()["temperature_unit"])
+        pressure_unit = str(session()["pressure_unit"])
+        st.caption(
+            "Verified components · precise mol % entry · "
+            f"{temperature_unit} and {pressure_unit} field units"
+        )
         with st.form("scientific_inputs", border=True):
             methane = st.number_input(
                 "Methane (mol %)", format="%.15g", key="methane_pct"
@@ -69,10 +96,14 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                 "Propane (mol %)", format="%.15g", key="propane_pct"
             )
             temperature = st.number_input(
-                "Temperature (K)", format="%.15g", key="temperature_k"
+                f"Temperature ({temperature_unit})",
+                format="%.17g",
+                key="temperature_value",
             )
             pressure = st.number_input(
-                "Pressure (MPa)", format="%.15g", key="pressure_mpa"
+                f"Pressure ({pressure_unit})",
+                format="%.17g",
+                key="pressure_value",
             )
             if selected_example is None:
                 values = (methane, ethane, propane)
@@ -82,10 +113,25 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     selected_example.ethane_pct,
                     selected_example.propane_pct,
                 )
-                temperature = selected_example.temperature_k
-                pressure = selected_example.pressure_mpa
+                temperature = float(session()["temperature_value"])
+                pressure = float(session()["pressure_value"])
             try:
-                validated = validate_scientific_inputs(values, temperature, pressure)
+                # Validate the displayed fields, but construct scientific identity
+                # from the authoritative SI state maintained by the unit callback.
+                validate_scientific_inputs(
+                    values,
+                    temperature,
+                    pressure,
+                    temperature_unit=temperature_unit,
+                    pressure_unit=pressure_unit,
+                )
+                validated = validate_scientific_inputs(
+                    values,
+                    float(session()["temperature_k"]),
+                    float(session()["pressure_pa"]),
+                    temperature_unit=TemperatureUnit.KELVIN,
+                    pressure_unit=PressureUnit.PA,
+                )
                 validation_error = None
             except InputValidationError as error:
                 validated = None
@@ -104,14 +150,16 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                 width="stretch",
                 icon=":material/play_arrow:",
             )
-        st.caption(
-            "A submit converts mol % to fractions and MPa to internal Pa exactly once."
-        )
+        st.caption("A submit converts field values to internal K and Pa exactly once.")
     session()["rendered_input_example"] = session().get("input_example")
     session()["current_inputs"] = validated
     if submitted:
         session()["submitted_inputs"] = validated
         session()["input_error"] = validation_error
+        if validated is not None:
+            session()["temperature_k"] = validated.temperature_k
+            session()["pressure_pa"] = validated.pressure_pa
+            session()["pressure_mpa"] = validated.pressure_mpa
     return validated, bool(submitted and validated is not None)
 
 

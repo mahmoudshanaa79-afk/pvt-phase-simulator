@@ -42,8 +42,9 @@ package:
 - `src/pvt_phase_simulator_ui/app.py` owns navigation and submitted inputs.
 - `src/pvt_phase_simulator_ui/pages/` contains the six page scripts.
 - `src/pvt_phase_simulator_ui/adapters.py` validates inputs, converts boundary
-  units, and selects public
-  result fields without changing them.
+  units to K and Pa, and selects public result fields without changing them.
+- `src/pvt_phase_simulator_ui/units.py` is the single application-boundary
+  implementation for pressure and temperature unit conversion.
 - `src/pvt_phase_simulator_ui/state.py` associates each result with a scientific
   input signature.
 - `src/pvt_phase_simulator_ui/sweeps.py` chooses swept abscissae and calls the
@@ -74,22 +75,32 @@ are available in the panel's **Recorded provenance** expander. Opening the panel
 does not run a scientific calculation.
 
 The persistent Fluid inputs form supports the verified v1.0 Methane, Ethane,
-and Propane components. Composition is entered in mol %, temperature in K, and
-pressure in MPa. On submission, the panel shows the composition total and rejects
-nonfinite, negative, above-100, zero-total, and materially non-100% values. It
-does not silently normalize invalid composition.
+and Propane components. Composition is entered in mol %. Temperature can be
+entered and displayed in K, °C, or °F; pressure can be entered and displayed in
+Pa, MPa, bar, or psi. Changing a unit converts the editable value and preserves
+the physical state; it does not run a calculation or make a current scientific
+result stale. On submission, the panel shows the composition total and rejects
+nonfinite, negative, above-100, zero-total, and materially non-100% composition.
+It rejects pressure at or below zero and temperature at or below absolute zero
+in every supported unit. It does not silently normalize invalid composition.
 
 The native example selector can fill the form with the default
 two-phase-oriented case, the known 50/50 methane/propane single-phase case at
 300 K and 20 MPa, or the audited 50/50 methane/propane critical-solver seed near
-321.5829183194 K and 8.53444323606381 MPa. Selection changes input values only;
-it never submits the form or starts a scientific calculation. Every populated
-value remains editable and passes through the same validation and conversion
-boundary when the user explicitly submits it.
+321.5829183194 K and 8.53444323606381 MPa. Examples are stored as documented SI
+states and shown in the currently selected field units. Selection changes input
+values only; it never submits the form or starts a scientific calculation. Every
+populated value remains editable and passes through the same validation and
+conversion boundary when the user explicitly submits it.
 
-Valid composition is divided by 100 exactly for mole fractions. Valid pressure
-is multiplied by `1e6` exactly before it reaches an SI-pressure API, and public
-Pa results are divided by `1e6` for MPa display.
+Valid composition is divided by 100 exactly for mole fractions. The selected
+temperature and pressure units are converted once to K and Pa at submission.
+Only the canonical K/Pa state is passed to the scientific APIs and stored in a
+result signature. Public K/Pa result values are converted once at presentation
+to the selected units. Unit-only changes therefore redraw existing results
+without recomputing or changing their scientific identity. The pressure factors
+are 1 Pa/Pa, 1,000,000 Pa/MPa, 100,000 Pa/bar, and 6,894.757293168 Pa/psi;
+temperature uses the standard 273.15 and 459.67 offsets.
 
 - **Overview:** entered state, phase and convergence statuses, available phase
   fractions and Z factors, source-provided compositions, and envelope location.
@@ -100,15 +111,16 @@ Pa results are divided by `1e6` for MPa display.
   maps, including Tc, Pc, lambda_min, C, direction, convergence, and conditioning.
 - **Engineering Sweeps:** bounded pressure or temperature sweeps at the other
   submitted variable, with vapor-fraction and Z-factor curves, a phase-state
-  table, a progress indicator, and CSV/JSON export. Each point is one call into
+  table, a progress indicator, and CSV/JSON export in the selected units. Each point is one call into
   the existing verified flash and stability API; nothing is re-derived. A point
   that fails is reported as **FAILED** and breaks the plotted line rather than
   being interpolated across: the abscissa is kept and its value left empty, so
   the curve shows a real gap. A quantity a point never supplied, such as a vapor
   fraction at a single-phase state, breaks the line the same way. Failed
   abscissae are additionally marked on both charts. Displayed values are rounded
-  for reading; exports carry full precision. The default is 21 points, bounded
-  to 60.
+  for reading; exports carry full precision. Each exported state includes both
+  selected-unit values with explicit unit fields and canonical `temperature_k`
+  and `pressure_pa` values. The default is 21 points, bounded to 60.
 - **Validation:** Module 17 artifacts rendered through Module 21 parity, error,
   composition, status, and retrospective figures.
 - **Diagnostics:** public status, termination, iteration, residual, stability,
@@ -126,6 +138,11 @@ temperature, and internal-pressure signature used to produce it. Changed or
 invalid current input marks the prior result stale until explicitly recalculated.
 Stale results remain visible with a warning, but downloads are unavailable until
 the changed inputs have a current calculated result.
+
+Current-case and sweep JSON exports use schema version 1.1.0. Their metadata
+states the engine units (K and Pa) and selected presentation units. CSV headers
+use explicit temperature and pressure unit columns and retain canonical
+`temperature_k` and `pressure_pa` columns for unambiguous downstream use.
 
 Structured statuses such as `LINE_SEARCH_FAILED`, `JACOBIAN_FAILED`,
 `NOT_FOUND`, and `BRANCH_LOST` remain failures or information. Only

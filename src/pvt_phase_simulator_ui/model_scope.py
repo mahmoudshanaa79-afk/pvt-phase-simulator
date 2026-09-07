@@ -19,9 +19,9 @@ from pvt_phase_simulator.experimental_validation import (
 )
 from pvt_phase_simulator_ui.adapters import (
     COMPONENTS,
-    PA_PER_MPA,
     load_module17_records,
 )
+from pvt_phase_simulator_ui.units import PressureUnit, pressure_from_pa
 
 EOS_DISPLAY_NAME: Final = "Peng–Robinson EOS"
 VALIDATION_ARTIFACT: Final = Path("docs/validation/module17_vle_validation.csv")
@@ -48,10 +48,20 @@ class ModelScope:
     validation_state_count: int
     validation_system_names: tuple[str, ...]
     validation_temperature_range_k: tuple[float, float]
-    validation_pressure_range_mpa: tuple[float, float]
+    validation_pressure_range_pa: tuple[float, float]
     property_sources: tuple[RecordedSource, ...]
     validation_source: RecordedSource
     validation_artifact: Path
+
+    @property
+    def validation_pressure_range_mpa(self) -> tuple[float, float]:
+        """Compatibility presentation of the recorded canonical Pa range."""
+
+        lower, upper = self.validation_pressure_range_pa
+        return (
+            pressure_from_pa(lower, PressureUnit.MPA),
+            pressure_from_pa(upper, PressureUnit.MPA),
+        )
 
 
 def _property_records(component: Component) -> tuple[ComponentPropertyProvenance, ...]:
@@ -111,9 +121,7 @@ def load_model_scope(repository_root: Path) -> ModelScope:
         repository_root / EXPERIMENTAL_MANIFEST,
     )
     temperatures = tuple(record.temperature_k for record in records)
-    pressures_mpa = tuple(
-        record.experimental_pressure_pa / PA_PER_MPA for record in records
-    )
+    pressures_pa = tuple(record.experimental_pressure_pa for record in records)
     systems = tuple(dict.fromkeys(record.system_id for record in records))
     source = dataset.source
     return ModelScope(
@@ -125,7 +133,7 @@ def load_model_scope(repository_root: Path) -> ModelScope:
             _validation_system_name(item) for item in systems
         ),
         validation_temperature_range_k=(min(temperatures), max(temperatures)),
-        validation_pressure_range_mpa=(min(pressures_mpa), max(pressures_mpa)),
+        validation_pressure_range_pa=(min(pressures_pa), max(pressures_pa)),
         property_sources=_property_sources(),
         validation_source=RecordedSource(
             source.archive_name,
