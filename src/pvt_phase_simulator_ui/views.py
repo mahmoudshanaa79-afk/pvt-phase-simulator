@@ -61,6 +61,7 @@ from pvt_phase_simulator_ui.exports import (
     export_sweep_csv_bytes,
 )
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
+from pvt_phase_simulator_ui.reports import export_engineering_report_html
 from pvt_phase_simulator_ui.state import (
     get_result,
     result_is_stale,
@@ -534,6 +535,9 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         )
         if result_is_stale(session(), "critical", inputs):
             critical_export = None
+        sweep_export = cast(SweepResult | None, get_result(session(), "sweep"))
+        if result_is_stale(session(), "sweep", inputs):
+            sweep_export = None
         document = build_export_document(
             inputs,
             flash_result=None if flash_stale else result,
@@ -541,8 +545,27 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             critical_result=critical_export,
             units=units,
         )
+        sweep_document = (
+            None
+            if sweep_export is None
+            else build_sweep_export_document(sweep_export, units)
+        )
         st.subheader("Export current case")
         with st.container(horizontal=True):
+            st.download_button(
+                "Download report",
+                data=export_engineering_report_html(
+                    document,
+                    scope=_model_scope(),
+                    sweep_document=sweep_document,
+                ),
+                file_name="openphase-engineering-report.html",
+                mime="text/html;charset=utf-8",
+                key="download_engineering_report",
+                on_click="ignore",
+                width="content",
+                icon=":material/description:",
+            )
             st.download_button(
                 "Download CSV",
                 data=export_csv_bytes(document),

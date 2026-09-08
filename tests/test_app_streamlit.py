@@ -146,7 +146,7 @@ def test_presentation_unit_change_does_not_stale_a_calculated_result() -> None:
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics["Temperature"] == "26.85 °C"
     assert metrics["Pressure"] == "50 bar"
-    assert len(app.get("download_button")) == 3
+    assert len(app.get("download_button")) == 4
 
 
 @pytest.mark.parametrize(
@@ -199,7 +199,7 @@ def test_non_exact_unit_round_trip_preserves_result_identity(
     assert app.session_state["results"]["flash"] is result
     assert app.session_state["current_inputs"].signature == submitted.signature
     assert not any("Stale result" in message.value for message in app.warning)
-    assert len(app.get("download_button")) == 3
+    assert len(app.get("download_button")) == 4
 
     app.number_input[3].set_value(displayed_temperature + 1.0e-9)
     app.run()
@@ -355,8 +355,14 @@ def test_valid_single_phase_uses_information_semantics_and_offers_exports() -> N
     )
     downloads = app.get("download_button")
     downloads_by_label = {button.label: button for button in downloads}
-    assert set(downloads_by_label) == {"Save case", "Download CSV", "Download JSON"}
+    assert set(downloads_by_label) == {
+        "Save case",
+        "Download report",
+        "Download CSV",
+        "Download JSON",
+    }
     assert downloads_by_label["Save case"].key == "save_openphase_case"
+    assert downloads_by_label["Download report"].key == "download_engineering_report"
     assert downloads_by_label["Download CSV"].key == "download_current_case_csv"
     assert downloads_by_label["Download JSON"].key == "download_current_case_json"
 
@@ -403,13 +409,23 @@ def test_download_widgets_receive_real_payloads_and_mime_metadata(
     _button(app, "RUN FLASH").click().run()
 
     assert not app.exception
-    assert set(captured) == {"Save case", "Download CSV", "Download JSON"}
+    assert set(captured) == {
+        "Save case",
+        "Download report",
+        "Download CSV",
+        "Download JSON",
+    }
     saved_case = captured["Save case"]
     assert saved_case["file_name"] == "openphase-case.json"
     assert saved_case["mime"] == "application/json"
     assert json.loads(saved_case["data"])["schema_version"] == "1.0.0"
     csv_download = captured["Download CSV"]
     json_download = captured["Download JSON"]
+    report_download = captured["Download report"]
+    assert report_download["file_name"] == "openphase-engineering-report.html"
+    assert report_download["mime"] == "text/html;charset=utf-8"
+    assert isinstance(report_download["data"], bytes)
+    assert b"<!doctype html>" in report_download["data"]
     assert csv_download["file_name"] == "pvt-current-case.csv"
     assert csv_download["mime"] == "text/csv;charset=utf-8"
     assert json_download["file_name"] == "pvt-current-case.json"
@@ -438,7 +454,7 @@ def test_changed_inputs_keep_result_visible_but_stale_and_disable_exports() -> N
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     _button(app, "RUN FLASH").click().run()
     original = app.session_state["results"]["flash"]
-    assert len(app.get("download_button")) == 3
+    assert len(app.get("download_button")) == 4
 
     app.selectbox[0].select("Known single-phase case at 300 K and 20 MPa").run()
 

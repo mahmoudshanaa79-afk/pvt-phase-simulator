@@ -49,6 +49,9 @@ package:
   implementation for pressure and temperature unit conversion.
 - `src/pvt_phase_simulator_ui/state.py` associates each result with a scientific
   input signature.
+- `src/pvt_phase_simulator_ui/reports.py` renders printable HTML solely from the
+  existing result-export documents and repository-backed model scope. It has no
+  scientific API entry point.
 - `src/pvt_phase_simulator_ui/sweeps.py` chooses swept abscissae and calls the
   existing verified flash API once per point. It implements no thermodynamics.
 - `.streamlit/config.toml` supplies the light engineering theme. Narrow custom
@@ -124,7 +127,8 @@ are 1 Pa/Pa, 1,000,000 Pa/MPa, 100,000 Pa/bar, and 6,894.757293168 Pa/psi;
 temperature uses the standard 273.15 and 459.67 offsets.
 
 - **Overview:** entered state, phase and convergence statuses, available phase
-  fractions and Z factors, source-provided compositions, and envelope location.
+  fractions and Z factors, source-provided compositions, envelope location, and
+  a downloadable printable engineering case report.
 - **Phase Envelope:** independent bubble and dew traces using Module 21,
   status-aware unavailable points, terminations, critical overlay, and phase
   compositions when available.
@@ -167,6 +171,25 @@ Current-case and sweep JSON exports use schema version 1.1.0. Their metadata
 states the engine units (K and Pa) and selected presentation units. CSV headers
 use explicit temperature and pressure unit columns and retain canonical
 `temperature_k` and `pressure_pa` columns for unambiguous downstream use.
+
+The Overview also offers `openphase-engineering-report.html`, a self-contained
+printable report with no added reporting framework or runtime dependency. It is
+assembled only from the current non-stale export documents already held in the
+session; creating or downloading it never starts or repeats a calculation. The
+report identifies the submitted case and generation time, states the application
+and report-format versions, and includes the calculation inputs, model and kij
+assumption, verified scope, flash and stability outcome, phase fractions,
+source-provided compositions, Z factors, available bubble/dew points, a certified
+critical point when present, an engineering-sweep summary, statuses, limitations,
+and repository-backed validation provenance.
+
+Every missing report quantity is labelled **UNAVAILABLE** or **NOT APPLICABLE**.
+Failed flash quantities and uncertified critical values are labelled **FAILED**
+and are not displayed as usable results. Envelope tables render values only for
+points whose stored status is `converged`; structured branch terminations remain
+visible. A sweep report gives the recorded requested, calculated, and failed
+counts without filling failed point values. CSV and JSON exports are independent
+and retain their existing schemas and serialization.
 
 Structured statuses such as `LINE_SEARCH_FAILED`, `JACOBIAN_FAILED`,
 `NOT_FOUND`, and `BRANCH_LOST` remain failures or information. Only
