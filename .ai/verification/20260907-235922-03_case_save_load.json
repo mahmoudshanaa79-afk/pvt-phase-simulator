@@ -1,0 +1,98 @@
+{
+  "passed": true,
+  "protected_ok": true,
+  "protected_detail": {
+    "tests/golden_master/baseline.csv": "unchanged",
+    "data/component_properties.csv": "unchanged",
+    "docs/validation/module17_vle_validation.csv": "unchanged",
+    "docs/validation/module17_vle_validation_summary.json": "unchanged"
+  },
+  "scope_ok": true,
+  "scope_detail": "scope ok",
+  "diff_check_ok": true,
+  "diff_check_detail": "warning: in the working copy of 'docs/STREAMLIT_APPLICATION.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_ui/__init__.py', LF will be replaced by CRLF the next time Git touches it\n",
+  "changed_files": [
+    "docs/STREAMLIT_APPLICATION.md",
+    "src/pvt_phase_simulator_ui/__init__.py",
+    "src/pvt_phase_simulator_ui/app.py",
+    "src/pvt_phase_simulator_ui/case_files.py",
+    "src/pvt_phase_simulator_ui/state.py",
+    "src/pvt_phase_simulator_ui/views.py",
+    "tests/test_app_case_files.py",
+    "tests/test_app_streamlit.py"
+  ],
+  "report_path": ".ai\\verification\\20260907-235922-03_case_save_load.json",
+  "commands": [
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-07T20:48:57.580955+00:00",
+      "ended": "2026-09-07T20:59:20.662025+00:00",
+      "stdout": "........................................................................ [  5%]\n........................................................................ [ 11%]\n........................................................................ [ 16%]\n........................................................................ [ 22%]\n........................................................................ [ 28%]\n........................................................................ [ 33%]\n........................................................................ [ 39%]\n........................................................................ [ 44%]\n........................................................................ [ 50%]\n........................................................................ [ 56%]\n........................................................................ [ 61%]\n........................................................................ [ 67%]\n........................................................................ [ 73%]\n........................................................................ [ 78%]\n........................................................................ [ 84%]\n........................................................................ [ 89%]\n........................................................................ [ 95%]\n.........................................................                [100%]\n1281 passed in 621.11s (0:10:21)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-07T20:59:20.675218+00:00",
+      "ended": "2026-09-07T20:59:20.869018+00:00",
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-07T20:59:20.883546+00:00",
+      "ended": "2026-09-07T20:59:21.061324+00:00",
+      "stdout": "230 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "mypy",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-07T20:59:21.070451+00:00",
+      "ended": "2026-09-07T20:59:22.050730+00:00",
+      "stdout": "Success: no issues found in 46 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "compileall",
+        "-q",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-07T20:59:22.061370+00:00",
+      "ended": "2026-09-07T20:59:22.297637+00:00",
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}
