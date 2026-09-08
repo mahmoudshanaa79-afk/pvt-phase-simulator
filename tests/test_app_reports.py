@@ -289,3 +289,127 @@ def test_report_generation_leaves_existing_csv_and_json_exports_unchanged() -> N
     assert export_json_bytes(document) == json_before
     assert csv_before.startswith(b"\xef\xbb\xbf")
     assert b'"version": "1.1.0"' in json_before
+
+
+def _envelope_document(termination_status: str, message: str, points: list[dict]):
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
+    document = build_export_document(inputs)
+    results = document["results"]
+    assert isinstance(results, dict)
+    results["phase_envelope"] = {
+        "calculation_status": "calculated",
+        "bubble_branch": {
+            "branch_kind": "bubble",
+            "termination_status": termination_status,
+            "termination_message": message,
+            "accepted_point_count": len(points),
+            "rejected_attempt_count": 3,
+            "points": points,
+        },
+        "dew_branch": {
+            "branch_kind": "dew",
+            "termination_status": "target_reached",
+            "termination_message": "Dew target reached.",
+            "accepted_point_count": 0,
+            "rejected_attempt_count": 0,
+            "points": [],
+        },
+    }
+    return document
+
+
+_CONVERGED_POINT = {
+    "status": "converged",
+    "temperature": 305.5,
+    "temperature_unit": "K",
+    "pressure": 8.25,
+    "pressure_unit": "MPa",
+    "parent_composition": (0.5, 0.0, 0.5),
+    "incipient_composition": (0.8, 0.0, 0.2),
+}
+
+_MINIMUM_STEP_MESSAGE = (
+    "Minimum temperature step reached without an acceptable correction."
+)
+
+
+def test_minimum_step_branch_is_not_presented_as_a_completed_traverse() -> None:
+    """A stalled continuation must not look like a finished envelope.
+
+    The engine emits ``minimum_step_reached`` only when a retry loop accepted no
+    point at all, so presenting it exactly like ``target_reached`` would let a
+    reader take a numerical breakdown for a completed traverse.
+    """
+
+    document = _envelope_document(
+        "minimum_step_reached", _MINIMUM_STEP_MESSAGE, [dict(_CONVERGED_POINT)]
+    )
+    text = _report_text(document)
+
+    assert re.search(r"Bubble branch.*?>INCOMPLETE<", text, flags=re.DOTALL)
+    assert "not a complete envelope traverse" in text
+    # The partial result is preserved, not hidden, and so is the real reason.
+    assert "305.5 K" in text
+    assert "8.25 MPa" in text
+    assert _MINIMUM_STEP_MESSAGE in text
+
+    # A genuinely completed branch carries no such warning, so the two cases
+    # cannot be confused for one another.
+    completed = _report_text(
+        _envelope_document(
+            "target_reached", "Bubble target reached.", [dict(_CONVERGED_POINT)]
+        )
+    )
+    assert "INCOMPLETE" not in completed
+    assert "not a complete envelope traverse" not in completed
+
+
+def test_minimum_step_branch_without_points_is_not_merely_unavailable() -> None:
+    """Nothing converged because continuation broke down: say so, not "unavailable"."""
+
+    text = _report_text(
+        _envelope_document("minimum_step_reached", _MINIMUM_STEP_MESSAGE, [])
+    )
+
+    assert re.search(r"Bubble branch.*?>INCOMPLETE<", text, flags=re.DOTALL)
+    assert _MINIMUM_STEP_MESSAGE in text
+    assert not re.search(
+        r"Bubble branch.*?>UNAVAILABLE<.*?Dew branch", text, flags=re.DOTALL
+    )
+
+
+def test_structured_envelope_failures_are_still_reported_as_failed() -> None:
+    for status in ("corrector_failed", "branch_lost", "numerical_failure"):
+        text = _report_text(
+            _envelope_document(status, f"Bubble {status}.", [dict(_CONVERGED_POINT)])
+        )
+        assert re.search(r"Bubble branch.*?>FAILED<", text, flags=re.DOTALL), (
+            f"{status} should be reported as a failure"
+        )
+
+
+def test_every_envelope_termination_reason_is_explicitly_classified() -> None:
+    """No termination reason may fall through to "normal" by default.
+
+    The previous substring test silently treated any unrecognised reason as a
+    normal ending. If the engine gains a termination reason, this fails until
+    somebody decides how the report should present it.
+    """
+
+    from pvt_phase_simulator.eos.phase_envelope import EnvelopeTerminationReason
+    from pvt_phase_simulator_ui import reports
+
+    classified = (
+        reports._TERMINATION_NORMAL
+        | reports._TERMINATION_INCOMPLETE
+        | reports._TERMINATION_FAILED
+    )
+    every = {reason.value for reason in EnvelopeTerminationReason}
+    assert every == classified, (
+        "every EnvelopeTerminationReason must be explicitly classified; "
+        f"unclassified: {sorted(every - classified)}"
+    )
+    # The three groups must stay disjoint or a reason would have two meanings.
+    assert not (reports._TERMINATION_NORMAL & reports._TERMINATION_INCOMPLETE)
+    assert not (reports._TERMINATION_NORMAL & reports._TERMINATION_FAILED)
+    assert not (reports._TERMINATION_INCOMPLETE & reports._TERMINATION_FAILED)

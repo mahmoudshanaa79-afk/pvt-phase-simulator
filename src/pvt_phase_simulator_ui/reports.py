@@ -13,10 +13,39 @@ from html import escape
 from importlib.metadata import PackageNotFoundError, version
 from typing import Final
 
+from pvt_phase_simulator.eos.phase_envelope import EnvelopeTerminationReason
 from pvt_phase_simulator_ui.model_scope import ModelScope, RecordedSource
 
 REPORT_FORMAT_VERSION: Final = "1.0.0"
 _PACKAGE_NAME: Final = "pvt-phase-simulator"
+
+#: A branch that stopped because the continuation itself broke down. Any points
+#: already accepted stay valid, but the branch is not a completed traverse.
+_TERMINATION_FAILED: Final = frozenset(
+    {
+        EnvelopeTerminationReason.CORRECTOR_FAILED.value,
+        EnvelopeTerminationReason.BRANCH_LOST.value,
+        EnvelopeTerminationReason.NUMERICAL_FAILURE.value,
+    }
+)
+
+#: The continuation ran out of step before it could accept another point. The
+#: engine's own message for it is "Minimum temperature step reached without an
+#: acceptable correction", so this is a numerical limitation, not a normal end:
+#: reporting it like a completed traverse would misrepresent the calculation.
+_TERMINATION_INCOMPLETE: Final = frozenset(
+    {EnvelopeTerminationReason.MINIMUM_STEP_REACHED.value}
+)
+
+#: Reasons a branch may stop having done what was asked of it.
+_TERMINATION_NORMAL: Final = frozenset(
+    {
+        EnvelopeTerminationReason.TARGET_REACHED.value,
+        EnvelopeTerminationReason.MAXIMUM_POINTS.value,
+        EnvelopeTerminationReason.NEAR_CRITICAL.value,
+        EnvelopeTerminationReason.PRESSURE_OUT_OF_BOUNDS.value,
+    }
+)
 
 
 def _mapping(value: object) -> Mapping[str, object]:
@@ -64,6 +93,10 @@ def _failed(reason: str) -> str:
 
 def _not_applicable(reason: str) -> str:
     return _status("NOT APPLICABLE", reason, "not-applicable")
+
+
+def _incomplete(reason: str) -> str:
+    return _status("INCOMPLETE", reason, "incomplete")
 
 
 def _available(value: object, unit: str | None = None) -> str:
@@ -366,7 +399,21 @@ def _composition_summary(value: object, component_names: Sequence[str]) -> str:
 
 
 def _termination_failed(status: str) -> bool:
-    return any(word in status for word in ("failed", "failure", "lost"))
+    """Whether the branch ended in a structured failure.
+
+    Matched against the engine's actual termination values rather than by
+    searching the text for "failed". Substring matching silently passed
+    ``minimum_step_reached`` off as a normal ending even though the engine
+    produces it only when a retry loop accepted no point at all.
+    """
+
+    return status in _TERMINATION_FAILED
+
+
+def _termination_incomplete(status: str) -> bool:
+    """Whether the branch stopped short of completing, without failing outright."""
+
+    return status in _TERMINATION_INCOMPLETE
 
 
 def _envelope_branch(
@@ -390,16 +437,24 @@ def _envelope_branch(
             "The branch ended with a structured failure; any preceding converged "
             "points remain listed individually."
         )
+    elif _termination_incomplete(termination):
+        body += _incomplete(
+            "The branch stopped before completing its traverse: the continuation "
+            "could not accept a further point at the minimum step. Any points "
+            "listed below are converged, but this branch is not a complete "
+            "envelope traverse and must not be read as one."
+        )
 
     points = _sequence(branch.get("points"))
     if not points:
-        marker = (
-            _failed(message)
-            if _termination_failed(termination)
-            else _unavailable(
+        if _termination_failed(termination):
+            marker = _failed(message)
+        elif _termination_incomplete(termination):
+            marker = _incomplete(message)
+        else:
+            marker = _unavailable(
                 "No converged output points were supplied for this branch."
             )
-        )
         return body + f'<p class="notice">{marker}</p>'
 
     point_rows = []
@@ -835,7 +890,8 @@ def export_engineering_report_html(
     .status {{ display:inline-block; padding:1px 7px; border-radius:999px;
       font-size:11px; font-weight:750; letter-spacing:.04em; }}
     .available {{ color:var(--ok); background:#e9f6ee; }}
-    .unavailable, .not-applicable {{ color:var(--warn); background:#fff3d6; }}
+    .unavailable, .not-applicable, .incomplete {{ color:var(--warn);
+      background:#fff3d6; }}
     .failed {{ color:var(--bad); background:#fdebea; }}
     .source-note, .notice {{ padding:12px 14px; background:var(--panel);
       border-left:4px solid var(--accent); }}
