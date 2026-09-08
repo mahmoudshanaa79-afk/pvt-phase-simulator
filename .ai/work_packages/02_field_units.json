@@ -64,6 +64,6 @@
   "dependencies": [
     "01_model_and_limitations"
   ],
-  "status": "PENDING",
+  "status": "COMMITTED",
   "notes": "The engine keeps receiving SI and keeps returning SI. Conversion factors are exact where they are exact; a round-trip through a unit must not silently lose precision. No thermodynamics is duplicated."
 }
