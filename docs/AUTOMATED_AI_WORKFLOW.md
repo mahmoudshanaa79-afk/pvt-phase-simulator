@@ -276,6 +276,51 @@ becoming an approval).
 Every agent boundary is mocked; the tests never spend a real Codex or Claude
 call. The scientific suite is untouched at 1137 tests.
 
+## Known limitations, deferred
+
+All four were found while running v1.2 and are recorded rather than repaired,
+because changing the orchestrator mid-release would invalidate the independent
+approval the current version already carries. None is a correctness hole in a
+committed package: every v1.2 package was verified green and independently
+approved before it was committed.
+
+**A failed correction leaves no authorship record.** `_correction_loop` records
+the corrector's revision only after the output contract validates. A corrector
+that runs, edits files, and then returns a malformed reply therefore leaves the
+working tree changed with nothing in the revision ledger naming it as author.
+Because review independence is decided from that ledger, the next reviewer can
+be told it is independent of a revision it partly wrote. The window is narrow —
+it needs a correction that both edits files and fails its contract — but the
+consequence is a silently weakened audit rather than a visible error, so the
+recording should move to before the contract check.
+
+**Claude is not usable as a non-interactive builder.** Two separate attempts
+ended identically: Claude started a background pytest run, said it would wait
+for the result, and ended its turn expecting to be resumed. Under `--print`
+there is no next turn, so the reply never contained an `<ORCHESTRATOR_RESULT>`
+block and the engine correctly refused to read it as success. This is a
+mismatch between the transport and the agent's expectation of an interactive
+loop, not a contract-parsing bug. Claude remains reliable as a reviewer.
+
+**A verification timeout does not stop the process, and discards a real pass.**
+`_run_command` derives its timeout from `max_agent_runtime_minutes`. On Windows
+the expiry does not terminate the child: in two v1.2 runs pytest continued to
+completion well past the deadline and printed a clean pass — once `1256 passed`
+at 8172s, once `1291 passed` at 45681s — and the engine recorded both as exit
+124 and failed the package. So a slow verification burns the full wall clock,
+produces a genuine pass, and then throws it away. Verification limits should be
+separate from agent runtime limits, and the timeout should either kill the
+process tree or report honestly that it could not.
+
+**HUMAN_ACTION_REQUIRED has no resume path.** `resume.resumable` refuses that
+status unless an audit debt is open, which is the right default but strands a
+package whose build is complete and whose evidence is intact. Recovering the
+v1.2 packages needed an external shim to clear the block before the engine's
+own resume planner — which then correctly skipped the completed build and ran
+verification, audit and commit unchanged. A supported `resume --force` that
+re-validates evidence rather than trusting it would remove the need for that
+shim.
+
 ## Disabling automation
 
 Delete or rename `.ai/config.json`, or simply stop invoking
