@@ -1,0 +1,67 @@
+{
+  "name": "01_model_and_limitations",
+  "objective": "Add a user-facing panel stating exactly what this application models and what it does not. Show the Peng-Robinson EOS, the three verified components (methane, ethane, propane), the kij = 0 assumption, the validation scope, the calculations supported, the known limitations, an explicit statement that this is not a commercial PVT package, and the provenance already recorded in the repository. Documentation and presentation only; read existing values rather than restating them.",
+  "risk": "LOW",
+  "allowed_files": [
+    "src/pvt_phase_simulator_ui/**",
+    "tests/test_app_*.py",
+    "docs/STREAMLIT_APPLICATION.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master"
+  ],
+  "scientific_invariants": [
+    "The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.",
+    "No thermodynamic relation may be implemented, restated or approximated in the application layer.",
+    "Unavailable quantities are reported as unavailable and never fabricated or interpolated.",
+    "Structured failures remain failures; only CriticalPointStatus.CONVERGED is a certified critical point."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [],
+  "status": "COMMITTED",
+  "notes": "Every claim on the panel must be traceable to something already in the repository. Do not invent a limitation, a scope boundary or a citation that is not already recorded."
+}

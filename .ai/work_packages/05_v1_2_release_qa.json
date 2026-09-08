@@ -1,0 +1,70 @@
+{
+  "name": "05_v1_2_release_qa",
+  "objective": "Final application-level verification of the complete v1.2 product. This package adds NO capability; its job is to test the actual product and close the gaps it finds. No feature creep.\n\nUSER JOURNEY to exercise end to end: home/first use; fluid setup; examples; single-state analysis; flash; bubble and dew; phase envelope; engineering sweeps; field units; save and load; exports; the engineering report; the science/methodology pages; and limitations/validation.\n\nVERIFY: a new user can run a meaningful example; input errors are reported in normal language; no raw traceback is ever exposed to an ordinary user; units are obvious and consistent; non-SI presentation never alters internal science; stale-result protection works and a changed input can never display an obsolete result as current; invalid compositions are rejected; failed or non-converged science is never hidden; plots are readable; sweep failure gaps remain explicit rather than interpolated; exports preserve precision and state their units; save/load is reproducible; the report is truthful; limitations are accessible; and the stated model scope is truthful.\n\nTRUTHFULNESS OF CLAIMS: no claim of commercial PVT capability; no unsupported component implied; the kij = 0 assumption visible; and the verified components remain methane, ethane and propane unless evidence in the repository says otherwise. Where documentation and the application disagree, correct the documentation to match the application - never the reverse.\n\nREADINESS: deployment smoke readiness, clean-environment startup, and the Streamlit application launching correctly.\n\nFix P0/P1 release defects. Record non-blocking P2/P3 findings rather than fixing them. The scientific engine is frozen and must not change.\n\nBUILD-TIME TESTING POLICY. Run only focused tests for the files and behaviour you changed, plus Ruff and mypy if useful. Do NOT run the whole pytest suite for reassurance - the orchestrator runs the authoritative full-suite verification after you finish, and duplicating it wastes a great deal of wall-clock time.",
+  "risk": "LOW",
+  "allowed_files": [
+    "tests/test_app_*.py",
+    "docs/STREAMLIT_APPLICATION.md",
+    "README.md",
+    "src/pvt_phase_simulator_ui/**"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master"
+  ],
+  "scientific_invariants": [
+    "The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.",
+    "No thermodynamic relation may be implemented, restated or approximated in the application layer.",
+    "Unavailable quantities are reported as unavailable and never fabricated or interpolated.",
+    "Structured failures remain failures; only CriticalPointStatus.CONVERGED is a certified critical point."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [
+    "04_engineering_report"
+  ],
+  "status": "COMMITTED",
+  "notes": "This package closes gaps it finds; it does not add capability. If the documentation and the application disagree, the documentation is corrected to match the application, never the reverse."
+}

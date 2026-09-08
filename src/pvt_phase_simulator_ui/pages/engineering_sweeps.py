@@ -1,0 +1,4 @@
+from pvt_phase_simulator_ui.context import current_inputs
+from pvt_phase_simulator_ui.views import render_engineering_sweeps
+
+render_engineering_sweeps(current_inputs())

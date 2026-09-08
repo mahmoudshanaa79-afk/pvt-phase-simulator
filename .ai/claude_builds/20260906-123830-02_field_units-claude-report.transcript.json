@@ -1,0 +1,24 @@
+{
+  "name": "claude",
+  "command": [
+    "C:\\Users\\user\\.vscode\\extensions\\anthropic.claude-code-2.1.251-win32-x64\\resources\\native-binary\\claude.EXE",
+    "--print",
+    "--output-format",
+    "json",
+    "--permission-mode",
+    "acceptEdits",
+    "--allowed-tools",
+    "Read,Glob,Grep,Bash,Edit,Write,MultiEdit,TodoWrite",
+    "--add-dir",
+    "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator",
+    "--max-budget-usd",
+    "5.0"
+  ],
+  "exit_code": 0,
+  "duration_seconds": 521.0998089313507,
+  "cost_usd": 1.0496093999999998,
+  "contract": null,
+  "contract_error": "no <ORCHESTRATOR_RESULT> block found in agent output",
+  "stdout": "{\"duration_api_ms\":190088,\"stop_reason\":\"end_turn\",\"session_id\":\"f54a19be-54ae-420b-b0f8-814ef9c8063d\",\"total_cost_usd\":1.0496093999999998,\"usage\":{\"input_tokens\":70,\"cache_creation_input_tokens\":84443,\"cache_read_input_tokens\":2894047,\"output_tokens\":13088,\"output_tokens_details\":{\"thinking_tokens\":5230},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":84443,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":2,\"output_tokens\":81,\"cache_read_input_tokens\":106278,\"cache_creation_input_tokens\":349,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":349},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1948,\"outputTokens\":12,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0020080000000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"claude-haiku-4-5\",\"provider\":\"firstParty\",\"costBasis\":\"list\"},\"claude-sonnet-5\":{\"inputTokens\":70,\"outputTokens\":13088,\"cacheReadInputTokens\":2894047,\"cacheCreationInputTokens\":84443,\"webSearchRequests\":0,\"costUSD\":1.0476013999999998,\"contextWindow\":1000000,\"maxOutputTokens\":64000,\"canonicalModel\":\"claude-sonnet-5\",\"provider\":\"firstParty\",\"costBasis\":\"list\"}},\"permission_denials\":[{\"tool_name\":\"PowerShell\",\"tool_use_id\":\"toolu_01EoGf6QLktxLnrmnGhkCD3a\",\"tool_input\":{\"command\":\"Get-CimInstance Win32_Process -Filter \\\"Name='python.exe'\\\" | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List\",\"description\":\"List python processes with command lines\"}},{\"tool_name\":\"PowerShell\",\"tool_use_id\":\"toolu_01B1b2q6NmE1JRZrK9ZV6hgR\",\"tool_input\":{\"command\":\"Get-CimInstance Win32_Process -Filter \\\"Name='python.exe'\\\" | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List\",\"description\":\"List python processes with command lines\",\"dangerouslyDisableSandbox\":true}}],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"is_error\":false,\"num_turns\":36,\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Still running \u2014 I'll wait for the scheduled wakeup rather than keep polling.\",\"ttft_ms\":5166,\"type\":\"result\",\"duration_ms\":509827,\"uuid\":\"5cc3daae-99df-4f29-9eee-e9be33d10c58\",\"ttft_stream_ms\":1777,\"time_to_request_ms\":220,\"queued_turn_count\":0}\n",
+  "stderr": ""
+}

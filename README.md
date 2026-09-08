@@ -66,9 +66,9 @@ The first experimental comparison and its limitations are documented in
 ## Streamlit application
 
 An optional Streamlit frontend now provides Overview, Phase Envelope, Critical
-Point, Validation, and Diagnostics views for the verified methane, ethane, and
-propane scope. It calls the existing scientific APIs and Module 21 Plotly
-figures without changing the v1.0 engine.
+Point, Engineering Sweeps, Validation, and Diagnostics views for the verified
+methane, ethane, and propane scope. It calls the existing scientific APIs and
+Module 21 Plotly figures without changing the v1.0 engine.
 
 ```powershell
 uv run streamlit run streamlit_app.py

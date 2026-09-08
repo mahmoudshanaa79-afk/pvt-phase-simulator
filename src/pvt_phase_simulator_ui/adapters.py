@@ -29,12 +29,18 @@ from pvt_phase_simulator.plotting import (
     ValidationPlotRecord,
     load_validation_plot_records,
 )
+from pvt_phase_simulator_ui.units import (
+    PressureUnit,
+    TemperatureUnit,
+    pressure_from_pa,
+    pressure_to_pa,
+    temperature_to_k,
+)
 
-COMPONENT_NAMES: Final = ("Methane", "Ethane", "Propane")
 COMPONENTS: Final = (METHANE, ETHANE, PROPANE)
+COMPONENT_NAMES: Final = tuple(component.name for component in COMPONENTS)
 COMPOSITION_TOTAL_MOL_PERCENT: Final = 100.0
 COMPOSITION_TOLERANCE_MOL_PERCENT: Final = 1.0e-8
-PA_PER_MPA: Final = 1.0e6
 
 
 class InputValidationError(ValueError):
@@ -48,8 +54,13 @@ class ScientificInputs:
     composition_mol_percent: tuple[float, float, float]
     mole_fractions: tuple[float, float, float]
     temperature_k: float
-    pressure_mpa: float
     pressure_pa: float
+
+    @property
+    def pressure_mpa(self) -> float:
+        """Compatibility presentation of the canonical pressure in MPa."""
+
+        return pressure_from_pa(self.pressure_pa, PressureUnit.MPA)
 
     @property
     def signature(self) -> tuple[tuple[float, float, float], float, float]:
@@ -69,15 +80,24 @@ class ScientificInputs:
 def composition_total(values: Sequence[float]) -> float:
     """Return the floating-point sum displayed at the input boundary."""
 
-    return fsum(float(value) for value in values)
+    numeric = tuple(float(value) for value in values)
+    try:
+        return fsum(numeric)
+    except (OverflowError, ValueError):
+        # Display invalid extreme inputs without allowing fsum's strict overflow
+        # handling to escape the ordinary validation path.
+        return sum(numeric)
 
 
 def validate_scientific_inputs(
     composition_mol_percent: Sequence[float],
-    temperature_k: float,
-    pressure_mpa: float,
+    temperature: float,
+    pressure: float,
+    *,
+    temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
+    pressure_unit: PressureUnit | str = PressureUnit.MPA,
 ) -> ScientificInputs:
-    """Validate first, then perform the two exact boundary conversions once."""
+    """Validate and convert user-facing values to the engine's K/Pa contract."""
 
     if len(composition_mol_percent) != len(COMPONENTS):
         raise InputValidationError("Exactly Methane, Ethane, and Propane are required.")
@@ -95,19 +115,21 @@ def validate_scientific_inputs(
         raise InputValidationError(
             "Composition must total 100 mol %. Values are not automatically normalized."
         )
-    temperature = float(temperature_k)
-    pressure = float(pressure_mpa)
-    if not isfinite(temperature) or temperature <= 0.0:
-        raise InputValidationError("Temperature must be positive and finite.")
-    if not isfinite(pressure) or pressure <= 0.0:
-        raise InputValidationError("Pressure must be positive and finite.")
+    try:
+        temperature_k = temperature_to_k(temperature, temperature_unit)
+        pressure_pa = pressure_to_pa(pressure, pressure_unit)
+    except ValueError as error:
+        raise InputValidationError(str(error)) from error
+    if temperature_k <= 0.0:
+        raise InputValidationError("Temperature must be above absolute zero.")
+    if pressure_pa <= 0.0:
+        raise InputValidationError("Pressure must be positive.")
     fractions = tuple(value / 100.0 for value in values)
     return ScientificInputs(
         (values[0], values[1], values[2]),
         (fractions[0], fractions[1], fractions[2]),
-        temperature,
-        pressure,
-        pressure * PA_PER_MPA,
+        temperature_k,
+        pressure_pa,
     )
 
 
@@ -116,13 +138,19 @@ FlashCallable = Callable[[FluidMixture, float, float], TwoPhaseFlashResult]
 
 def run_validated_flash(
     composition_mol_percent: Sequence[float],
-    temperature_k: float,
-    pressure_mpa: float,
+    temperature: float,
+    pressure: float,
     *,
+    temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
+    pressure_unit: PressureUnit | str = PressureUnit.MPA,
     flash_api: FlashCallable = calculate_two_phase_flash,
 ) -> tuple[ScientificInputs, TwoPhaseFlashResult]:
     inputs = validate_scientific_inputs(
-        composition_mol_percent, temperature_k, pressure_mpa
+        composition_mol_percent,
+        temperature,
+        pressure,
+        temperature_unit=temperature_unit,
+        pressure_unit=pressure_unit,
     )
     result = flash_api(inputs.mixture(), inputs.temperature_k, inputs.pressure_pa)
     return inputs, result

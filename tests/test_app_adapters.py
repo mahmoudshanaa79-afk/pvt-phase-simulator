@@ -7,6 +7,7 @@ import hashlib
 import json
 from dataclasses import replace
 from io import StringIO
+from math import isnan
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -23,16 +24,22 @@ from pvt_phase_simulator.eos.flash import (
 )
 from pvt_phase_simulator.fluid_models import FluidMixture
 from pvt_phase_simulator.plotting import (
-    PressureUnit,
+    PhaseBehaviorPoint,
+    PhaseEnvelopePlotData,
+    plot_phase_envelope,
     plot_validation_pressure_error,
     plot_validation_pressure_parity,
     plot_validation_retrospective_diagnostics,
+)
+from pvt_phase_simulator.plotting import (
+    PressureUnit as PlotPressureUnit,
 )
 from pvt_phase_simulator_ui import views
 from pvt_phase_simulator_ui.adapters import (
     InputValidationError,
     adapt_critical_result,
     adapt_flash_result,
+    composition_total,
     flash_presentation_kind,
     load_module17_records,
     location_relative_to_envelope,
@@ -49,10 +56,24 @@ from pvt_phase_simulator_ui.exports import (
 from pvt_phase_simulator_ui.state import (
     INPUT_EXAMPLES,
     apply_selected_input_example,
+    begin_result_attempt,
     get_result,
+    get_result_action_failure,
     initialize_session,
     result_is_stale,
     store_result,
+    store_result_action_failure,
+)
+from pvt_phase_simulator_ui.units import (
+    PressureUnit,
+    TemperatureUnit,
+    UnitPreferences,
+    convert_pressure,
+    convert_temperature,
+    pressure_from_pa,
+    pressure_to_pa,
+    temperature_from_k,
+    temperature_to_k,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +138,111 @@ def test_valid_conversion_and_flash_invocation_are_exact() -> None:
     )
 
 
+@pytest.mark.parametrize("unit", tuple(PressureUnit))
+def test_pressure_units_round_trip_without_losing_the_si_value(
+    unit: PressureUnit,
+) -> None:
+    pressure_pa = 8_534_443.23606381
+    field_value = pressure_from_pa(pressure_pa, unit)
+
+    assert pressure_to_pa(field_value, unit) == pressure_pa
+    assert convert_pressure(field_value, unit, unit) == field_value
+
+
+@pytest.mark.parametrize("unit", tuple(TemperatureUnit))
+def test_temperature_units_round_trip_at_the_boundary(
+    unit: TemperatureUnit,
+) -> None:
+    temperature_k = 321.5829183194
+    field_value = temperature_from_k(temperature_k, unit)
+
+    assert temperature_to_k(field_value, unit) == pytest.approx(
+        temperature_k, abs=6e-14
+    )
+    assert convert_temperature(field_value, unit, unit) == field_value
+
+
+def test_field_unit_flash_reaches_engine_in_k_and_pa_once() -> None:
+    captured: tuple[float, float] | None = None
+
+    def fake(_: FluidMixture, temperature_k: float, pressure_pa: float) -> object:
+        nonlocal captured
+        captured = temperature_k, pressure_pa
+        return object()
+
+    inputs, _ = run_validated_flash(
+        (50.0, 0.0, 50.0),
+        80.33,
+        pressure_from_pa(5_000_000.0, PressureUnit.PSI),
+        temperature_unit=TemperatureUnit.FAHRENHEIT,
+        pressure_unit=PressureUnit.PSI,
+        flash_api=fake,  # type: ignore[arg-type]
+    )
+
+    assert inputs.temperature_k == pytest.approx(300.0, abs=1e-13)
+    assert inputs.pressure_pa == 5_000_000.0
+    assert captured == (inputs.temperature_k, inputs.pressure_pa)
+
+
+@pytest.mark.parametrize(
+    ("value", "unit"),
+    (
+        (0.0, TemperatureUnit.KELVIN),
+        (-273.15, TemperatureUnit.CELSIUS),
+        (-459.67, TemperatureUnit.FAHRENHEIT),
+    ),
+)
+def test_absolute_zero_is_rejected_in_every_temperature_unit(
+    value: float, unit: TemperatureUnit
+) -> None:
+    with pytest.raises(InputValidationError, match="absolute zero"):
+        validate_scientific_inputs(
+            (50.0, 0.0, 50.0),
+            value,
+            1.0,
+            temperature_unit=unit,
+        )
+
+
+def test_finite_field_values_that_overflow_conversion_are_rejected_cleanly() -> None:
+    with pytest.raises(InputValidationError, match="supported numeric range"):
+        validate_scientific_inputs(
+            (50.0, 0.0, 50.0),
+            300.0,
+            1.0e308,
+            pressure_unit=PressureUnit.MPA,
+        )
+    with pytest.raises(ValueError, match="supported numeric range"):
+        temperature_from_k(1.0e308, TemperatureUnit.FAHRENHEIT)
+
+
+def test_extreme_invalid_composition_total_remains_reportable() -> None:
+    assert composition_total((1.0e308, 1.0e308, 1.0e308)) == float("inf")
+    assert isnan(composition_total((float("inf"), float("-inf"), 0.0)))
+
+
+def test_export_includes_selected_and_engine_units_explicitly() -> None:
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
+    units = UnitPreferences(TemperatureUnit.CELSIUS, PressureUnit.BAR)
+
+    document = build_export_document(inputs, units=units)
+
+    assert document["metadata"]["engine_units"] == {
+        "temperature": "K",
+        "pressure": "Pa",
+    }
+    assert document["metadata"]["presentation_units"] == {
+        "temperature": "°C",
+        "pressure": "bar",
+    }
+    assert document["case"]["temperature"] == pytest.approx(26.85)
+    assert document["case"]["temperature_unit"] == "°C"
+    assert document["case"]["pressure"] == 50.0
+    assert document["case"]["pressure_unit"] == "bar"
+    assert document["case"]["temperature_k"] == 300.0
+    assert document["case"]["pressure_pa"] == 5_000_000.0
+
+
 def test_flash_adapter_preserves_every_scientific_field() -> None:
     inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 250.0, 3.0)
     result = calculate_two_phase_flash(
@@ -172,7 +298,7 @@ def test_current_case_json_preserves_precision_and_unavailable_semantics() -> No
     flash = decoded["results"]["flash"]
 
     assert encoded == export_json_bytes(document)
-    assert decoded["schema"]["version"] == "1.0.0"
+    assert decoded["schema"]["version"] == "1.1.0"
     assert decoded["case"]["pressure_pa"] == 20_000_000.0
     assert flash["selected_single_phase_z"]["value"] == result.single_phase_root
     assert flash["selected_single_phase_z"]["value"] == pytest.approx(
@@ -314,6 +440,47 @@ def test_critical_certification_and_approved_regression() -> None:
     )
 
 
+def test_certified_critical_hover_uses_selected_presentation_units() -> None:
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 320.0, 8.5)
+    result = solve_mixture_critical_point(
+        inputs.mixture(), inputs.temperature_k, inputs.pressure_pa
+    )
+    figure = plot_phase_envelope(
+        PhaseEnvelopePlotData(
+            bubble_points=(PhaseBehaviorPoint(300.0, 5_000_000.0),),
+            dew_points=(),
+        ),
+        pressure_unit=PlotPressureUnit.PA,
+        critical_point=result,
+    )
+    critical_trace = next(
+        trace for trace in figure.data if trace.name == "Certified critical point"
+    )
+    source_hover = cast(str, critical_trace.text[0])
+    source_temperature_k = float(source_hover.split("<br>T=", 1)[1].split(" K", 1)[0])
+    source_pressure_pa = float(source_hover.split("<br>P=", 1)[1].split(" Pa", 1)[0])
+    units = UnitPreferences(TemperatureUnit.FAHRENHEIT, PressureUnit.PSI)
+
+    views._presentation_figure(
+        figure,
+        units,
+        x_quantity="temperature",
+        y_quantity="pressure",
+    )
+
+    hover = cast(str, critical_trace.text[0])
+    expected_temperature = views._format_plot_hover_value(
+        temperature_from_k(source_temperature_k, units.temperature)
+    )
+    expected_pressure = views._format_plot_hover_value(
+        pressure_from_pa(source_pressure_pa, units.pressure)
+    )
+    assert f"<br>T={expected_temperature} {units.temperature.value}" in hover
+    assert f"<br>P={expected_pressure} {units.pressure.value}" in hover
+    assert " K" not in hover
+    assert " Pa" not in hover
+
+
 def test_session_state_is_deterministic_and_marks_scientific_changes_stale() -> None:
     state: dict[str, object] = {}
     first = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
@@ -327,6 +494,27 @@ def test_session_state_is_deterministic_and_marks_scientific_changes_stale() -> 
     assert not result_is_stale(state, "flash", same)
     assert result_is_stale(state, "flash", changed)
     assert result_is_stale(state, "flash", None)
+
+
+def test_failed_retry_removes_prior_result_and_success_clears_failure() -> None:
+    state: dict[str, object] = {}
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
+    first_result = object()
+    replacement = object()
+
+    store_result(state, "flash", first_result, inputs)
+    begin_result_attempt(state, "flash")
+    assert get_result(state, "flash") is None
+    assert not result_is_stale(state, "flash", inputs)
+
+    message = "The calculation failed without a result."
+    store_result_action_failure(state, "flash", message)
+    assert get_result_action_failure(state, "flash") == message
+    assert get_result(state, "flash") is None
+
+    store_result(state, "flash", replacement, inputs)
+    assert get_result(state, "flash") is replacement
+    assert get_result_action_failure(state, "flash") is None
 
 
 def test_selecting_input_example_only_assigns_input_state() -> None:
@@ -351,7 +539,7 @@ def test_selecting_input_example_only_assigns_input_state() -> None:
 def test_module21_validation_figures_keep_sign_and_retrospective_separation() -> None:
     records = load_module17_records(ROOT)
     parity = plot_validation_pressure_parity(
-        records, direction="bubble", pressure_unit=PressureUnit.MPA
+        records, direction="bubble", pressure_unit=PlotPressureUnit.MPA
     )
     error = plot_validation_pressure_error(records, direction="bubble")
     retrospective = plot_validation_retrospective_diagnostics(records)

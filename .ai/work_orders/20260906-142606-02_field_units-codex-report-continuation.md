@@ -1,0 +1,89 @@
+# Correction order: 02_field_units
+
+## Repository state
+- Branch: `app-v1.2-engineering`
+- HEAD: `cd908da958d3a616a22c58735ae3f1b4d2c6bb94`
+- Working tree: DIRTY — .ai/claude_audits/20260906-115645-01_model_and_limitations-audit-prompt.md, .ai/claude_audits/20260906-115645-01_model_and_limitations-audit.md, .ai/claude_audits/20260906-115645-01_model_and_limitations-audit.transcript.json, .ai/claude_builds/20260906-123830-02_field_units-claude-report.md, .ai/claude_builds/20260906-123830-02_field_units-claude-report.transcript.json, .ai/codex_reports/20260906-120330-02_field_units-codex-report.md, .ai/codex_reports/20260906-120330-02_field_units-codex-report.transcript.json, .ai/work_orders/20260906-120330-02_field_units-order.md, .ai/work_orders/20260906-142606-02_field_units-order.md, .ai/work_packages/01_model_and_limitations.json
+
+## Objective
+This package was already started and its implementation is largely present in
+the working tree. A previous builder ran out of usage part-way through, a second
+builder then returned prose instead of the required result block, and the run
+stopped without ever recording a completed build.
+
+The work itself was preserved and is currently in a good state: Ruff, Ruff
+formatting, mypy, compileall and the full test suite all pass against it, the
+change stays inside the package scope, and the protected scientific artifacts
+are untouched.
+
+Your job is therefore to FINISH this package, not to start it again.
+
+- Read the current diff first (`git status`, `git diff`, and the untracked file
+  `src/pvt_phase_simulator_ui/units.py`) and understand what already exists.
+- Keep the existing implementation. Do not revert it, rewrite it wholesale, or
+  recreate files that are already there.
+- Complete anything genuinely missing or half-finished, and fix any real defect
+  you find in what is there.
+- If, after inspecting it, the package objective is already fully satisfied,
+  say so and return status COMPLETE without making gratuitous changes.
+
+End your reply with the required <ORCHESTRATOR_RESULT> block. The previous
+attempt failed precisely because it did not, so the block is not optional and
+its absence is never read as success.
+
+
+## Allowed files
+  - `src/pvt_phase_simulator_ui/**`
+  - `tests/test_app_*.py`
+  - `docs/STREAMLIT_APPLICATION.md`
+
+## Files you must NOT modify
+  - `src/pvt_phase_simulator`
+  - `data`
+  - `docs/validation`
+  - `tests/golden_master`
+
+## Protected artifacts — never regenerate
+  - `tests/golden_master/baseline.csv` — SHA256 530C667AA70EF1EA182F4EDB98624A0A9B9908F149354276CDAC44A87EA7D2BE
+  - `data/component_properties.csv` — SHA256 C6F6BA9AE9C2F4C7F257BBC09A75DF0D7065255868AA46BF3E8C81AC5A8B9B3A
+  - `docs/validation/module17_vle_validation.csv` — SHA256 B14728D51AAC06AF38FC4F4E5F408942B253FEBE32D3E12EC26E9623CFA42482
+  - `docs/validation/module17_vle_validation_summary.json` — SHA256 5B120B77BF05567FCC6A0EE0D0054C6D1DEBA35FE26A7C837352C92017D24870
+
+## Scientific invariants that must continue to hold
+  - The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.
+  - No thermodynamic relation may be implemented, restated or approximated in the application layer.
+  - Unavailable quantities are reported as unavailable and never fabricated or interpolated.
+  - Structured failures remain failures; only CriticalPointStatus.CONVERGED is a certified critical point.
+
+## Required tests
+  - `.venv/Scripts/python.exe -m pytest -q`
+
+## Required quality gates
+  - `.venv/Scripts/python.exe -m ruff check .`
+  - `.venv/Scripts/python.exe -m ruff format --check .`
+  - `.venv/Scripts/python.exe -m mypy src app`
+  - `.venv/Scripts/python.exe -m compileall -q src app`
+
+## Rules
+- Do NOT weaken a test to make it pass. Do not loosen a tolerance, edit an
+  expected value to match output, delete a test, swallow an exception, or
+  regenerate a baseline. Any of those is a blocking failure.
+- Do NOT commit, stage, reset, or clean. The orchestrator owns git.
+- Do NOT write your own audit — an independent auditor reviews your work.
+- Keep the change within the objective; no unrelated cleanup.
+
+## Required final output
+
+End your reply with exactly one machine-readable block:
+
+<ORCHESTRATOR_RESULT>
+{
+  "status": "COMPLETE",
+  "tests_claimed": "<what you ran and what it reported>",
+  "files_changed": ["<path>", "..."],
+  "ready_for_local_verification": true
+}
+</ORCHESTRATOR_RESULT>
+
+`status` must be COMPLETE, BLOCKED or FAILED. The orchestrator re-runs every
+check locally, so an inaccurate claim here will simply be caught.
