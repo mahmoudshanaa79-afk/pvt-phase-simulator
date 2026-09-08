@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import asdict
 from pathlib import Path
@@ -63,9 +64,12 @@ from pvt_phase_simulator_ui.exports import (
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
 from pvt_phase_simulator_ui.reports import export_engineering_report_html
 from pvt_phase_simulator_ui.state import (
+    begin_result_attempt,
     get_result,
+    get_result_action_failure,
     result_is_stale,
     store_result,
+    store_result_action_failure,
     synchronize_sweep_inputs,
 )
 from pvt_phase_simulator_ui.styles import phase_split_bar
@@ -87,6 +91,28 @@ from pvt_phase_simulator_ui.units import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+LOGGER = logging.getLogger(__name__)
+
+ENVELOPE_ACTION_FAILURE: Final = (
+    "The phase-envelope calculation stopped unexpectedly and did not return a "
+    "result. Any earlier envelope result was removed so it cannot be mistaken "
+    "for the current calculation. Review the inputs and try again."
+)
+CRITICAL_ACTION_FAILURE: Final = (
+    "The critical-point calculation stopped unexpectedly and did not return a "
+    "result. Any earlier critical-point result was removed so it cannot be "
+    "mistaken for the current calculation. Review the seed and try again."
+)
+CRITICAL_SCAN_ACTION_FAILURE: Final = (
+    "The criticality map stopped unexpectedly and did not return a result. Any "
+    "earlier map was removed so it cannot be mistaken for the current calculation. "
+    "Review the inputs and try again."
+)
+SWEEP_ACTION_FAILURE: Final = (
+    "The engineering sweep stopped unexpectedly and did not return a complete "
+    "result. Any earlier sweep was removed so it cannot be mistaken for the "
+    "current calculation. Review the bounds and try again."
+)
 
 _CRITICAL_TEMPERATURE_TEXT: Final = re.compile(
     r"(?P<label>(?:^|<br>)T=)"
@@ -253,6 +279,14 @@ def _stale(name: str, inputs: ScientificInputs | None) -> bool:
             icon=":material/history:",
         )
     return stale
+
+
+def _show_action_failure(name: str) -> bool:
+    message = get_result_action_failure(session(), name)
+    if message is None:
+        return False
+    st.error(message, icon=":material/error:")
+    return True
 
 
 def _status_rows(rows: list[tuple[str, object, str]]) -> None:
@@ -460,10 +494,12 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     _render_model_scope_panel()
     raw = get_result(session(), "flash")
     if raw is None:
-        st.info(
-            "Submit valid fluid inputs with RUN FLASH to create a production result.",
-            icon=":material/info:",
-        )
+        if not _show_action_failure("flash"):
+            st.info(
+                "Submit valid fluid inputs with RUN FLASH to create a production "
+                "result.",
+                icon=":material/info:",
+            )
         return
     result = cast(TwoPhaseFlashResult, raw)
     view = adapt_flash_result(result)
@@ -627,6 +663,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
         icon=":material/play_arrow:",
     ):
         assert action_inputs is not None
+        begin_result_attempt(session(), "envelope")
         with st.status("Tracing bubble and dew branches…", expanded=True) as status:
             status.write(
                 "Cold-starting below the operating point, then continuing both "
@@ -638,13 +675,17 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                 result = _calculate_envelope(action_inputs)
                 store_result(session(), "envelope", result, action_inputs)
                 status.update(label="Envelope trace complete", state="complete")
-            except (ValueError, ArithmeticError) as error:
+            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+                LOGGER.exception("Unexpected failure in the phase-envelope action")
+                store_result_action_failure(
+                    session(), "envelope", ENVELOPE_ACTION_FAILURE
+                )
                 status.update(label="Envelope trace failed", state="error")
-                st.error(f"Phase-envelope calculation could not start: {error}")
     _action_requirement(action_inputs)
     raw = get_result(session(), "envelope")
     if raw is None:
-        st.info("No calculated envelope is available.", icon=":material/info:")
+        if not _show_action_failure("envelope"):
+            st.info("No calculated envelope is available.", icon=":material/info:")
         return
     result = cast(PhaseEnvelopeResult, raw)
     _stale("envelope", inputs)
@@ -773,6 +814,7 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
     _action_requirement(action_inputs)
     if run_solver:
         assert action_inputs is not None
+        begin_result_attempt(session(), "critical")
         with st.status("Solving production critical conditions…") as status:
             try:
                 store_result(
@@ -782,11 +824,15 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     action_inputs,
                 )
                 status.update(label="Critical solver complete", state="complete")
-            except (ValueError, ArithmeticError) as error:
+            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+                LOGGER.exception("Unexpected failure in the critical-point action")
+                store_result_action_failure(
+                    session(), "critical", CRITICAL_ACTION_FAILURE
+                )
                 status.update(label="Critical solver failed", state="error")
-                st.error(f"Critical solver could not start: {error}")
     if run_map:
         assert action_inputs is not None
+        begin_result_attempt(session(), "critical_scan")
         with st.status("Evaluating bounded diagnostic map…") as status:
             try:
                 store_result(
@@ -796,12 +842,16 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     action_inputs,
                 )
                 status.update(label="Criticality map complete", state="complete")
-            except (ValueError, ArithmeticError) as error:
+            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+                LOGGER.exception("Unexpected failure in the criticality-map action")
+                store_result_action_failure(
+                    session(), "critical_scan", CRITICAL_SCAN_ACTION_FAILURE
+                )
                 status.update(label="Criticality map failed", state="error")
-                st.error(f"Criticality map could not be evaluated: {error}")
     raw = get_result(session(), "critical")
     if raw is None:
-        st.info("No production critical-point solve has been requested.")
+        if not _show_action_failure("critical"):
+            st.info("No production critical-point solve has been requested.")
     else:
         result = cast(MixtureCriticalPointResult, raw)
         view = adapt_critical_result(result)
@@ -904,6 +954,8 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
             ),
             key="criticality_map_chart",
         )
+    else:
+        _show_action_failure("critical_scan")
 
 
 @st.cache_data(show_spinner=False, max_entries=2)
@@ -1424,6 +1476,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
         except SweepValidationError as error:
             st.error(f"Submission unavailable: {error}")
         else:
+            begin_result_attempt(session(), "sweep")
             progress = st.progress(0.0, text="Starting sweep…")
 
             def _advance(done: int, total: int) -> None:
@@ -1432,14 +1485,21 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
                     text=f"Evaluated {done} of {total} points…",
                 )
 
-            with st.spinner("Running the sweep…"):
-                result = run_sweep(request, progress=_advance)
-            progress.empty()
-            store_result(session(), "sweep", result, action_inputs)
+            try:
+                with st.spinner("Running the sweep…"):
+                    result = run_sweep(request, progress=_advance)
+            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+                LOGGER.exception("Unexpected failure in the engineering-sweep action")
+                store_result_action_failure(session(), "sweep", SWEEP_ACTION_FAILURE)
+            else:
+                store_result(session(), "sweep", result, action_inputs)
+            finally:
+                progress.empty()
 
     sweep = cast(SweepResult | None, get_result(session(), "sweep"))
     if sweep is None:
-        st.info("No sweep has been calculated yet.")
+        if not _show_action_failure("sweep"):
+            st.info("No sweep has been calculated yet.")
         return
     if _stale("sweep", inputs):
         return

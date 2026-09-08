@@ -80,7 +80,13 @@ class ScientificInputs:
 def composition_total(values: Sequence[float]) -> float:
     """Return the floating-point sum displayed at the input boundary."""
 
-    return fsum(float(value) for value in values)
+    numeric = tuple(float(value) for value in values)
+    try:
+        return fsum(numeric)
+    except (OverflowError, ValueError):
+        # Display invalid extreme inputs without allowing fsum's strict overflow
+        # handling to escape the ordinary validation path.
+        return sum(numeric)
 
 
 def validate_scientific_inputs(

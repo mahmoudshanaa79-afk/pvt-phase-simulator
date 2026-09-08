@@ -109,6 +109,38 @@ def test_case_upload_with_out_of_range_integer_surfaces_clean_error() -> None:
     )
 
 
+def test_unexpected_case_load_error_is_redacted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_unexpected(_data: object, _state: object) -> object:
+        raise RuntimeError("PRIVATE_INTERNAL_CASE_DETAIL")
+
+    monkeypatch.setattr(ui_app, "_load_case_inputs", raise_unexpected)
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.file_uploader[0].set_value(("case.json", b"{}", "application/json")).run()
+    _button(app, "Load case").click().run()
+
+    assert not app.exception
+    assert any(ui_app.CASE_LOAD_FAILURE in error.value for error in app.error)
+    assert all("PRIVATE_INTERNAL_CASE_DETAIL" not in error.value for error in app.error)
+
+
+def test_unexpected_input_panel_error_is_redacted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_unexpected() -> tuple[None, bool]:
+        raise RuntimeError("PRIVATE_INTERNAL_INPUT_DETAIL")
+
+    monkeypatch.setattr(ui_app, "_input_form", raise_unexpected)
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+
+    assert not app.exception
+    assert any(ui_app.INPUT_PANEL_FAILURE in error.value for error in app.error)
+    assert all(
+        "PRIVATE_INTERNAL_INPUT_DETAIL" not in error.value for error in app.error
+    )
+
+
 def test_field_unit_selection_preserves_state_and_submits_si_to_engine() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
 
@@ -308,6 +340,37 @@ def test_invalid_form_submission_never_creates_a_flash_result() -> None:
     assert any("Submission unavailable" in error.value for error in app.error)
 
 
+@pytest.mark.parametrize("field_index", (0, 4))
+def test_extreme_manual_inputs_report_validation_without_traceback(
+    field_index: int,
+) -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.number_input[field_index].set_value(1.0e308)
+    _button(app, "RUN FLASH").click().run()
+
+    assert not app.exception
+    assert "flash" not in app.session_state["results"]
+    assert any("Submission unavailable" in error.value for error in app.error)
+
+
+@pytest.mark.parametrize(
+    ("field_index", "expected"), ((0, "must not exceed"), (4, "numeric range"))
+)
+def test_extreme_manual_input_is_reported_without_a_raw_exception(
+    field_index: int, expected: str
+) -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    app.number_input[field_index].set_value(1.0e308)
+    _button(app, "RUN FLASH").click().run()
+
+    assert not app.exception
+    assert "flash" not in app.session_state["results"]
+    assert any(
+        "Submission unavailable" in error.value and expected in error.value
+        for error in app.error
+    )
+
+
 def test_valid_two_phase_submission_preserves_science_and_success_semantics() -> None:
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
     _button(app, "RUN FLASH").click().run()
@@ -392,6 +455,44 @@ def test_structured_flash_failure_is_presented_as_an_error(
     )
     assert not app.success
     assert not any("No two-phase split was required" in item.value for item in app.info)
+
+
+def test_unexpected_flash_retry_has_no_traceback_or_obsolete_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    _button(app, "RUN FLASH").click().run()
+    prior_result = app.session_state["results"]["flash"]
+
+    def raise_unexpected(_inputs: object) -> object:
+        raise RuntimeError("PRIVATE_INTERNAL_FLASH_DETAIL")
+
+    monkeypatch.setattr(ui_app, "_cached_flash", raise_unexpected)
+    _button(app, "RUN FLASH").click().run()
+
+    assert not app.exception
+    assert prior_result is not None
+    assert "flash" not in app.session_state["results"]
+    failure = app.session_state["result_action_failures"]["flash"]
+    assert failure == ui_app.FLASH_ACTION_FAILURE
+    assert any(failure in item.value for item in app.error)
+    assert all("PRIVATE_INTERNAL_FLASH_DETAIL" not in item.value for item in app.error)
+
+
+def test_unexpected_page_error_is_replaced_with_plain_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_unexpected() -> None:
+        raise RuntimeError("PRIVATE_INTERNAL_PAGE_DETAIL")
+
+    monkeypatch.setattr(views, "render_validation", raise_unexpected)
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=30).run()
+    page = ROOT / "src" / "pvt_phase_simulator_ui" / "pages" / "validation.py"
+    app.switch_page(page).run()
+
+    assert not app.exception
+    assert any(ui_app.PAGE_RENDER_FAILURE in item.value for item in app.error)
+    assert all("PRIVATE_INTERNAL_PAGE_DETAIL" not in item.value for item in app.error)
 
 
 def test_download_widgets_receive_real_payloads_and_mime_metadata(

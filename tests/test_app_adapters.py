@@ -7,6 +7,7 @@ import hashlib
 import json
 from dataclasses import replace
 from io import StringIO
+from math import isnan
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -38,6 +39,7 @@ from pvt_phase_simulator_ui.adapters import (
     InputValidationError,
     adapt_critical_result,
     adapt_flash_result,
+    composition_total,
     flash_presentation_kind,
     load_module17_records,
     location_relative_to_envelope,
@@ -54,10 +56,13 @@ from pvt_phase_simulator_ui.exports import (
 from pvt_phase_simulator_ui.state import (
     INPUT_EXAMPLES,
     apply_selected_input_example,
+    begin_result_attempt,
     get_result,
+    get_result_action_failure,
     initialize_session,
     result_is_stale,
     store_result,
+    store_result_action_failure,
 )
 from pvt_phase_simulator_ui.units import (
     PressureUnit,
@@ -197,6 +202,23 @@ def test_absolute_zero_is_rejected_in_every_temperature_unit(
             1.0,
             temperature_unit=unit,
         )
+
+
+def test_finite_field_values_that_overflow_conversion_are_rejected_cleanly() -> None:
+    with pytest.raises(InputValidationError, match="supported numeric range"):
+        validate_scientific_inputs(
+            (50.0, 0.0, 50.0),
+            300.0,
+            1.0e308,
+            pressure_unit=PressureUnit.MPA,
+        )
+    with pytest.raises(ValueError, match="supported numeric range"):
+        temperature_from_k(1.0e308, TemperatureUnit.FAHRENHEIT)
+
+
+def test_extreme_invalid_composition_total_remains_reportable() -> None:
+    assert composition_total((1.0e308, 1.0e308, 1.0e308)) == float("inf")
+    assert isnan(composition_total((float("inf"), float("-inf"), 0.0)))
 
 
 def test_export_includes_selected_and_engine_units_explicitly() -> None:
@@ -472,6 +494,27 @@ def test_session_state_is_deterministic_and_marks_scientific_changes_stale() -> 
     assert not result_is_stale(state, "flash", same)
     assert result_is_stale(state, "flash", changed)
     assert result_is_stale(state, "flash", None)
+
+
+def test_failed_retry_removes_prior_result_and_success_clears_failure() -> None:
+    state: dict[str, object] = {}
+    inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
+    first_result = object()
+    replacement = object()
+
+    store_result(state, "flash", first_result, inputs)
+    begin_result_attempt(state, "flash")
+    assert get_result(state, "flash") is None
+    assert not result_is_stale(state, "flash", inputs)
+
+    message = "The calculation failed without a result."
+    store_result_action_failure(state, "flash", message)
+    assert get_result_action_failure(state, "flash") == message
+    assert get_result(state, "flash") is None
+
+    store_result(state, "flash", replacement, inputs)
+    assert get_result(state, "flash") is replacement
+    assert get_result_action_failure(state, "flash") is None
 
 
 def test_selecting_input_example_only_assigns_input_state() -> None:

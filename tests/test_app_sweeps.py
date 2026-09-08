@@ -715,6 +715,28 @@ def test_sweeps_page_states_that_failed_points_stay_failed() -> None:
     assert "interpolated" in captions
 
 
+def test_extreme_sweep_bound_is_reported_without_a_raw_exception() -> None:
+    from streamlit.testing.v1 import AppTest
+
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=60).run()
+    next(button for button in app.button if button.label == "RUN FLASH").click().run()
+    page = ROOT / "src" / "pvt_phase_simulator_ui" / "pages" / "engineering_sweeps.py"
+    app.switch_page(page).run()
+    start = next(
+        field for field in app.number_input if field.label == "Start pressure (MPa)"
+    )
+    start.set_value(1.0e308)
+    next(button for button in app.button if button.label == "RUN SWEEP").click().run()
+
+    assert not app.exception
+    assert "sweep" not in app.session_state["results"]
+    assert any(
+        "Submission unavailable" in error.value
+        and "supported numeric range" in error.value
+        for error in app.error
+    )
+
+
 # ------------------------------------------------- chart gaps at failed points
 
 

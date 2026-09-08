@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Any
@@ -27,8 +28,10 @@ from pvt_phase_simulator_ui.context import session
 from pvt_phase_simulator_ui.state import (
     INPUT_EXAMPLES,
     apply_selected_input_example,
+    begin_result_attempt,
     initialize_session,
     store_result,
+    store_result_action_failure,
     synchronize_unit_inputs,
 )
 from pvt_phase_simulator_ui.units import (
@@ -39,6 +42,30 @@ from pvt_phase_simulator_ui.units import (
 )
 
 PAGES_DIRECTORY = Path(__file__).with_name("pages")
+LOGGER = logging.getLogger(__name__)
+
+FLASH_ACTION_FAILURE = (
+    "The flash calculation stopped unexpectedly and did not return a result. "
+    "Any earlier flash result was removed so it cannot be mistaken for the "
+    "current calculation. Review the inputs and try again."
+)
+PAGE_RENDER_FAILURE = (
+    "This view could not be displayed because the application encountered an "
+    "unexpected error. No failed calculation has been presented as a result. "
+    "Return to Overview or retry the action."
+)
+INPUT_PANEL_FAILURE = (
+    "The input panel could not be prepared because the application encountered "
+    "an unexpected error. No calculation was run. Refresh the page and try again."
+)
+CASE_LOAD_FAILURE = (
+    "Case load unavailable because the file could not be processed safely. "
+    "No inputs were changed and no calculation was run."
+)
+CASE_SAVE_FAILURE = (
+    "Case save unavailable because the current inputs could not be serialized "
+    "safely. Review the inputs and try again."
+)
 
 
 @st.cache_data(show_spinner=False, max_entries=16)
@@ -87,6 +114,9 @@ def _case_controls() -> None:
                 _load_case_inputs(uploaded.getvalue(), session())
             except CaseFileError as error:
                 st.error(f"Case load unavailable: {error}")
+            except Exception:  # noqa: BLE001 - uploaded data must not expose internals
+                LOGGER.exception("Unexpected failure while loading a case file")
+                st.error(CASE_LOAD_FAILURE)
             else:
                 st.success("Case loaded. Inputs restored; no calculation was run.")
 
@@ -94,6 +124,9 @@ def _case_controls() -> None:
             payload = serialize_case(case_from_state(session()))
         except CaseFileError as error:
             st.caption(f"Save unavailable until all case inputs are valid: {error}")
+        except Exception:  # noqa: BLE001 - session data must not expose internals
+            LOGGER.exception("Unexpected failure while serializing a case file")
+            st.caption(CASE_SAVE_FAILURE)
         else:
             st.download_button(
                 "Save case",
@@ -247,8 +280,15 @@ def run_app() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    initialize_session(session())
-    inputs, run_flash = _input_form()
+    try:
+        initialize_session(session())
+        inputs, run_flash = _input_form()
+    except Exception:  # noqa: BLE001 - never expose Streamlit's raw exception UI
+        LOGGER.exception("Unexpected error while preparing the scientific input panel")
+        st.error(INPUT_PANEL_FAILURE, icon=":material/error:")
+        return
+    if run_flash:
+        begin_result_attempt(session(), "flash")
     _header()
     page = st.navigation(
         [
@@ -286,7 +326,11 @@ def run_app() -> None:
         ],
         position="sidebar",
     )
-    page.run()
+    try:
+        page.run()
+    except Exception:  # noqa: BLE001 - never expose Streamlit's raw exception UI
+        LOGGER.exception("Unexpected error while rendering Streamlit page %s", page)
+        st.error(PAGE_RENDER_FAILURE, icon=":material/error:")
     if run_flash:
         assert inputs is not None
         with st.sidebar.status("Running production flash…", expanded=True) as status:
@@ -296,9 +340,10 @@ def run_app() -> None:
                 result = _cached_flash(inputs)
                 store_result(session(), "flash", result, inputs)
                 status.update(label="Flash complete", state="complete", expanded=False)
-            except (ValueError, ArithmeticError) as error:
-                session()["flash_startup_error"] = str(error)
+            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+                LOGGER.exception("Unexpected failure in the production flash action")
+                store_result_action_failure(session(), "flash", FLASH_ACTION_FAILURE)
                 status.update(label="Flash failed", state="error", expanded=True)
-                st.error(f"Production flash failure: {error}")
+                st.error(FLASH_ACTION_FAILURE, icon=":material/error:")
             else:
                 st.rerun()

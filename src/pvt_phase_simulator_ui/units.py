@@ -43,6 +43,12 @@ PA_PER_PRESSURE_UNIT: Final[dict[PressureUnit, float]] = {
 }
 
 
+def _finite_conversion(value: float, quantity: str) -> float:
+    if not isfinite(value):
+        raise ValueError(f"{quantity} is outside the supported numeric range.")
+    return value
+
+
 def _pressure_unit(unit: PressureUnit | str) -> PressureUnit:
     try:
         return unit if isinstance(unit, PressureUnit) else PressureUnit(unit)
@@ -69,7 +75,8 @@ def pressure_to_pa(value: float, unit: PressureUnit | str) -> float:
     numeric = float(value)
     if not isfinite(numeric):
         raise ValueError("Pressure must be finite.")
-    return numeric * PA_PER_PRESSURE_UNIT[_pressure_unit(unit)]
+    converted = numeric * PA_PER_PRESSURE_UNIT[_pressure_unit(unit)]
+    return _finite_conversion(converted, "Pressure")
 
 
 def pressure_from_pa(value_pa: float, unit: PressureUnit | str) -> float:
@@ -78,7 +85,8 @@ def pressure_from_pa(value_pa: float, unit: PressureUnit | str) -> float:
     numeric = float(value_pa)
     if not isfinite(numeric):
         raise ValueError("Pressure must be finite.")
-    return numeric / PA_PER_PRESSURE_UNIT[_pressure_unit(unit)]
+    converted = numeric / PA_PER_PRESSURE_UNIT[_pressure_unit(unit)]
+    return _finite_conversion(converted, "Pressure")
 
 
 def temperature_to_k(value: float, unit: TemperatureUnit | str) -> float:
@@ -91,8 +99,10 @@ def temperature_to_k(value: float, unit: TemperatureUnit | str) -> float:
     if selected is TemperatureUnit.KELVIN:
         return numeric
     if selected is TemperatureUnit.CELSIUS:
-        return numeric + 273.15
-    return (numeric + 459.67) * (5.0 / 9.0)
+        converted = numeric + 273.15
+    else:
+        converted = (numeric + 459.67) * (5.0 / 9.0)
+    return _finite_conversion(converted, "Temperature")
 
 
 def temperature_from_k(value_k: float, unit: TemperatureUnit | str) -> float:
@@ -105,8 +115,10 @@ def temperature_from_k(value_k: float, unit: TemperatureUnit | str) -> float:
     if selected is TemperatureUnit.KELVIN:
         return numeric
     if selected is TemperatureUnit.CELSIUS:
-        return numeric - 273.15
-    return numeric * (9.0 / 5.0) - 459.67
+        converted = numeric - 273.15
+    else:
+        converted = numeric * (9.0 / 5.0) - 459.67
+    return _finite_conversion(converted, "Temperature")
 
 
 def convert_pressure(

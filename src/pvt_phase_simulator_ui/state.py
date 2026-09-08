@@ -73,6 +73,7 @@ _DEFAULT_SWEEP_POINTS: Final = 21
 def initialize_session(state: MutableMapping[str, Any]) -> None:
     state.setdefault("results", {})
     state.setdefault("result_signatures", {})
+    state.setdefault("result_action_failures", {})
     state.setdefault("submitted_inputs", None)
     state.setdefault("current_inputs", None)
     state.setdefault("input_example", None)
@@ -134,15 +135,27 @@ def synchronize_sweep_inputs(state: MutableMapping[str, Any]) -> None:
     points = state["sweep_points_value"]
     if isfinite(start) and isfinite(end):
         if old_kind == "pressure":
-            state["sweep_pressure_start_pa"] = pressure_to_pa(start, old_pressure_unit)
-            state["sweep_pressure_end_pa"] = pressure_to_pa(end, old_pressure_unit)
+            try:
+                canonical_start = pressure_to_pa(start, old_pressure_unit)
+                canonical_end = pressure_to_pa(end, old_pressure_unit)
+            except ValueError:
+                # Keep the last valid canonical bounds. The form validator reports
+                # the invalid displayed bounds in ordinary language on submission.
+                pass
+            else:
+                state["sweep_pressure_start_pa"] = canonical_start
+                state["sweep_pressure_end_pa"] = canonical_end
         elif old_kind == "temperature":
-            state["sweep_temperature_start_k"] = temperature_to_k(
-                start, old_temperature_unit
-            )
-            state["sweep_temperature_end_k"] = temperature_to_k(
-                end, old_temperature_unit
-            )
+            try:
+                canonical_start = temperature_to_k(start, old_temperature_unit)
+                canonical_end = temperature_to_k(end, old_temperature_unit)
+            except ValueError:
+                # Keep the last valid canonical bounds. The form validator reports
+                # the invalid displayed bounds in ordinary language on submission.
+                pass
+            else:
+                state["sweep_temperature_start_k"] = canonical_start
+                state["sweep_temperature_end_k"] = canonical_end
     if isinstance(points, int) and not isinstance(points, bool):
         state[f"sweep_points_{old_kind}"] = points
 
@@ -194,12 +207,22 @@ def synchronize_unit_inputs(state: MutableMapping[str, Any]) -> None:
     if temperature_value != float(state["rendered_temperature_value"]) and isfinite(
         temperature_value
     ):
-        state["temperature_k"] = temperature_to_k(temperature_value, old_temperature)
+        try:
+            canonical_temperature = temperature_to_k(temperature_value, old_temperature)
+        except ValueError:
+            pass
+        else:
+            state["temperature_k"] = canonical_temperature
     pressure_value = float(state["pressure_value"])
     if pressure_value != float(state["rendered_pressure_value"]) and isfinite(
         pressure_value
     ):
-        state["pressure_pa"] = pressure_to_pa(pressure_value, old_pressure)
+        try:
+            canonical_pressure = pressure_to_pa(pressure_value, old_pressure)
+        except ValueError:
+            pass
+        else:
+            state["pressure_pa"] = canonical_pressure
 
     if old_temperature is not new_temperature:
         state["temperature_value"] = temperature_from_k(
@@ -255,6 +278,33 @@ def store_result(
     initialize_session(state)
     state["results"][name] = value
     state["result_signatures"][name] = inputs.signature
+    state["result_action_failures"].pop(name, None)
+
+
+def begin_result_attempt(state: MutableMapping[str, Any], name: str) -> None:
+    """Remove prior evidence before explicitly retrying one calculation."""
+
+    initialize_session(state)
+    state["results"].pop(name, None)
+    state["result_signatures"].pop(name, None)
+    state["result_action_failures"].pop(name, None)
+
+
+def store_result_action_failure(
+    state: MutableMapping[str, Any], name: str, message: str
+) -> None:
+    """Persist a safe failed-attempt message without retaining an old result."""
+
+    begin_result_attempt(state, name)
+    state["result_action_failures"][name] = message
+
+
+def get_result_action_failure(state: MutableMapping[str, Any], name: str) -> str | None:
+    """Return the safe message for an action that produced no result."""
+
+    initialize_session(state)
+    failures = cast(dict[str, str], state["result_action_failures"])
+    return failures.get(name)
 
 
 def get_result(state: MutableMapping[str, Any], name: str) -> object | None:

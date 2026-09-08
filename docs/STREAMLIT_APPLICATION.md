@@ -87,7 +87,9 @@ the physical state; it does not run a calculation or make a current scientific
 result stale. On submission, the panel shows the composition total and rejects
 nonfinite, negative, above-100, zero-total, and materially non-100% composition.
 It rejects pressure at or below zero and temperature at or below absolute zero
-in every supported unit. It does not silently normalize invalid composition.
+in every supported unit, and rejects finite field values whose conversion would
+fall outside the supported floating-point range. It does not silently normalize
+invalid composition.
 
 The native example selector can fill the form with the default
 two-phase-oriented case, the known 50/50 methane/propane single-phase case at
@@ -162,7 +164,12 @@ Results persist in Streamlit session state. Each stores the exact composition,
 temperature, and internal-pressure signature used to produce it. Changed or
 invalid current input marks the prior result stale until explicitly recalculated.
 Stale results remain visible with a warning, but downloads are unavailable until
-the changed inputs have a current calculated result.
+the changed inputs have a current calculated result. Starting an explicit retry
+removes the prior result for that calculation. If an unexpected exception stops
+the retry before a new result exists, the application keeps a plain-language
+failure notice instead of redisplaying the old result or exposing a raw traceback;
+technical details remain in server logs. Structured scientific failure results
+remain visible with their public status and termination evidence.
 
 Case files are distinct from result exports: they contain reproducible inputs
 only and do not serialize cached scientific result objects.
@@ -211,7 +218,8 @@ Retrospective nearest-root diagnostics are separate and explicitly labelled
 
 The frontend inherits all v1.0 applicability limits. Supported property scope
 is Methane, Ethane, and Propane with the documented default-zero interaction
-assumption. Bounded envelope continuation begins at the entered temperature and
+assumption. The bounded UI envelope trace cold-starts 30 K below the entered
+temperature and continues both branches through the operating temperature; it
 may legitimately return unavailable branches or structured termination.
 
 This extension adds no reservoir depletion, CCE/CVD, separator trains,
