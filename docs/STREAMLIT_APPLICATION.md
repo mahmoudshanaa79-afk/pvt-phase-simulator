@@ -237,21 +237,26 @@ Ubuntu runner with Python 3.12 installed from the locked dependency graph:
 localhost Streamlit health smoke. The workflow holds read-only repository
 permissions and uses no secret.
 
-## Public release-candidate deployment
+## Public deployment
 
-The application is published as the **public v1.1 release-candidate
-deployment**. It is a candidate offered for review, not an approved release, and
-it inherits every applicability limit recorded above.
+The application is published as the **public v1.2 deployment**. It is the
+released application rather than a candidate, and it inherits every
+applicability limit recorded above.
 
 | | |
 | --- | --- |
-| Public application | <https://pvt-phase-simulator.streamlit.app/> |
+| Public application | <https://pvt-phase-simulator-wpykmumyxwefbv3prht7gv.streamlit.app/> |
 | Deployment | Streamlit Community Cloud |
 | Repository | `mahmoudshanaa79-afk/pvt-phase-simulator` |
-| Release-candidate branch | `app-v1.1-autonomous` |
+| Branch | `master` |
 | Entrypoint | `streamlit_app.py` |
 | Python | 3.12 |
 | Secrets | none |
+
+The v1.1 release candidate was previously served from `app-v1.1-autonomous` at
+`pvt-phase-simulator.streamlit.app`. Republishing from `master` for v1.2
+recreated the app, which released that original subdomain, so the public URL
+changed to the one above.
 
 Dependencies are installed by Streamlit Community Cloud from `uv.lock` using
 `uv sync`, so the hosted environment resolves from the same locked graph the

@@ -104,19 +104,18 @@ the locked dependency graph: lockfile check, Ruff, Ruff formatting, mypy,
 Streamlit health smoke. It requires no secret and has read-only repository
 permissions.
 
-**Public v1.1 release-candidate deployment:**
-<https://pvt-phase-simulator.streamlit.app/>
+**Public v1.2 deployment:**
+<https://pvt-phase-simulator-wpykmumyxwefbv3prht7gv.streamlit.app/>
 
-It is hosted on Streamlit Community Cloud from the `app-v1.1-autonomous`
-release-candidate branch of `mahmoudshanaa79-afk/pvt-phase-simulator`, with
-`streamlit_app.py` as the entry point, Python 3.12, and `uv.lock` as the
-dependency source. **No secrets are stored or required.** It is a candidate
-offered for review, not an approved release.
+It is hosted on Streamlit Community Cloud from the `master` branch of
+`mahmoudshanaa79-afk/pvt-phase-simulator`, with `streamlit_app.py` as the entry
+point, Python 3.12, and `uv.lock` as the dependency source. **No secrets are
+stored or required.** It serves the released v1.2 application and remains
+subject to every applicability limit recorded in the application itself.
 
 Deployment is not automated. It was a deliberate, separate, human-authorized
-step, it is not wired to the default branch, and no release automation
-configures or republishes it. `.github/workflows/quality.yml` verifies only and
-never deploys. See
+step, and no release automation configures or republishes it.
+`.github/workflows/quality.yml` verifies only and never deploys. See
 [`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md) for the hosted
 deployment's recorded observations.
 
