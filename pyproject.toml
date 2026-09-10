@@ -51,7 +51,10 @@ show_missing = true
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-exclude = [".codex-test-temp"]
+# `.ai/` holds recorded agent evidence - work orders, builder reports, audits.
+# Ruff formats fenced code inside Markdown, so leaving it in scope would rewrite
+# the contents of an audit after the fact. Evidence is kept exactly as produced.
+exclude = [".codex-test-temp", ".ai"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
