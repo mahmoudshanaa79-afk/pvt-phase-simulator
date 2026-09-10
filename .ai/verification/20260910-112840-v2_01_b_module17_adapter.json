@@ -1,0 +1,99 @@
+{
+  "passed": false,
+  "protected_ok": true,
+  "protected_detail": {
+    "tests/golden_master/baseline.csv": "unchanged",
+    "data/component_properties.csv": "unchanged",
+    "docs/validation/module17_vle_validation.csv": "unchanged",
+    "docs/validation/module17_vle_validation_summary.json": "unchanged"
+  },
+  "scope_ok": true,
+  "scope_detail": "scope ok",
+  "diff_check_ok": true,
+  "diff_check_detail": "warning: in the working copy of 'docs/VALIDATION_FRAMEWORK.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/__init__.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/models.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/provenance.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/serialization.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_validation_core.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_validation_serialization.py', LF will be replaced by CRLF the next time Git touches it\n",
+  "changed_files": [
+    "docs/VALIDATION_FRAMEWORK.md",
+    "src/pvt_phase_simulator_validation/__init__.py",
+    "src/pvt_phase_simulator_validation/models.py",
+    "src/pvt_phase_simulator_validation/module17_adapter.py",
+    "src/pvt_phase_simulator_validation/provenance.py",
+    "src/pvt_phase_simulator_validation/serialization.py",
+    "tests/test_validation_core.py",
+    "tests/test_validation_module17_adapter.py",
+    "tests/test_validation_serialization.py"
+  ],
+  "report_path": ".ai\\verification\\20260910-112840-v2_01_b_module17_adapter.json",
+  "commands": [
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:19:37.448165+00:00",
+      "ended": "2026-09-10T08:28:38.848902+00:00",
+      "stdout": "........................................................................ [  5%]\n........................................................................ [ 10%]\n........................................................................ [ 15%]\n........................................................................ [ 20%]\n........................................................................ [ 26%]\n........................................................................ [ 31%]\n........................................................................ [ 36%]\n........................................................................ [ 41%]\n........................................................................ [ 47%]\n........................................................................ [ 52%]\n........................................................................ [ 57%]\n........................................................................ [ 62%]\n........................................................................ [ 68%]\n........................................................................ [ 73%]\n........................................................................ [ 78%]\n........................................................................ [ 83%]\n........................................................................ [ 89%]\n........................................................................ [ 94%]\n........................................................................ [ 99%]\n....                                                                     [100%]\n1372 passed in 539.59s (0:08:59)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:28:38.861212+00:00",
+      "ended": "2026-09-10T08:28:39.018865+00:00",
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 1,
+      "started": "2026-09-10T08:28:39.029539+00:00",
+      "ended": "2026-09-10T08:28:39.178174+00:00",
+      "stdout": "unformatted: File would be reformatted\n  --> .ai\\claude_audits\\20260909-172636-v2_01_a_validation_core-audit.md:1:1\n   |\n25 | if not any(value.uncertainty is not None for value in self.case.reference_values):\n   -     raise InvariantViolationError(\"uncertainty status requires a source-reported uncertainty\")\n26 +     raise InvariantViolationError(\n27 +         \"uncertainty status requires a source-reported uncertainty\"\n28 +     )\n29 | ```\n   |\n\n1 file would be reformatted, 263 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "mypy",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:28:39.190262+00:00",
+      "ended": "2026-09-10T08:28:40.000588+00:00",
+      "stdout": "Success: no issues found in 58 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "compileall",
+        "-q",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:28:40.012490+00:00",
+      "ended": "2026-09-10T08:28:40.159522+00:00",
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

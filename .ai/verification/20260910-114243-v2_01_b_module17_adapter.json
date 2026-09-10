@@ -1,0 +1,99 @@
+{
+  "passed": true,
+  "protected_ok": true,
+  "protected_detail": {
+    "tests/golden_master/baseline.csv": "unchanged",
+    "data/component_properties.csv": "unchanged",
+    "docs/validation/module17_vle_validation.csv": "unchanged",
+    "docs/validation/module17_vle_validation_summary.json": "unchanged"
+  },
+  "scope_ok": true,
+  "scope_detail": "scope ok",
+  "diff_check_ok": true,
+  "diff_check_detail": "warning: in the working copy of 'docs/VALIDATION_FRAMEWORK.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/__init__.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/models.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/provenance.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/pvt_phase_simulator_validation/serialization.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_validation_core.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_validation_serialization.py', LF will be replaced by CRLF the next time Git touches it\n",
+  "changed_files": [
+    "docs/VALIDATION_FRAMEWORK.md",
+    "src/pvt_phase_simulator_validation/__init__.py",
+    "src/pvt_phase_simulator_validation/models.py",
+    "src/pvt_phase_simulator_validation/module17_adapter.py",
+    "src/pvt_phase_simulator_validation/provenance.py",
+    "src/pvt_phase_simulator_validation/serialization.py",
+    "tests/test_validation_core.py",
+    "tests/test_validation_module17_adapter.py",
+    "tests/test_validation_serialization.py"
+  ],
+  "report_path": ".ai\\verification\\20260910-114243-v2_01_b_module17_adapter.json",
+  "commands": [
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:30:56.009284+00:00",
+      "ended": "2026-09-10T08:42:42.274277+00:00",
+      "stdout": "........................................................................ [  5%]\n........................................................................ [ 10%]\n........................................................................ [ 15%]\n........................................................................ [ 20%]\n........................................................................ [ 26%]\n........................................................................ [ 31%]\n........................................................................ [ 36%]\n........................................................................ [ 41%]\n........................................................................ [ 47%]\n........................................................................ [ 52%]\n........................................................................ [ 57%]\n........................................................................ [ 62%]\n........................................................................ [ 68%]\n........................................................................ [ 73%]\n........................................................................ [ 78%]\n........................................................................ [ 83%]\n........................................................................ [ 89%]\n........................................................................ [ 94%]\n........................................................................ [ 99%]\n....                                                                     [100%]\n1372 passed in 704.22s (0:11:44)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:42:42.286293+00:00",
+      "ended": "2026-09-10T08:42:42.482367+00:00",
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:42:42.494079+00:00",
+      "ended": "2026-09-10T08:42:42.668195+00:00",
+      "stdout": "155 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "mypy",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:42:42.698302+00:00",
+      "ended": "2026-09-10T08:42:43.554027+00:00",
+      "stdout": "Success: no issues found in 58 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/Scripts/python.exe",
+        "-m",
+        "compileall",
+        "-q",
+        "src",
+        "app"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-10T08:42:43.568696+00:00",
+      "ended": "2026-09-10T08:42:43.734632+00:00",
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

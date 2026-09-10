@@ -1,0 +1,78 @@
+{
+  "name": "v2_01_b_module17_adapter",
+  "objective": "Map the existing protected Module 17 independent experimental validation evidence onto\nthe generalized V2-01-A validation framework and prove scientific equivalence. This is\nan ADAPTER. It is not a new scientific calculation, not a new validation dataset, not a\nmetrics rewrite, and not a solver modification.\n\nPART 1 - AUTHORIZED SCHEMA EXTENSION G-1 (VECTOR UNCERTAINTY)\nReal Module 17 data publishes per-component expanded uncertainties for compositions,\nfor example [0.025, 0.025], on all 40 rows, but Uncertainty.value is currently a scalar\nfloat. Make the smallest justified extension: Uncertainty.value may be a float or a\ntuple[float, ...].\n\nRules to enforce at construction:\n- A scalar ReferenceValue: if uncertainty is present it must be scalar.\n- A vector ReferenceValue: uncertainty may be a vector; its length must exactly equal\n  the reference-value vector length, and its ordering must correspond exactly to\n  component_ids.\n- Reject scalar/vector shape mismatches, wrong vector length, non-finite values, and\n  negative values.\n- Zero is allowed only because a source may explicitly report zero uncertainty. Never\n  invent zero when uncertainty is absent; absent uncertainty remains None.\n- Uncertainty shape must survive deterministic serialization and decoding unchanged.\nAdd adversarial tests for each rejection rule and for shape preservation across a\nround trip.\n\nIf the serialized schema contract or its version needs a small update under the\nexisting schema-versioning policy, make that update explicitly and document it in\ndocs/VALIDATION_FRAMEWORK.md. Do NOT build a migration framework. Do not broaden\nV2-01-A in any other way.\n\nPART 2 - STRUCTURED LEGACY SOLVER OUTCOME\nModule 17 distinguishes three solver outcomes: converged, not_found, and inconclusive.\nDo NOT preserve that distinction only inside free-text failure_reason. Preserve the\noriginal outcome in a structured, queryable representation using the smallest existing\nsuitable structure, which is the already-supported structured solver metadata on\nValidationPrediction.\n\nRequired: converged remains identifiable as converged, not_found as not_found, and\ninconclusive as inconclusive, without parsing human-readable prose. V2-01-C must later\nbe able to compute solver coverage and inconclusive counts directly from structure.\nThe generalized ValidationStatus may still classify both non-success outcomes as\nSOLVER_FAILURE; do NOT redesign the global status model to accommodate this.\n\nPART 3 - THE ADAPTER\nSource-of-truth hierarchy, all read-only:\n- data/experimental/may_2015_source_manifest.json is provenance truth.\n- data/experimental/may_2015_ch4_c2_ch4_c3_vle.csv is experimental reference truth.\n- docs/validation/module17_vle_validation.csv and its summary JSON are production\n  prediction and diagnostic truth.\n\nRead this existing evidence. Do NOT recompute thermodynamics merely to build the\nadapter, do NOT create a second Module 17 solver, and do NOT import or reimplement\nPeng-Robinson science. The adapter must not import from pvt_phase_simulator.eos.\n\nBecause capability is dataset-level in the framework while system_id is per-case, emit\nTWO ReferenceDatasets from the one source manifest: a BUBBLE_POINT dataset and a\nDEW_POINT dataset, each containing all 40 source points and spanning both ch4_c2 and\nch4_c3. Both carry data_class EXPERIMENTAL_VALIDATION, inherited from the manifest;\nno caller may reclassify them.\n\nMapping, per direction:\n- source_point_id plus capability produces a deterministic, stable case_id.\n- system_id, ordered component_ids, temperature_k, and the specified composition\n  (liquid for bubble, vapor for dew) become the case identity and specified\n  conditions.\n- experimental_pressure_pa with pressure_expanded_uncertainty_pa, and the opposite\n  composition with vapor_expanded_uncertainties, become reference values with their\n  published uncertainties.\n- predicted pressure and predicted composition become the production prediction.\n- solver iterations, inner iteration count, selected parent/incipient roots, root\n  ordering consistency, maximum fugacity equilibrium residual and diagnostic codes\n  become structured solver metadata.\n- All dew_*_diagnostic_* and nearest_experimental_root_* fields become diagnostics\n  ONLY. See Part 4.\n\nDo NOT store the legacy error columns (absolute, relative, percent, and\nuncertainty-normalized residuals). Those are V2-01-C output. Use them in tests as an\nindependent consistency check on the mapping, never as stored fields. Assign no\naccuracy statuses: every record is REPORTED_NO_TOLERANCE.\n\nPART 4 - RETROSPECTIVE DIAGNOSTICS, HARD SCIENTIFIC RULE\nThe retrospective dew nearest-root diagnostics use the EXPERIMENTAL pressure to inspect\nor select among already-existing PR roots. They must NEVER become production\npredictions. Anything derived that way remains a RETROSPECTIVE DIAGNOSTIC.\n\nKeep retrospective quantities structurally separate from prediction values: there must\nbe no code path from any nearest_experimental_root field into prediction values. Add an\nadversarial test specifically covering the cases where the retrospective nearest root\nDIFFERS from the production-selected root, because that is exactly where a careless\nadapter would silently substitute the better-looking number. The summary's\ninterpretation statement, that the retrospective scan never replaces the production\nprediction, must survive into the adapted output. If any retrospective result can reach\na production prediction field, that is a P1 defect.\n\nPART 5 - FAILURE PRESERVATION\nAll 40 source points appear in BOTH capabilities: 80 adapted records total. No case may\ndisappear because the solver failed, a point was not found, a result was inconclusive,\nbehaviour was near-critical, or model error was large.\n\nLegacy coverage that must be reproduced exactly:\n- Bubble: 31 of 40 converged, 9 not_found.\n- Dew: 22 of 40 converged, 4 not_found, 14 inconclusive.\nTests must assert both numerator and denominator so a later change cannot quietly\nimprove the success rate by discarding difficult cases. Nothing is EXCLUDED; the\n283.38 K anomaly case is preserved as an ordinary case, and its sensitivity study\nbelongs to V2-01-C.\n\nPART 6 - PROVENANCE\nReuse the existing Module 17 provenance; do not invent a second competing record.\nPreserve citation, DOI, ThermoML/source URL, access date, raw and normalized hashes,\nmeasurement method, compound identity mapping, uncertainty definition, confidence\ninformation, unit conversion and extraction information, and the redistribution policy.\n\ncoverage_factor remains None if the source does not explicitly state k. The manifest\nstates a 95 percent confidence level and never states k; inferring k = 2 from that\nwould fabricate a source claim. Never infer it.\n\nIf some provenance cannot be represented without scientific information loss, STOP and\nreport a genuine schema gap rather than discarding the information. Deferred gaps:\nG-2 (hash placement) is deferred unless provenance cannot otherwise be preserved\ncorrectly; G-3 (structured ThermoML selected-dataset metadata) must have its\ninformation preserved faithfully now without forcing a large schema redesign; G-4\n(SOLVER_FAILURE collapsing two outcomes) is addressed by Part 2 and must not trigger a\nValidationStatus redesign.\n\nPART 7 - NUMERICAL EQUIVALENCE\nBecause the adapter reads rather than recomputes, values mapped directly from stored\nModule 17 evidence must reproduce exactly after float round-trip parsing. Do NOT\nintroduce arbitrary tolerances merely to make tests pass; an inexact value is an\nadapter defect, not a tolerance to widen. The only tolerance in play is the existing\nmole-fraction sum tolerance. Scientific-equivalence tests compare against the LEGACY\nEVIDENCE, never the adapter against its own output. Do not require cosmetic byte\nidentity of the new representation: column order, JSON layout, whitespace, and field\nordering are explicitly not part of equivalence.\n\nBUILD-TIME TESTING POLICY\nRun only focused tests for what you changed, plus Ruff and mypy if useful. Do NOT run\nthe whole pytest suite for reassurance; the orchestrator runs the authoritative\nfull-suite verification after you finish, and duplicating it wastes a great deal of\nwall-clock time.",
+  "risk": "MEDIUM",
+  "allowed_files": [
+    "src/pvt_phase_simulator_validation/**",
+    "tests/test_validation_*.py",
+    "docs/VALIDATION_FRAMEWORK.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master",
+    "src/pvt_phase_simulator_ui",
+    "tools/orchestration"
+  ],
+  "scientific_invariants": [
+    "The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.",
+    "The adapter performs no thermodynamic calculation and imports nothing from pvt_phase_simulator.eos.",
+    "Retrospective nearest-root diagnostics can never reach a production prediction value; they remain structurally separate diagnostics.",
+    "All 40 Module 17 source states survive in both capabilities: 80 records, no case dropped for failure, non-convergence or large model error.",
+    "Legacy solver coverage is reproduced exactly: bubble 31/40 converged with 9 not_found; dew 22/40 converged with 4 not_found and 14 inconclusive.",
+    "The converged / not_found / inconclusive distinction is preserved structurally and queryably, not only in free-text prose.",
+    "The dataset remains EXPERIMENTAL_VALIDATION and cannot be reclassified.",
+    "coverage_factor stays None when the source does not state k; a 95 percent confidence level never implies k = 2.",
+    "No published provenance is silently discarded; a field that cannot be represented is reported as a schema gap.",
+    "Values mapped from stored legacy evidence reproduce exactly after float round-trip parsing; no tolerance is introduced to make tests pass.",
+    "No accuracy threshold, error metric, or boolean meaning 'accuracy passed' is added by this package."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [
+    "v2_01_a_validation_core"
+  ],
+  "status": "COMMITTED",
+  "notes": "Model accuracy never gates CI. This package assigns no accuracy statuses and computes\nno error metrics; that is V2-01-C.\n\nThe adapter reads protected Module 17 assets and never rewrites them. If it cannot be\nimplemented without modifying protected science, stop and report why rather than\nproceeding.\n\nRecorded for V2-01-C and deliberately NOT fixed here: C-1, the uncertainty status must\nuse the uncertainty belonging to the specific quantity being compared; and C-2, a\npublished expanded uncertainty is used as published and never expanded again, while an\nunknown coverage factor stays unknown.\n\nOut of scope: new experimental data, CoolProp, CO2, the metrics engine, accuracy\nthresholds, the dashboard, the report, the CH4+C3H8 dew-branch investigation, and any\nOrchestrator v2 change."
+}

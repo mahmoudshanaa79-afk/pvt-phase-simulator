@@ -3,25 +3,14 @@
   "phase": "post-v1.0-extensions",
   "workflow_status": "APPROVED",
   "last_scientific_commit": "d2a0a74",
-  "last_independent_audit_commit": "a0dcaf3c6a3ea96437ba8bca9305bb92815c024d",
+  "last_independent_audit_commit": "824dd6892f521c033af423f0d60286c4ccb3d64b",
   "work_packages_since_audit": 0,
-  "current_work_package": "v2_01_a_validation_core",
+  "current_work_package": "v2_01_b_module17_adapter",
   "current_risk": "MEDIUM",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
-  "safe_defer_findings": [
-    {
-      "id": "C-1",
-      "severity": "C",
-      "blocks": false,
-      "summary": "ValidationRecord's AGREES_WITHIN_UNCERTAINTY/OUTSIDE_UNCERTAINTY guard in models.py checks that ANY reference_value in the case has an uncertainty, not that the reference_value for the specific quantity being compared does \u2014 allowing an uncertainty-based status to be attached to a comparison whose own quantity has no source-reported uncertainty, as long as an unrelated reference_value in the same case happens to carry one."
-    },
-    {
-      "id": "C-1",
-      "note": "Tighten the uncertainty-status check in ValidationRecord.__post_init__ to match on value.quantity against the predicted quantity before V2-01-C begins assigning real statuses from computed comparisons."
-    }
-  ],
+  "safe_defer_findings": [],
   "deferred_independent_audits": [
     {
       "status": "PENDING_INDEPENDENT_AUDIT",
@@ -64,29 +53,29 @@
   "last_error": null,
   "workflow_id": "c3d365745ae6",
   "builder": "codex",
-  "reviewer": "claude",
+  "reviewer": "codex",
   "last_completed_stage": "committed",
   "verification_status": "passed",
-  "base_commit": "610057c878a231565f2beff10e5fd13825458e46",
-  "resulting_commit": "a0dcaf3c6a3ea96437ba8bca9305bb92815c024d",
-  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260909-164240-v2_01_a_validation_core-codex-report.md",
+  "base_commit": "8a1205afe1b93e08aedc02e54d95caa900bff822",
+  "resulting_commit": "824dd6892f521c033af423f0d60286c4ccb3d64b",
+  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260910-105648-v2_01_b_module17_adapter-codex-report.md",
   "builder_evidence": {
     "builder": "codex",
-    "package": "v2_01_a_validation_core",
+    "package": "v2_01_b_module17_adapter",
     "workflow_id": "c3d365745ae6",
-    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260909-164240-v2_01_a_validation_core-codex-report.md",
-    "report_sha256": "c3932b6facd4e7036cb03c813d47bce4b17b7df129d187059aea18a254659c4b",
+    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260910-105648-v2_01_b_module17_adapter-codex-report.md",
+    "report_sha256": "02fdd135751b01071e150910e2c1897078ce2459fbed88eef5fe1fde49890d5a",
     "revision": 1,
     "kind": "build"
   },
-  "tree_fingerprint": "c300734d969a1fe756c603b731876f65cbf01310a0c6e717cfa5192ecddb4080",
+  "tree_fingerprint": "3c18789be29477c9f1539c735cf04ee990c1209752e1b8f0c700f5074038d8df",
   "revisions": [
     {
-      "package": "v2_01_a_validation_core",
+      "package": "v2_01_b_module17_adapter",
       "revision": 1,
       "author": "codex",
       "kind": "build",
-      "at": 1788963506.7869718
+      "at": 1789028377.199698
     }
   ],
   "role_transitions": [
@@ -159,6 +148,13 @@
       "to_builder": "claude",
       "reason": "preferred builder claude is available",
       "at": 1788862175.1038766
+    },
+    {
+      "package": "v2_01_b_module17_adapter",
+      "from_builder": "codex",
+      "to_builder": "claude",
+      "reason": "preferred builder claude is available",
+      "at": 1789028920.3494034
     }
   ],
   "history": [
@@ -969,6 +965,61 @@
     },
     {
       "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_b_module17_adapter"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CORRECTION_REQUIRED",
+      "reason": "local verification failed"
+    },
+    {
+      "from": "CORRECTION_REQUIRED",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 1"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "role policy: Claude is a read-only reviewer and may not build or correct; preserve the work and wait for Codex"
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "PLANNING",
+      "reason": "external resume shim: v2_01_b_module17_adapter build is complete and its work is intact; resuming into verification, independent audit and commit"
+    },
+    {
+      "from": "PLANNING",
       "to": "LOCAL_VERIFY",
       "reason": "running local gates"
     },
