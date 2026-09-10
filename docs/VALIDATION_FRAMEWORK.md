@@ -74,3 +74,21 @@ contains no migration framework.
 `run_metadata` block contains only `run_id` and UTC `timestamp_utc`; stable package,
 commit, interpreter, platform, dataset identity/hash, command, and record content live
 outside that volatile block so run diffs remain meaningful.
+
+## Deferred to V2-01-C
+
+**C-1 — the uncertainty-status guard is too permissive.** `ValidationRecord`
+currently accepts `AGREES_WITHIN_UNCERTAINTY` or `OUTSIDE_UNCERTAINTY` when *any*
+reference value in the case carries an uncertainty, rather than requiring the
+uncertainty to belong to the quantity actually being compared. A case whose pressure
+has a published uncertainty but whose composition does not could therefore carry an
+uncertainty-based status on the composition comparison, implying a rigour the source
+does not support.
+
+Nothing assigns these statuses yet, so no result is currently affected. The check must
+match on `value.quantity` against the quantity under comparison, and that is an
+explicit acceptance criterion for V2-01-C, which is the package that first computes
+comparisons and assigns statuses from them.
+
+Found by the independent audit of V2-01-A, which reached it by writing its own
+adversarial probe rather than reading the shipped tests.
