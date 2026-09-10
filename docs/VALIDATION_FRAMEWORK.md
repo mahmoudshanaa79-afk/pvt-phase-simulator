@@ -92,3 +92,19 @@ comparisons and assigns statuses from them.
 
 Found by the independent audit of V2-01-A, which reached it by writing its own
 adversarial probe rather than reading the shipped tests.
+
+**C-2 — standard versus expanded uncertainty.** The metrics and status engine must
+distinguish standard uncertainty `u` from expanded uncertainty `U = k*u`.
+
+Where a source already publishes an expanded uncertainty, comparison uses that
+published `U` directly. It must never be expanded again: multiplying a published `U`
+by a coverage factor would silently double the tolerance and turn disagreement into
+apparent agreement. Where a source supplies a standard uncertainty and a coverage
+factor, expansion may be derived, but only when scientifically justified and
+explicitly represented in the record.
+
+Where `coverage_factor` is unknown, it stays unknown. A stated 95% confidence level is
+not a licence to assume `k = 2`; the May et al. 2015 manifest states the confidence
+level and never states `k`, which is exactly the case this rule exists to protect.
+
+This is V2-01-C scope. V2-01-B assigns no uncertainty-based accuracy statuses at all.
