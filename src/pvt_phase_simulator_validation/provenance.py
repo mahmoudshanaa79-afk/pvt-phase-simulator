@@ -68,17 +68,34 @@ class UnitConversion:
 class Uncertainty:
     """A source-reported uncertainty in the quantity's canonical SI unit."""
 
-    value: float
+    value: float | tuple[float, ...]
     kind: UncertaintyKind
     coverage_factor: float | None
     confidence_level_percent: float | None
     source: str
 
     def __post_init__(self) -> None:
-        require_finite(self.value, "uncertainty value")
-        if self.value < 0.0:
-            raise ValueError("uncertainty value must be non-negative")
-        object.__setattr__(self, "value", float(self.value))
+        if isinstance(self.value, bool):
+            raise TypeError("uncertainty value must be a scalar or vector of numbers")
+        if isinstance(self.value, (int, float)):
+            require_finite(self.value, "uncertainty value")
+            if self.value < 0.0:
+                raise ValueError("uncertainty value must be non-negative")
+            object.__setattr__(self, "value", float(self.value))
+        else:
+            if not isinstance(self.value, tuple):
+                raise TypeError("uncertainty value vectors must be immutable tuples")
+            if not self.value:
+                raise ValueError("uncertainty value vectors must not be empty")
+            for item in self.value:
+                if isinstance(item, bool) or not isinstance(item, (int, float)):
+                    raise TypeError(
+                        "uncertainty value vectors must contain only numbers"
+                    )
+                require_finite(item, "uncertainty value")
+                if item < 0.0:
+                    raise ValueError("uncertainty value must be non-negative")
+            object.__setattr__(self, "value", tuple(float(item) for item in self.value))
         require_enum(self.kind, UncertaintyKind, "uncertainty kind")
         if self.coverage_factor is not None:
             require_finite(self.coverage_factor, "coverage_factor")

@@ -43,6 +43,13 @@ from .models import (
     ValidationRun,
     require_supported_schema_version,
 )
+from .module17_adapter import (
+    LEGACY_SOLVER_OUTCOME_KEY,
+    RETROSPECTIVE_DIAGNOSTIC_KIND,
+    Module17Adaptation,
+    adapt_module17_evidence,
+    load_module17_validation_evidence,
+)
 from .provenance import (
     CompoundIdentity,
     OriginalUnit,
@@ -61,6 +68,8 @@ from .serialization import (
 
 __all__ = [
     "MOLE_FRACTION_SUM_ABSOLUTE_TOLERANCE",
+    "LEGACY_SOLVER_OUTCOME_KEY",
+    "RETROSPECTIVE_DIAGNOSTIC_KIND",
     "SCHEMA_VERSION",
     "SUPPORTED_SCHEMA_VERSIONS",
     "CapabilityUnderTest",
@@ -77,6 +86,7 @@ __all__ = [
     "JsonScalar",
     "JsonValue",
     "MixedDataClassError",
+    "Module17Adaptation",
     "OriginalUnit",
     "PredictionOutcome",
     "PredictionValue",
@@ -97,6 +107,7 @@ __all__ = [
     "ValidationRecord",
     "ValidationRun",
     "ValidationStatus",
+    "adapt_module17_evidence",
     "decode_reference_dataset",
     "decode_validation_record",
     "decode_validation_run",
@@ -104,6 +115,7 @@ __all__ = [
     "encode_validation_record",
     "encode_validation_run",
     "homogeneous_data_class",
+    "load_module17_validation_evidence",
     "normalize_sha256",
     "require_supported_schema_version",
     "summarize_cross_check_agreement",

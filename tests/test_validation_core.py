@@ -361,6 +361,87 @@ def test_uncertainty_absence_is_none_and_reported_zero_is_representable() -> Non
     assert reported_zero.uncertainty.value == 0.0
 
 
+def _uncertainty(value: float | tuple[float, ...]) -> Uncertainty:
+    return Uncertainty(
+        value=value,
+        kind=UncertaintyKind.EXPANDED,
+        coverage_factor=None,
+        confidence_level_percent=95.0,
+        source="Synthetic source-reported expanded uncertainty.",
+    )
+
+
+@pytest.mark.parametrize(
+    ("reference_value", "uncertainty_value"),
+    [
+        (1.0, (0.1,)),
+        ((0.25, 0.75), 0.1),
+    ],
+)
+def test_reference_value_rejects_scalar_vector_uncertainty_shape_mismatches(
+    reference_value: float | tuple[float, ...],
+    uncertainty_value: float | tuple[float, ...],
+) -> None:
+    with pytest.raises(ValueError, match="same scalar/vector shape"):
+        ReferenceValue(
+            ValidationQuantity.MOLE_FRACTION,
+            reference_value,
+            _uncertainty(uncertainty_value),
+        )
+
+
+def test_reference_value_rejects_wrong_uncertainty_vector_length() -> None:
+    with pytest.raises(ValueError, match="uncertainty vector length"):
+        ReferenceValue(
+            ValidationQuantity.MOLE_FRACTION,
+            (0.25, 0.75),
+            _uncertainty((0.01, 0.01, 0.01)),
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        (0.1, float("nan")),
+        (0.1, float("inf")),
+    ],
+)
+def test_uncertainty_rejects_non_finite_scalar_and_vector_values(
+    value: float | tuple[float, ...],
+) -> None:
+    with pytest.raises(ValueError, match="finite"):
+        _uncertainty(value)
+
+
+@pytest.mark.parametrize("value", [-0.1, (0.1, -0.01)])
+def test_uncertainty_rejects_negative_scalar_and_vector_values(
+    value: float | tuple[float, ...],
+) -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        _uncertainty(value)
+
+
+@pytest.mark.parametrize("value", [True, (0.1, True), [0.1, 0.2]])
+def test_uncertainty_rejects_non_numeric_or_mutable_values(value: object) -> None:
+    with pytest.raises(TypeError, match="uncertainty value"):
+        _uncertainty(value)  # type: ignore[arg-type]
+
+
+def test_vector_uncertainty_retains_explicit_zero_and_component_order() -> None:
+    value = ReferenceValue(
+        ValidationQuantity.MOLE_FRACTION,
+        (0.25, 0.75),
+        _uncertainty((0.0, 0.02)),
+    )
+    case = replace(_case(), reference_values=(value,))
+    assert case.component_ids == ("methane", "ethane")
+    assert value.uncertainty is not None
+    assert value.uncertainty.value == (0.0, 0.02)
+
+
 @pytest.mark.parametrize(
     "composition",
     [(0.2, 0.2), (-0.1, 1.1), (0.1, 0.2, 0.7)],

@@ -20,6 +20,8 @@ from pvt_phase_simulator_validation import (
     RunMetadata,
     SchemaVersionError,
     SerializationError,
+    Uncertainty,
+    UncertaintyKind,
     UnsupportedValueError,
     ValidationPrediction,
     ValidationQuantity,
@@ -107,6 +109,40 @@ def test_float_serialization_uses_python_round_trip_representation() -> None:
     assert repr(value) in encoded
     decoded = decode_validation_record(encoded)
     assert decoded.prediction.values[0].value == value
+
+
+def test_uncertainty_scalar_and_vector_shapes_survive_round_trip() -> None:
+    dataset = _dataset()
+    vector_uncertainty = Uncertainty(
+        value=(0.025, 0.01),
+        kind=UncertaintyKind.EXPANDED,
+        coverage_factor=None,
+        confidence_level_percent=95.0,
+        source="Synthetic per-component expanded uncertainty.",
+    )
+    composition = dataset.cases[0].reference_values[1]
+    case = replace(
+        dataset.cases[0],
+        reference_values=(
+            dataset.cases[0].reference_values[0],
+            replace(composition, uncertainty=vector_uncertainty),
+        ),
+    )
+    encoded = encode_reference_dataset(replace(dataset, cases=(case,)))
+    document = _document(encoded)
+    decoded = decode_reference_dataset(encoded)
+    decoded_pressure = decoded.cases[0].reference_values[0].uncertainty
+    decoded_composition = decoded.cases[0].reference_values[1].uncertainty
+
+    assert decoded_pressure is not None
+    assert isinstance(decoded_pressure.value, float)
+    assert decoded_composition is not None
+    assert decoded_composition.value == (0.025, 0.01)
+    assert isinstance(decoded_composition.value, tuple)
+    assert document["reference_dataset"]["cases"][0]["reference_values"][1][
+        "uncertainty"
+    ]["value"] == [0.025, 0.01]
+    assert encode_reference_dataset(decoded) == encoded
 
 
 def test_record_identity_is_retained_and_decoder_takes_no_identity_argument() -> None:
@@ -233,8 +269,8 @@ def test_unknown_fields_are_not_silently_dropped() -> None:
 def test_duplicate_json_keys_are_rejected_instead_of_overwritten() -> None:
     encoded = encode_validation_record(_record()).decode()
     tampered = encoded.replace(
-        '"schema_version":"1.0"',
-        '"schema_version":"1.0","schema_version":"99.0"',
+        f'"schema_version":"{SCHEMA_VERSION}"',
+        f'"schema_version":"{SCHEMA_VERSION}","schema_version":"99.0"',
         1,
     )
     with pytest.raises(SerializationError, match="duplicate JSON object key"):

@@ -23,7 +23,7 @@ from .hashing import normalize_sha256
 from .json_values import FrozenJsonObject, JsonValue, freeze_json
 from .provenance import SourceManifest, Uncertainty
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 SUPPORTED_SCHEMA_VERSIONS = frozenset({SCHEMA_VERSION})
 MOLE_FRACTION_SUM_ABSOLUTE_TOLERANCE = 1.0e-12
 
@@ -89,6 +89,22 @@ class ReferenceValue:
             self.uncertainty, Uncertainty
         ):
             raise TypeError("uncertainty must be Uncertainty or None")
+        if self.uncertainty is not None:
+            value_is_vector = isinstance(self.value, tuple)
+            uncertainty_is_vector = isinstance(self.uncertainty.value, tuple)
+            if value_is_vector != uncertainty_is_vector:
+                raise ValueError(
+                    "reference value and uncertainty must have the same scalar/vector "
+                    "shape"
+                )
+            if (
+                isinstance(self.value, tuple)
+                and isinstance(self.uncertainty.value, tuple)
+                and len(self.value) != len(self.uncertainty.value)
+            ):
+                raise ValueError(
+                    "uncertainty vector length must match the reference-value vector"
+                )
 
 
 @dataclass(frozen=True, slots=True)

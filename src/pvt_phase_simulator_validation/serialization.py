@@ -133,7 +133,7 @@ def _identity_from(payload: object) -> DatasetIdentity:
 
 def _uncertainty_payload(value: Uncertainty) -> dict[str, object]:
     return {
-        "value": value.value,
+        "value": _value_payload(value.value),
         "kind": value.kind.value,
         "coverage_factor": value.coverage_factor,
         "confidence_level_percent": value.confidence_level_percent,
@@ -152,7 +152,7 @@ def _uncertainty_from(payload: object) -> Uncertainty:
     )
     _require_keys(item, fields, "uncertainty")
     return Uncertainty(
-        value=_number(item["value"], "uncertainty.value"),
+        value=_value_from(item["value"], "uncertainty.value"),
         kind=_enum(item["kind"], UncertaintyKind, "uncertainty.kind"),
         coverage_factor=_optional_number(
             item["coverage_factor"], "uncertainty.coverage_factor"
