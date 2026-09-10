@@ -1,0 +1,74 @@
+{
+  "name": "v2_01_a_validation_core",
+  "objective": "Create the type system, provenance model and serialization contract that every future\nOpenPhase validation dataset will use, so that adding a new publication later means\nwriting a manifest and a small loader rather than building another bespoke validation\npipeline. This package writes NO science, computes NO error metrics, and adds NO data.\nIts value is that it makes certain scientific mistakes structurally difficult.\n\nTHE CENTRAL REQUIREMENT\nA comparison against EXPERIMENT and a comparison against ANOTHER MODEL must never be\ncombinable into one statistic. Enforce this with types, not conventions:\n\n- DataClass is EXPERIMENTAL_VALIDATION or NUMERICAL_CROSS_CHECK.\n- It is declared once on the dataset and propagated immutably into every case and\n  record. There must be NO public API through which a caller supplies or overrides a\n  record's DataClass independently of its parent dataset.\n- Aggregation entry points accept only a homogeneous collection and raise\n  MixedDataClassError otherwise.\n- Summary containers are DISTINCT TYPES with distinct vocabulary:\n  ExperimentalAccuracySummary (speaks of accuracy) and CrossCheckAgreementSummary\n  (speaks of agreement). There must be no type into which both kinds of record can be\n  placed.\n\nCLARIFICATION 1 - DATASET AND DATA-CLASS IDENTITY\nIntroduce a small immutable DatasetIdentity value object carrying exactly dataset_id,\ndataset_version and data_class. A ValidationCase and a ValidationRecord each hold that\nidentity, so they know their own provenance without any caller re-supplying it. Cases\nare created through, or reference, their parent dataset identity, and construction\nvalidates that a case's identity agrees with the dataset that contains it;\ndisagreement is an error, never a silent fix.\n\nSerialized records explicitly retain the immutable dataset identity, including\ndata_class, and decoding restores it from the payload rather than from any caller\nargument. Provide adversarial tests proving that a record decoded from serialized form\ncannot be reclassified from EXPERIMENTAL_VALIDATION to NUMERICAL_CROSS_CHECK or the\nreverse, through constructors, decoding, copying, dataclasses.replace, or mutation.\n\nCLARIFICATION 2 - HASH VERIFICATION RESPONSIBILITY\nThis package does not load real datasets, so it must NOT claim that constructing a\nReferenceDataset proves normalized_sha256 matches external content: no content bytes\nor path are supplied here. The responsibility of this package is limited to\nrepresenting source hashes, validating their syntax and shape (64 hexadecimal\ncharacters for SHA-256, normalized consistently), preserving them faithfully through\nserialization, and providing one deterministic helper that verifies SUPPLIED bytes or\ncontent against an expected hash.\n\nActual verification of normalized dataset content happens later, in V2-01-B or\nV2-01-E, where a loader holds the real content. Test the helper with synthetic\nin-memory bytes only. Do not read anything under data/ or docs/validation/.\n\nCLARIFICATION 3 - SCHEMA AND ENUM EVOLUTION\nDo not claim new quantities or capabilities can be added \"without schema change\"\nunqualified. Define this behaviour explicitly and simply:\n- schema_version identifies the serialization contract.\n- Adding an enum member may be backward compatible for writers and readers that\n  support it.\n- A reader encountering an unknown or unsupported required enum value, or an\n  unsupported schema_version, MUST fail explicitly with a clear error\n  (SchemaVersionError or an unsupported-value error).\n- Never silently coerce, default, or drop an unknown quantity or capability.\nDo NOT build a migration framework in this package.\n\nDATA MODEL\nCanonical SI throughout; original units and conversions recorded as provenance.\n- ReferenceDataset: identity (DatasetIdentity), schema_version, SourceManifest,\n  CapabilityUnderTest, and its cases.\n- ValidationCase: case_id, dataset identity, system_id, ordered component_ids,\n  specified_conditions (what is given) and reference_values (what is compared), plus a\n  reference back to the source point (row or dataset number).\n  Separating specified conditions from reference values is what makes the schema\n  source-agnostic: a bubble point specifies temperature and liquid composition and\n  references pressure and vapour composition; a pure saturation point specifies\n  temperature and references pressure; a flash specifies temperature, pressure and\n  feed and references vapour fraction and phase compositions. One schema, no\n  per-publication special cases.\n- ReferenceValue: quantity, value (scalar or component-indexed vector), optional\n  Uncertainty.\n- ValidationPrediction: case_id, outcome (VALUE or FAILURE), values (empty on\n  failure), failure_reason, diagnostics preserved verbatim, solver metadata.\n- ValidationRecord: case + prediction + status + dataset identity. Error metrics are\n  attached later by V2-01-C and are NOT computed here.\n- ValidationRun: records plus reproducibility metadata.\n\nCapabilityUnderTest: PURE_SATURATION_PRESSURE, BUBBLE_POINT, DEW_POINT, FLASH,\nCRITICAL_POINT, COMPRESSIBILITY.\n\nValidationQuantity: PRESSURE, TEMPERATURE, MOLE_FRACTION, VAPOR_FRACTION,\nCOMPRESSIBILITY_FACTOR, DENSITY. Each quantity carries its canonical SI unit and a\nrelative_error_meaningful boolean with a short rationale. MOLE_FRACTION and\nVAPOR_FRACTION are False because they approach 0 and 1, so percentage error is\nmeaningless there. V2-01-C will consume this flag; encoding it here makes the rule\nstructural rather than a convention.\n\nPROVENANCE\nSourceManifest generalizes the existing may_2015 manifest, which is already the right\nshape: source_id, citation_text, doi, archive_name, archive_url, access_date,\nraw_sha256, normalized_sha256, raw_snapshot_retained, raw_snapshot_policy,\nmeasurement_methods, uncertainty_definition, coverage_factor,\nconfidence_level_percent, original_units, unit_conversions, compound identity mapping\n(name, formula, InChIKey, CAS), extraction_method and data_class. A dataset cannot be\nconstructed without citation and hash fields present.\n\nUncertainty: value in SI, kind (STANDARD or EXPANDED), coverage_factor,\nconfidence_level_percent, source. Absent uncertainty is None - never zero, never\nimputed.\n\nSTATUS VOCABULARY\nAGREES_WITHIN_UNCERTAINTY, OUTSIDE_UNCERTAINTY, AGREES_WITHIN_DECLARED_TOLERANCE,\nOUTSIDE_DECLARED_TOLERANCE, REPORTED_NO_TOLERANCE, SOLVER_FAILURE,\nREFERENCE_UNAVAILABLE, EXCLUDED.\n\nREPORTED_NO_TOLERANCE is the honest default: a quantitative error is recorded and no\nbadge is asserted. Define the vocabulary and its consistency rules here; V2-01-C\ncomputes and assigns statuses.\n\nDeclaredTolerance is a record type carrying quantity, value, unit, justification,\nsource_citation and scope. It cannot be constructed without a justification and a\ncitation. SHIP ZERO INSTANCES of it in this package. Invent no thresholds anywhere.\n\nREPRODUCIBILITY\nValidationRun pins run_id, UTC timestamp, framework schema_version, OpenPhase package\nversion, git commit SHA, Python version, platform, dataset ids with versions and\ncontent hashes, and the reproduction command. Records are ordered deterministically by\ncase_id. Two runs on the same commit and dataset must produce byte-identical output\napart from run_id and timestamp, which stay confined to one clearly delimited metadata\nblock so diffs remain meaningful.\n\nINVARIANTS TO ENFORCE AND TEST\n1. A record's data_class always equals its dataset's; it cannot be set independently.\n2. Building a summary from records of more than one data_class raises\n   MixedDataClassError.\n3. ExperimentalAccuracySummary rejects NUMERICAL_CROSS_CHECK records, and vice versa.\n4. A prediction with outcome FAILURE carries no values and forces SOLVER_FAILURE\n   status.\n5. A record with status EXCLUDED must carry a non-empty exclusion_reason.\n6. A DeclaredTolerance without justification and source_citation cannot be constructed.\n7. Absent uncertainty is None; zero is representable only if the source states it.\n8. Mole-fraction vectors are ordered by the dataset's component_ids and sum to 1\n   within a stated tolerance, or the case is rejected at construction.\n9. All dataclasses are frozen; datasets, cases and records are immutable.\n10. encode then decode then encode is byte-identical.\n11. Serialized floats use round-trip repr, matching the golden-master convention.\n12. Source hashes are syntactically validated and preserved through serialization; the\n    content-verification helper accepts matching and rejects non-matching supplied\n    bytes. Construction does NOT claim to have verified external content.\n13. Unknown or unsupported enum values and schema versions are rejected explicitly.\n14. No API returns a boolean meaning \"accuracy passed\".\n\nBUILD-TIME TESTING POLICY\nRun only focused tests for what you changed, plus Ruff and mypy if useful. Do NOT run\nthe whole pytest suite for reassurance; the orchestrator runs the authoritative\nfull-suite verification after you finish, and duplicating it wastes a great deal of\nwall-clock time. All fixtures in this package are synthetic and in-memory: no test may\nread data/ or docs/validation/, which keeps this package independent of V2-01-B and E.",
+  "risk": "MEDIUM",
+  "allowed_files": [
+    "src/pvt_phase_simulator_validation/**",
+    "tests/test_validation_*.py",
+    "docs/VALIDATION_FRAMEWORK.md"
+  ],
+  "protected_files": [
+    "src/pvt_phase_simulator",
+    "data",
+    "docs/validation",
+    "tests/golden_master",
+    "src/pvt_phase_simulator_ui",
+    "tools/orchestration"
+  ],
+  "scientific_invariants": [
+    "The scientific engine is frozen: no file under src/pvt_phase_simulator/, data/, docs/validation/ or tests/golden_master/ may change.",
+    "This package performs no thermodynamic calculation and imports nothing from pvt_phase_simulator.eos.",
+    "EXPERIMENTAL_VALIDATION and NUMERICAL_CROSS_CHECK records can never be combined into one statistic or summary.",
+    "A record's DataClass is inseparable from its dataset identity and survives serialization and decoding unchanged.",
+    "No accuracy threshold, default tolerance, or boolean meaning 'accuracy passed' may exist anywhere in this package.",
+    "Solver failures are preserved as failures and can never become ordinary successful records.",
+    "Provenance cannot be constructed incomplete: a dataset requires citation and hash fields.",
+    "Hash claims must not exceed what is actually verified: construction validates hash syntax only; content verification requires supplied bytes.",
+    "Unknown or unsupported enum values and schema versions are rejected explicitly and never silently coerced."
+  ],
+  "required_tests": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  ],
+  "required_quality_gates": [
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "mypy",
+      "src",
+      "app"
+    ],
+    [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "compileall",
+      "-q",
+      "src",
+      "app"
+    ]
+  ],
+  "audit_policy": "IMMEDIATE",
+  "commit_policy": "AFTER_AUDIT",
+  "dependencies": [],
+  "status": "COMMITTED",
+  "notes": "Model accuracy never gates CI. Software correctness (deterministic, tight tolerances,\nregression and invariants) may fail a build; disagreement between Peng-Robinson and\nexperiment is a scientific finding and must remain visible rather than be tuned away.\nNo function here may return a boolean meaning accuracy passed.\n\nThis package imports nothing from pvt_phase_simulator.eos and performs no\nthermodynamic calculation. If the implementation appears to require an engine change,\nthat is a signal to stop, not to proceed.\n\nExplicitly out of scope: new datasets, CoolProp or any new dependency, CO2, error\nmetrics, accuracy thresholds, the dashboard, the report, the Module 17 adapter, the\nCH4+C3H8 dew-branch investigation, and any Orchestrator v2 change."
+}

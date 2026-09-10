@@ -3,10 +3,10 @@
   "phase": "post-v1.0-extensions",
   "workflow_status": "APPROVED",
   "last_scientific_commit": "d2a0a74",
-  "last_independent_audit_commit": "f7f6e79286dbced51f07ea19ab95d0c986bad9f4",
+  "last_independent_audit_commit": "a0dcaf3c6a3ea96437ba8bca9305bb92815c024d",
   "work_packages_since_audit": 0,
-  "current_work_package": "05_v1_2_release_qa",
-  "current_risk": "LOW",
+  "current_work_package": "v2_01_a_validation_core",
+  "current_risk": "MEDIUM",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
@@ -15,13 +15,11 @@
       "id": "C-1",
       "severity": "C",
       "blocks": false,
-      "summary": "reports.py's _termination_failed() substring check ('failed'/'failure'/'lost') under-classifies EnvelopeTerminationReason.MINIMUM_STEP_REACHED as non-failure even though its own message states 'without an acceptable correction' \u2014 contradicting the existing D-4 note's claim that the classifier is correct for all known enum members. Impact is cosmetic only (raw termination_status/message are always shown verbatim regardless), so no fabricated or hidden result occurs."
+      "summary": "ValidationRecord's AGREES_WITHIN_UNCERTAINTY/OUTSIDE_UNCERTAINTY guard in models.py checks that ANY reference_value in the case has an uncertainty, not that the reference_value for the specific quantity being compared does \u2014 allowing an uncertainty-based status to be attached to a comparison whose own quantity has no source-reported uncertainty, as long as an unrelated reference_value in the same case happens to carry one."
     },
     {
-      "id": "D-5",
-      "severity": "D",
-      "blocks": false,
-      "summary": "In run_app(), store_result_action_failure() for a failed flash retry is only set after page.run() has already rendered the Overview body, and there is no st.rerun() on the failure path \u2014 so on the exact run where a flash action fails, Overview shows the generic 'no result yet' info message instead of the specific failure text (which only appears in the sidebar that run, and in Overview on the next rerun). The new regression test only checks that some st.error element anywhere contains the message, so it doesn't catch this ordering gap. No stale/false data is ever shown."
+      "id": "C-1",
+      "note": "Tighten the uncertainty-status check in ValidationRecord.__post_init__ to match on value.quantity against the predicted quantity before V2-01-C begins assigning real statuses from computed comparisons."
     }
   ],
   "deferred_independent_audits": [
@@ -69,26 +67,26 @@
   "reviewer": "claude",
   "last_completed_stage": "committed",
   "verification_status": "passed",
-  "base_commit": "b95f80c2889f95b4164959f187a111dad67b3394",
-  "resulting_commit": "f7f6e79286dbced51f07ea19ab95d0c986bad9f4",
-  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260908-133040-05_v1_2_release_qa-codex-report.md",
+  "base_commit": "610057c878a231565f2beff10e5fd13825458e46",
+  "resulting_commit": "a0dcaf3c6a3ea96437ba8bca9305bb92815c024d",
+  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260909-164240-v2_01_a_validation_core-codex-report.md",
   "builder_evidence": {
     "builder": "codex",
-    "package": "05_v1_2_release_qa",
+    "package": "v2_01_a_validation_core",
     "workflow_id": "c3d365745ae6",
-    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260908-133040-05_v1_2_release_qa-codex-report.md",
-    "report_sha256": "ff28f99db820b91d24d2a41a7ef0f53ba918597719bf4d861a9e4e3439679c90",
+    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260909-164240-v2_01_a_validation_core-codex-report.md",
+    "report_sha256": "c3932b6facd4e7036cb03c813d47bce4b17b7df129d187059aea18a254659c4b",
     "revision": 1,
     "kind": "build"
   },
-  "tree_fingerprint": "2d904d41672955f76341b976503524b2815ab3a5dd269a9c8b7d9edfc0fae8d6",
+  "tree_fingerprint": "c300734d969a1fe756c603b731876f65cbf01310a0c6e717cfa5192ecddb4080",
   "revisions": [
     {
-      "package": "05_v1_2_release_qa",
+      "package": "v2_01_a_validation_core",
       "revision": 1,
       "author": "codex",
       "kind": "build",
-      "at": 1788865133.0810683
+      "at": 1788963506.7869718
     }
   ],
   "role_transitions": [
@@ -928,6 +926,36 @@
       "from": "APPROVED",
       "to": "PLANNING",
       "reason": "planning 05_v1_2_release_qa"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_a_validation_core"
     },
     {
       "from": "PLANNING",
