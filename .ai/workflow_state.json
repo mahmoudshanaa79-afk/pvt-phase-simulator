@@ -3,14 +3,45 @@
   "phase": "post-v1.0-extensions",
   "workflow_status": "APPROVED",
   "last_scientific_commit": "d2a0a74",
-  "last_independent_audit_commit": "824dd6892f521c033af423f0d60286c4ccb3d64b",
+  "last_independent_audit_commit": "0ed294244eb874dc99927ddbf4fb0ea7dc1ce0c1",
   "work_packages_since_audit": 0,
-  "current_work_package": "v2_01_b_module17_adapter",
+  "current_work_package": "v2_01_c_validation_metrics",
   "current_risk": "MEDIUM",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
-  "safe_defer_findings": [],
+  "safe_defer_findings": [
+    {
+      "id": "D-1",
+      "severity": "C",
+      "blocks": false,
+      "summary": "serialization.py's plain decode path lacks parse_constant NaN/Infinity rejection at parse time; currently caught by downstream finite-value validators but that path is untested directly."
+    },
+    {
+      "id": "D-2",
+      "severity": "D",
+      "blocks": false,
+      "summary": "comparisons.py:_shape raises an unhandled ValueError instead of a graceful UndefinedMetric when predicted-reference overflows to inf for astronomically large finite inputs; not reachable by real PVT magnitudes."
+    },
+    {
+      "id": "D-3",
+      "severity": "D",
+      "blocks": false,
+      "summary": "aggregates.py reports only the first per-observation reason (relative_reasons[0]) instead of NO_USABLE_OBSERVATIONS when zero usable observations result from mixed relative-denominator failure reasons."
+    },
+    {
+      "id": "D-4",
+      "severity": "D",
+      "blocks": false,
+      "summary": "Uncertainty-agreement stratification keys on coverage_factor/confidence_level_percent by exact float equality; safe failure direction (under-pooling) but a latent fragility."
+    },
+    {
+      "id": "D-5",
+      "severity": "D",
+      "blocks": false,
+      "summary": "DENSITY's METRIC_POLICY per_observation/enabled tuples are cosmetically inconsistent with the structurally similar COMPRESSIBILITY_FACTOR entry; no downstream consumer affected today."
+    }
+  ],
   "deferred_independent_audits": [
     {
       "status": "PENDING_INDEPENDENT_AUDIT",
@@ -50,32 +81,32 @@
   "provisional_review_cycles": 0,
   "claude_cost_usd_this_package": 0.0,
   "claude_cost_unknown_runs": 0,
-  "last_error": null,
+  "last_error": "codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260915-000710-v2_01_c_validation_metrics-codex-report.md.",
   "workflow_id": "c3d365745ae6",
   "builder": "codex",
-  "reviewer": "codex",
+  "reviewer": "claude",
   "last_completed_stage": "committed",
   "verification_status": "passed",
-  "base_commit": "8a1205afe1b93e08aedc02e54d95caa900bff822",
-  "resulting_commit": "824dd6892f521c033af423f0d60286c4ccb3d64b",
-  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260910-105648-v2_01_b_module17_adapter-codex-report.md",
+  "base_commit": "f1f0f20c2b28ca93b1f1972e6732a90eca821de1",
+  "resulting_commit": "0ed294244eb874dc99927ddbf4fb0ea7dc1ce0c1",
+  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260915-001203-v2_01_c_validation_metrics-codex-report.md",
   "builder_evidence": {
     "builder": "codex",
-    "package": "v2_01_b_module17_adapter",
+    "package": "v2_01_c_validation_metrics",
     "workflow_id": "c3d365745ae6",
-    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260910-105648-v2_01_b_module17_adapter-codex-report.md",
-    "report_sha256": "02fdd135751b01071e150910e2c1897078ce2459fbed88eef5fe1fde49890d5a",
+    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260915-001203-v2_01_c_validation_metrics-codex-report.md",
+    "report_sha256": "b2f9f7aff4543bab74ecf78b25a2def714abc7dd8c31ff0cadec1784349deeec",
     "revision": 1,
     "kind": "build"
   },
-  "tree_fingerprint": "3c18789be29477c9f1539c735cf04ee990c1209752e1b8f0c700f5074038d8df",
+  "tree_fingerprint": "be1aebee47434186a567c6203ff51d85fd22ec9b80bdd5a4806c98b742d09ae3",
   "revisions": [
     {
-      "package": "v2_01_b_module17_adapter",
+      "package": "v2_01_c_validation_metrics",
       "revision": 1,
       "author": "codex",
       "kind": "build",
-      "at": 1789028377.199698
+      "at": 1789460208.016005
     }
   ],
   "role_transitions": [
@@ -1020,6 +1051,51 @@
     },
     {
       "from": "PLANNING",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_c_validation_metrics"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260915-000710-v2_01_c_validation_metrics-codex-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_c_validation_metrics"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
       "to": "LOCAL_VERIFY",
       "reason": "running local gates"
     },
