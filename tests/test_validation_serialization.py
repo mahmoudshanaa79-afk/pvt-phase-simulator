@@ -13,7 +13,6 @@ from pvt_phase_simulator_validation import (
     SCHEMA_VERSION,
     DataClass,
     DatasetPin,
-    DeclaredTolerance,
     InvariantViolationError,
     MixedDataClassError,
     PredictionOutcome,
@@ -24,7 +23,6 @@ from pvt_phase_simulator_validation import (
     UncertaintyKind,
     UnsupportedValueError,
     ValidationPrediction,
-    ValidationQuantity,
     ValidationRecord,
     ValidationRun,
     ValidationStatus,
@@ -279,14 +277,6 @@ def test_duplicate_json_keys_are_rejected_instead_of_overwritten() -> None:
 
 def test_all_record_status_shapes_round_trip_without_reclassification() -> None:
     base = _record()
-    tolerance = DeclaredTolerance(
-        quantity=ValidationQuantity.PRESSURE,
-        value=100.0,
-        unit="Pa",
-        justification="Synthetic benchmark protocol requirement.",
-        source_citation="Synthetic protocol, section 2.",
-        scope="synthetic pressure comparison",
-    )
     failure_prediction = ValidationPrediction(
         case_id=base.case.case_id,
         outcome=PredictionOutcome.FAILURE,
@@ -297,13 +287,7 @@ def test_all_record_status_shapes_round_trip_without_reclassification() -> None:
         ValidationRecord(
             case=base.case,
             prediction=base.prediction,
-            status=ValidationStatus.AGREES_WITHIN_UNCERTAINTY,
-        ),
-        ValidationRecord(
-            case=base.case,
-            prediction=base.prediction,
-            status=ValidationStatus.OUTSIDE_DECLARED_TOLERANCE,
-            declared_tolerance=tolerance,
+            status=ValidationStatus.REPORTED_NO_TOLERANCE,
         ),
         ValidationRecord(
             case=base.case,

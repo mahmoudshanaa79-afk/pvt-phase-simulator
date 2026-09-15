@@ -12,9 +12,11 @@ from .enums import (
     CapabilityUnderTest,
     DataClass,
     PredictionOutcome,
+    ToleranceKind,
     UncertaintyKind,
     ValidationQuantity,
     ValidationStatus,
+    ValuePhase,
 )
 from .exceptions import (
     InvariantViolationError,
@@ -133,7 +135,7 @@ def _identity_from(payload: object) -> DatasetIdentity:
 
 def _uncertainty_payload(value: Uncertainty) -> dict[str, object]:
     return {
-        "value": _value_payload(value.value),
+        "value": list(value.value) if isinstance(value.value, tuple) else value.value,
         "kind": value.kind.value,
         "coverage_factor": value.coverage_factor,
         "confidence_level_percent": value.confidence_level_percent,
@@ -152,7 +154,11 @@ def _uncertainty_from(payload: object) -> Uncertainty:
     )
     _require_keys(item, fields, "uncertainty")
     return Uncertainty(
-        value=_value_from(item["value"], "uncertainty.value"),
+        value=(
+            tuple(_optional_number(v, "uncertainty.value") for v in item["value"])
+            if isinstance(item["value"], list)
+            else _number(item["value"], "uncertainty.value")
+        ),
         kind=_enum(item["kind"], UncertaintyKind, "uncertainty.kind"),
         coverage_factor=_optional_number(
             item["coverage_factor"], "uncertainty.coverage_factor"
@@ -175,9 +181,21 @@ def _value_from(payload: object, field_name: str) -> float | tuple[float, ...]:
     return _number(payload, field_name)
 
 
+def _component_ids_from(payload: object) -> tuple[str, ...] | None:
+    if payload is None:
+        return None
+    return tuple(
+        _text(item, "component_id") for item in _array(payload, "component_ids")
+    )
+
+
 def _reference_value_payload(value: ReferenceValue) -> dict[str, object]:
     return {
         "quantity": value.quantity.value,
+        "phase": None if value.phase is None else value.phase.value,
+        "component_ids": None
+        if value.component_ids is None
+        else list(value.component_ids),
         "value": _value_payload(value.value),
         "uncertainty": (
             None
@@ -189,29 +207,50 @@ def _reference_value_payload(value: ReferenceValue) -> dict[str, object]:
 
 def _reference_value_from(payload: object) -> ReferenceValue:
     item = _object(payload, "reference_value")
-    _require_keys(item, ("quantity", "value", "uncertainty"), "reference_value")
+    _require_keys(
+        item,
+        ("quantity", "value", "uncertainty", "phase", "component_ids"),
+        "reference_value",
+    )
     uncertainty = item["uncertainty"]
     return ReferenceValue(
         quantity=_enum(
             item["quantity"], ValidationQuantity, "reference_value.quantity"
         ),
         value=_value_from(item["value"], "reference_value.value"),
+        phase=None
+        if item["phase"] is None
+        else _enum(item["phase"], ValuePhase, "phase"),
+        component_ids=_component_ids_from(item["component_ids"]),
         uncertainty=(None if uncertainty is None else _uncertainty_from(uncertainty)),
     )
 
 
 def _prediction_value_payload(value: PredictionValue) -> dict[str, object]:
-    return {"quantity": value.quantity.value, "value": _value_payload(value.value)}
+    return {
+        "quantity": value.quantity.value,
+        "value": _value_payload(value.value),
+        "phase": None if value.phase is None else value.phase.value,
+        "component_ids": None
+        if value.component_ids is None
+        else list(value.component_ids),
+    }
 
 
 def _prediction_value_from(payload: object) -> PredictionValue:
     item = _object(payload, "prediction_value")
-    _require_keys(item, ("quantity", "value"), "prediction_value")
+    _require_keys(
+        item, ("quantity", "value", "phase", "component_ids"), "prediction_value"
+    )
     return PredictionValue(
         quantity=_enum(
             item["quantity"], ValidationQuantity, "prediction_value.quantity"
         ),
         value=_value_from(item["value"], "prediction_value.value"),
+        phase=None
+        if item["phase"] is None
+        else _enum(item["phase"], ValuePhase, "phase"),
+        component_ids=_component_ids_from(item["component_ids"]),
     )
 
 
@@ -315,6 +354,7 @@ def _tolerance_payload(value: DeclaredTolerance) -> dict[str, object]:
         "justification": value.justification,
         "source_citation": value.source_citation,
         "scope": value.scope,
+        "tolerance_kind": value.tolerance_kind.value,
     }
 
 
@@ -327,6 +367,7 @@ def _tolerance_from(payload: object) -> DeclaredTolerance:
         "justification",
         "source_citation",
         "scope",
+        "tolerance_kind",
     )
     _require_keys(item, fields, "declared_tolerance")
     return DeclaredTolerance(
@@ -340,6 +381,7 @@ def _tolerance_from(payload: object) -> DeclaredTolerance:
             item["source_citation"], "declared_tolerance.source_citation"
         ),
         scope=_text(item["scope"], "declared_tolerance.scope"),
+        tolerance_kind=_enum(item["tolerance_kind"], ToleranceKind, "tolerance_kind"),
     )
 
 
@@ -350,11 +392,6 @@ def _record_payload(record: ValidationRecord) -> dict[str, object]:
         "prediction": _prediction_payload(record.prediction),
         "status": record.status.value,
         "exclusion_reason": record.exclusion_reason,
-        "declared_tolerance": (
-            None
-            if record.declared_tolerance is None
-            else _tolerance_payload(record.declared_tolerance)
-        ),
     }
 
 
@@ -366,7 +403,6 @@ def _record_from(payload: object) -> ValidationRecord:
         "prediction",
         "status",
         "exclusion_reason",
-        "declared_tolerance",
     )
     _require_keys(item, fields, "record")
     serialized_identity = _identity_from(item["identity"])
@@ -375,7 +411,6 @@ def _record_from(payload: object) -> ValidationRecord:
         raise InvariantViolationError(
             "serialized record identity disagrees with serialized case identity"
         )
-    tolerance = item["declared_tolerance"]
     return ValidationRecord(
         case=case,
         prediction=_prediction_from(item["prediction"]),
@@ -383,7 +418,6 @@ def _record_from(payload: object) -> ValidationRecord:
         exclusion_reason=_optional_text(
             item["exclusion_reason"], "record.exclusion_reason"
         ),
-        declared_tolerance=(None if tolerance is None else _tolerance_from(tolerance)),
     )
 
 
@@ -587,6 +621,9 @@ def _dataset_from(payload: object) -> ReferenceDataset:
     item = _object(payload, "dataset")
     fields = ("identity", "schema_version", "source_manifest", "capability", "cases")
     _require_keys(item, fields, "dataset")
+    require_supported_schema_version(
+        _text(item["schema_version"], "dataset.schema_version")
+    )
     return ReferenceDataset(
         identity=_identity_from(item["identity"]),
         schema_version=_text(item["schema_version"], "dataset.schema_version"),
@@ -660,6 +697,9 @@ def _run_from(payload: object) -> ValidationRun:
         "reproduction_command",
     )
     _require_keys(reproducibility, fields, "run.reproducibility")
+    require_supported_schema_version(
+        _text(reproducibility["framework_schema_version"], "framework_schema_version")
+    )
     return ValidationRun(
         metadata=RunMetadata(
             run_id=_text(metadata["run_id"], "run.run_metadata.run_id"),

@@ -15,15 +15,23 @@ from .enums import (
     CapabilityUnderTest,
     DataClass,
     PredictionOutcome,
+    ToleranceKind,
     ValidationQuantity,
     ValidationStatus,
+    ValuePhase,
 )
-from .exceptions import InvariantViolationError, MixedDataClassError, SchemaVersionError
+from .exceptions import (
+    ComparisonAlignmentError,
+    ComponentAlignmentError,
+    InvariantViolationError,
+    MixedDataClassError,
+    SchemaVersionError,
+)
 from .hashing import normalize_sha256
 from .json_values import FrozenJsonObject, JsonValue, freeze_json
 from .provenance import SourceManifest, Uncertainty
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 SUPPORTED_SCHEMA_VERSIONS = frozenset({SCHEMA_VERSION})
 MOLE_FRACTION_SUM_ABSOLUTE_TOLERANCE = 1.0e-12
 
@@ -31,6 +39,11 @@ MOLE_FRACTION_SUM_ABSOLUTE_TOLERANCE = 1.0e-12
 def require_supported_schema_version(schema_version: str) -> None:
     """Reject contracts this reader does not implement."""
 
+    if schema_version == "1.1":
+        raise SchemaVersionError(
+            "1.1 records cannot be converted because phase identity, component "
+            "identity and per-quantity assessment semantics would have to be guessed"
+        )
     if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
         raise SchemaVersionError(
             f"unsupported schema_version {schema_version!r}; "
@@ -72,6 +85,38 @@ def _normalize_value(value: Value, field_name: str) -> Value:
     return normalized_vector
 
 
+def validate_value_identity(
+    quantity: ValidationQuantity,
+    phase: ValuePhase | None,
+    value: Value,
+    component_ids: tuple[str, ...] | None,
+) -> None:
+    phased = quantity in {
+        ValidationQuantity.MOLE_FRACTION,
+        ValidationQuantity.COMPRESSIBILITY_FACTOR,
+        ValidationQuantity.DENSITY,
+    }
+    if phased:
+        if phase is None:
+            raise ComparisonAlignmentError(f"{quantity} requires phase")
+        require_enum(phase, ValuePhase, "phase")
+    elif phase is not None:
+        raise ComparisonAlignmentError(f"{quantity} forbids phase")
+    if isinstance(value, tuple):
+        if (
+            not isinstance(component_ids, tuple)
+            or len(component_ids) != len(value)
+            or len(set(component_ids)) != len(component_ids)
+        ):
+            raise ComponentAlignmentError(
+                f"{quantity} vector requires unique component_ids of matching length"
+            )
+        for component in component_ids:
+            require_non_empty(component, "component_id")
+    elif component_ids is not None:
+        raise ComponentAlignmentError("scalar forbids component_ids")
+
+
 @dataclass(frozen=True, slots=True)
 class ReferenceValue:
     """A canonical-SI source value, optionally with reported uncertainty."""
@@ -79,6 +124,8 @@ class ReferenceValue:
     quantity: ValidationQuantity
     value: Value
     uncertainty: Uncertainty | None = None
+    phase: ValuePhase | None = None
+    component_ids: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         require_enum(self.quantity, ValidationQuantity, "quantity")
@@ -106,6 +153,10 @@ class ReferenceValue:
                     "uncertainty vector length must match the reference-value vector"
                 )
 
+        validate_value_identity(
+            self.quantity, self.phase, self.value, self.component_ids
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class PredictionValue:
@@ -113,6 +164,8 @@ class PredictionValue:
 
     quantity: ValidationQuantity
     value: Value
+    phase: ValuePhase | None = None
+    component_ids: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         require_enum(self.quantity, ValidationQuantity, "quantity")
@@ -120,10 +173,18 @@ class PredictionValue:
             self, "value", _normalize_value(self.value, "prediction value")
         )
 
+        validate_value_identity(
+            self.quantity, self.phase, self.value, self.component_ids
+        )
+
 
 def _validate_mole_fraction_vector(
     value: ReferenceValue | PredictionValue, component_ids: tuple[str, ...]
 ) -> None:
+    if isinstance(value.value, tuple) and set(value.component_ids or ()) != set(
+        component_ids
+    ):
+        raise ComponentAlignmentError("vector component_ids must match owning case")
     if value.quantity is not ValidationQuantity.MOLE_FRACTION:
         return
     if not isinstance(value.value, tuple):
@@ -281,6 +342,7 @@ class DeclaredTolerance:
     justification: str
     source_citation: str
     scope: str
+    tolerance_kind: ToleranceKind
 
     def __post_init__(self) -> None:
         require_enum(self.quantity, ValidationQuantity, "quantity")
@@ -289,25 +351,20 @@ class DeclaredTolerance:
             raise ValueError("tolerance value must be non-negative")
         object.__setattr__(self, "value", float(self.value))
         require_non_empty(self.unit, "unit")
-        if self.unit != self.quantity.canonical_si_unit:
-            raise ValueError("tolerance unit must be the quantity's canonical SI unit")
+        require_enum(self.tolerance_kind, ToleranceKind, "tolerance_kind")
+        if self.tolerance_kind is ToleranceKind.RELATIVE:
+            if not self.quantity.relative_error_meaningful:
+                raise ValueError("relative tolerance forbidden for this quantity")
+            expected_unit = "1"
+        else:
+            expected_unit = self.quantity.canonical_si_unit
+        if self.unit != expected_unit:
+            raise ComparisonAlignmentError(
+                "tolerance unit must match its kind and canonical SI basis"
+            )
         require_non_empty(self.justification, "justification")
         require_non_empty(self.source_citation, "source_citation")
         require_non_empty(self.scope, "scope")
-
-
-_UNCERTAINTY_STATUSES = frozenset(
-    {
-        ValidationStatus.AGREES_WITHIN_UNCERTAINTY,
-        ValidationStatus.OUTSIDE_UNCERTAINTY,
-    }
-)
-_TOLERANCE_STATUSES = frozenset(
-    {
-        ValidationStatus.AGREES_WITHIN_DECLARED_TOLERANCE,
-        ValidationStatus.OUTSIDE_DECLARED_TOLERANCE,
-    }
-)
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -318,7 +375,6 @@ class ValidationRecord:
     prediction: ValidationPrediction
     status: ValidationStatus = ValidationStatus.REPORTED_NO_TOLERANCE
     exclusion_reason: str | None = None
-    declared_tolerance: DeclaredTolerance | None = None
     identity: DatasetIdentity = field(init=False)
 
     @property
@@ -333,13 +389,11 @@ class ValidationRecord:
         prediction: ValidationPrediction,
         status: ValidationStatus = ValidationStatus.REPORTED_NO_TOLERANCE,
         exclusion_reason: str | None = None,
-        declared_tolerance: DeclaredTolerance | None = None,
     ) -> None:
         object.__setattr__(self, "case", case)
         object.__setattr__(self, "prediction", prediction)
         object.__setattr__(self, "status", status)
         object.__setattr__(self, "exclusion_reason", exclusion_reason)
-        object.__setattr__(self, "declared_tolerance", declared_tolerance)
         self.__post_init__()
 
     def __post_init__(self) -> None:
@@ -366,26 +420,10 @@ class ValidationRecord:
             raise InvariantViolationError(
                 "exclusion_reason is only valid with EXCLUDED status"
             )
-        if self.status in _TOLERANCE_STATUSES:
-            if self.declared_tolerance is None:
-                raise InvariantViolationError(
-                    "declared-tolerance status requires a DeclaredTolerance"
-                )
-        elif self.declared_tolerance is not None:
-            raise InvariantViolationError(
-                "DeclaredTolerance is only valid with a declared-tolerance status"
-            )
-        if self.status in _UNCERTAINTY_STATUSES:
-            if self.identity.data_class is not DataClass.EXPERIMENTAL_VALIDATION:
-                raise InvariantViolationError(
-                    "uncertainty status is only valid for experimental validation"
-                )
-            if not any(
-                value.uncertainty is not None for value in self.case.reference_values
-            ):
-                raise InvariantViolationError(
-                    "uncertainty status requires a source-reported uncertainty"
-                )
+        for values in (self.case.reference_values, self.prediction.values):
+            keys = tuple((value.quantity, value.phase) for value in values)
+            if len(keys) != len(set(keys)):
+                raise ComparisonAlignmentError("duplicate quantity/phase key in record")
         for value in self.prediction.values:
             _validate_mole_fraction_vector(value, self.case.component_ids)
 

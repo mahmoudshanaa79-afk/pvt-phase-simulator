@@ -1,21 +1,61 @@
 """Versioned, immutable core types for OpenPhase validation datasets."""
 
+from .aggregates import (
+    CoverageBlock,
+    ExperimentalQuantityAggregate,
+    GroupingKey,
+    MetricResult,
+    ObservationUnit,
+    QuantityAggregate,
+    UncertaintyAgreementCount,
+    VectorReduction,
+    aggregate_group,
+    format_metric,
+)
 from .aggregation import (
     CrossCheckAgreementSummary,
     ExperimentalAccuracySummary,
+    aggregate_cross_check_agreement,
+    aggregate_experimental_accuracy,
     homogeneous_data_class,
     summarize_cross_check_agreement,
     summarize_experimental_accuracy,
+)
+from .comparisons import (
+    Agreement,
+    AppliedUncertainty,
+    CaseComparison,
+    ComparisonKey,
+    ComparisonState,
+    NotAssessed,
+    ObservationErrors,
+    QuantityComparison,
+    Reason,
+    SolverOutcome,
+    ToleranceAssessment,
+    ToleranceBinding,
+    UncertaintyAssessment,
+    UncertaintyCriterion,
+    UncertaintyDerivation,
+    UncertaintyScope,
+    UndefinedMetric,
+    align_values,
+    compare_record,
+    solver_outcome,
 )
 from .enums import (
     CapabilityUnderTest,
     DataClass,
     PredictionOutcome,
+    ToleranceKind,
     UncertaintyKind,
     ValidationQuantity,
     ValidationStatus,
+    ValuePhase,
 )
 from .exceptions import (
+    ComparisonAlignmentError,
+    ComponentAlignmentError,
     HashMismatchError,
     InvariantViolationError,
     MixedDataClassError,
@@ -26,6 +66,7 @@ from .exceptions import (
 )
 from .hashing import normalize_sha256, verify_sha256
 from .json_values import FrozenJsonObject, JsonScalar, JsonValue
+from .metrics import METRIC_POLICY, MetricName, MetricPolicy, MetricState
 from .models import (
     MOLE_FRACTION_SUM_ABSOLUTE_TOLERANCE,
     SCHEMA_VERSION,
@@ -50,12 +91,29 @@ from .module17_adapter import (
     adapt_module17_evidence,
     load_module17_validation_evidence,
 )
+from .module17_legacy import (
+    LegacyDescriptiveStatistics,
+    LegacyDiscrepancy,
+    legacy_descriptive_statistics,
+    module17_anomaly_subset,
+    module17_discrepancies,
+)
 from .provenance import (
     CompoundIdentity,
     OriginalUnit,
     SourceManifest,
     Uncertainty,
     UnitConversion,
+)
+from .scientific_serialization import (
+    decode_scientific_artifact,
+    encode_scientific_artifact,
+)
+from .sensitivity import (
+    MetricShift,
+    SensitivityAnalysis,
+    SubsetDefinition,
+    analyze_sensitivity,
 )
 from .serialization import (
     decode_reference_dataset,
@@ -107,6 +165,8 @@ __all__ = [
     "ValidationRecord",
     "ValidationRun",
     "ValidationStatus",
+    "ValuePhase",
+    "ToleranceKind",
     "adapt_module17_evidence",
     "decode_reference_dataset",
     "decode_validation_record",
@@ -122,3 +182,56 @@ __all__ = [
     "summarize_experimental_accuracy",
     "verify_sha256",
 ]
+
+__all__ += [
+    "aggregate_experimental_accuracy",
+    "aggregate_cross_check_agreement",
+    "CoverageBlock",
+    "GroupingKey",
+    "MetricResult",
+    "MetricState",
+    "ObservationUnit",
+    "VectorReduction",
+    "QuantityAggregate",
+    "ExperimentalQuantityAggregate",
+    "UncertaintyAgreementCount",
+    "aggregate_group",
+    "format_metric",
+    "ComparisonKey",
+    "ToleranceBinding",
+    "NotAssessed",
+    "Reason",
+    "Agreement",
+    "AppliedUncertainty",
+    "UncertaintyDerivation",
+    "UncertaintyScope",
+    "UncertaintyCriterion",
+    "UncertaintyAssessment",
+    "ToleranceAssessment",
+    "ObservationErrors",
+    "QuantityComparison",
+    "CaseComparison",
+    "ComparisonState",
+    "SolverOutcome",
+    "align_values",
+    "compare_record",
+    "solver_outcome",
+    "ComparisonAlignmentError",
+    "ComponentAlignmentError",
+    "METRIC_POLICY",
+    "MetricPolicy",
+    "MetricName",
+    "SubsetDefinition",
+    "SensitivityAnalysis",
+    "MetricShift",
+    "analyze_sensitivity",
+    "LegacyDescriptiveStatistics",
+    "LegacyDiscrepancy",
+    "legacy_descriptive_statistics",
+    "module17_discrepancies",
+    "module17_anomaly_subset",
+    "encode_scientific_artifact",
+    "decode_scientific_artifact",
+]
+
+__all__ += ["UndefinedMetric"]

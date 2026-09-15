@@ -17,6 +17,7 @@ from .enums import (
     UncertaintyKind,
     ValidationQuantity,
     ValidationStatus,
+    ValuePhase,
 )
 from .hashing import verify_sha256
 from .json_values import FrozenJsonObject
@@ -418,21 +419,29 @@ def _case(
         specified_composition = ReferenceValue(
             quantity=ValidationQuantity.MOLE_FRACTION,
             value=liquid,
+            phase=ValuePhase.LIQUID,
+            component_ids=(source_row["component_1_id"], source_row["component_2_id"]),
         )
         opposite_composition = ReferenceValue(
             quantity=ValidationQuantity.MOLE_FRACTION,
             value=vapor,
+            phase=ValuePhase.VAPOR,
+            component_ids=(source_row["component_1_id"], source_row["component_2_id"]),
             uncertainty=vapor_uncertainty,
         )
     else:
         specified_composition = ReferenceValue(
             quantity=ValidationQuantity.MOLE_FRACTION,
             value=vapor,
+            phase=ValuePhase.VAPOR,
+            component_ids=(source_row["component_1_id"], source_row["component_2_id"]),
             uncertainty=vapor_uncertainty,
         )
         opposite_composition = ReferenceValue(
             quantity=ValidationQuantity.MOLE_FRACTION,
             value=liquid,
+            phase=ValuePhase.LIQUID,
+            component_ids=(source_row["component_1_id"], source_row["component_2_id"]),
         )
     return ValidationCase(
         case_id=_case_id(source_row["source_point_id"], capability),
@@ -505,6 +514,7 @@ def _prediction(
     case_id: str,
     capability: CapabilityUnderTest,
     retrospective_interpretation: str,
+    component_ids: tuple[str, ...],
 ) -> ValidationPrediction:
     direction = "bubble" if capability is CapabilityUnderTest.BUBBLE_POINT else "dew"
     legacy_outcome = legacy_row[f"{direction}_status"]
@@ -545,6 +555,10 @@ def _prediction(
                 PredictionValue(
                     ValidationQuantity.MOLE_FRACTION,
                     predicted_composition,
+                    phase=ValuePhase.VAPOR
+                    if direction == "bubble"
+                    else ValuePhase.LIQUID,
+                    component_ids=component_ids,
                 ),
             ),
             diagnostics=diagnostics,
@@ -654,6 +668,7 @@ def load_module17_validation_evidence(
                 case.case_id,
                 capability,
                 retrospective_interpretation,
+                case.component_ids,
             )
             status = (
                 ValidationStatus.REPORTED_NO_TOLERANCE

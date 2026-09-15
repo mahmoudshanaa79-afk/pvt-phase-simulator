@@ -29,3 +29,11 @@ class SerializationError(ValidationFrameworkError):
 
 class HashMismatchError(ValidationFrameworkError):
     """Raised when supplied content does not have the expected digest."""
+
+
+class ComparisonAlignmentError(InvariantViolationError):
+    """Quantities, phases or canonical bases do not align."""
+
+
+class ComponentAlignmentError(ComparisonAlignmentError):
+    """Component identities do not uniquely align."""

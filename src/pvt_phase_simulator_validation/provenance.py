@@ -68,7 +68,7 @@ class UnitConversion:
 class Uncertainty:
     """A source-reported uncertainty in the quantity's canonical SI unit."""
 
-    value: float | tuple[float, ...]
+    value: float | tuple[float | None, ...]
     kind: UncertaintyKind
     coverage_factor: float | None
     confidence_level_percent: float | None
@@ -88,6 +88,8 @@ class Uncertainty:
             if not self.value:
                 raise ValueError("uncertainty value vectors must not be empty")
             for item in self.value:
+                if item is None:
+                    continue
                 if isinstance(item, bool) or not isinstance(item, (int, float)):
                     raise TypeError(
                         "uncertainty value vectors must contain only numbers"
@@ -95,7 +97,11 @@ class Uncertainty:
                 require_finite(item, "uncertainty value")
                 if item < 0.0:
                     raise ValueError("uncertainty value must be non-negative")
-            object.__setattr__(self, "value", tuple(float(item) for item in self.value))
+            object.__setattr__(
+                self,
+                "value",
+                tuple(None if item is None else float(item) for item in self.value),
+            )
         require_enum(self.kind, UncertaintyKind, "uncertainty kind")
         if self.coverage_factor is not None:
             require_finite(self.coverage_factor, "coverage_factor")

@@ -28,6 +28,7 @@ from pvt_phase_simulator_validation import (
     ReferenceDataset,
     ReferenceValue,
     SourceManifest,
+    ToleranceKind,
     Uncertainty,
     UncertaintyKind,
     UnitConversion,
@@ -37,6 +38,7 @@ from pvt_phase_simulator_validation import (
     ValidationQuantity,
     ValidationRecord,
     ValidationStatus,
+    ValuePhase,
     aggregation,
     homogeneous_data_class,
     models,
@@ -125,7 +127,12 @@ def _case(
         component_ids=("methane", "ethane"),
         specified_conditions=(
             ReferenceValue(ValidationQuantity.TEMPERATURE, 250.0),
-            ReferenceValue(ValidationQuantity.MOLE_FRACTION, (0.25, 0.75)),
+            ReferenceValue(
+                ValidationQuantity.MOLE_FRACTION,
+                (0.25, 0.75),
+                phase=ValuePhase.LIQUID,
+                component_ids=("methane", "ethane"),
+            ),
         ),
         reference_values=(
             ReferenceValue(
@@ -139,7 +146,12 @@ def _case(
                     source="Synthetic table footnote.",
                 ),
             ),
-            ReferenceValue(ValidationQuantity.MOLE_FRACTION, (0.8, 0.2)),
+            ReferenceValue(
+                ValidationQuantity.MOLE_FRACTION,
+                (0.8, 0.2),
+                phase=ValuePhase.VAPOR,
+                component_ids=("methane", "ethane"),
+            ),
         ),
         source_reference="table=1,row=2",
     )
@@ -151,7 +163,12 @@ def _prediction(*, case_id: str = "case-002") -> ValidationPrediction:
         outcome=PredictionOutcome.VALUE,
         values=(
             PredictionValue(ValidationQuantity.PRESSURE, 1_249_999.9999999998),
-            PredictionValue(ValidationQuantity.MOLE_FRACTION, (0.79, 0.21)),
+            PredictionValue(
+                ValidationQuantity.MOLE_FRACTION,
+                (0.79, 0.21),
+                phase=ValuePhase.VAPOR,
+                component_ids=("methane", "ethane"),
+            ),
         ),
         diagnostics=(
             "solver diagnostic preserved verbatim",
@@ -320,11 +337,11 @@ def test_exclusion_and_declared_tolerance_consistency_rules() -> None:
         exclusion_reason="Synthetic case is outside declared source scope.",
     )
     assert excluded.exclusion_reason
-    with pytest.raises(InvariantViolationError, match="DeclaredTolerance"):
+    with pytest.raises(UnsupportedValueError, match="validation status"):
         ValidationRecord(
             case=_case(),
             prediction=_prediction(),
-            status=ValidationStatus.AGREES_WITHIN_DECLARED_TOLERANCE,
+            status="AGREES_WITHIN_DECLARED_TOLERANCE",  # type: ignore[arg-type]
         )
 
 
@@ -337,6 +354,7 @@ def test_declared_tolerance_requires_justification_and_citation(field: str) -> N
         "justification": "Requirement in cited benchmark protocol.",
         "source_citation": "Synthetic benchmark protocol, section 2.",
         "scope": "pressure for the synthetic example",
+        "tolerance_kind": ToleranceKind.ABSOLUTE,
     }
     values[field] = " "
     with pytest.raises(ValueError, match=field):
@@ -387,6 +405,10 @@ def test_reference_value_rejects_scalar_vector_uncertainty_shape_mismatches(
             ValidationQuantity.MOLE_FRACTION,
             reference_value,
             _uncertainty(uncertainty_value),
+            phase=ValuePhase.VAPOR,
+            component_ids=("methane", "ethane")
+            if isinstance(reference_value, tuple)
+            else None,
         )
 
 
@@ -396,6 +418,8 @@ def test_reference_value_rejects_wrong_uncertainty_vector_length() -> None:
             ValidationQuantity.MOLE_FRACTION,
             (0.25, 0.75),
             _uncertainty((0.01, 0.01, 0.01)),
+            phase=ValuePhase.VAPOR,
+            component_ids=("methane", "ethane"),
         )
 
 
@@ -435,6 +459,8 @@ def test_vector_uncertainty_retains_explicit_zero_and_component_order() -> None:
         ValidationQuantity.MOLE_FRACTION,
         (0.25, 0.75),
         _uncertainty((0.0, 0.02)),
+        phase=ValuePhase.VAPOR,
+        component_ids=("methane", "ethane"),
     )
     case = replace(_case(), reference_values=(value,))
     assert case.component_ids == ("methane", "ethane")
@@ -453,7 +479,12 @@ def test_mole_fraction_vectors_are_component_ordered_and_normalized(
         replace(
             _case(),
             specified_conditions=(
-                ReferenceValue(ValidationQuantity.MOLE_FRACTION, composition),
+                ReferenceValue(
+                    ValidationQuantity.MOLE_FRACTION,
+                    composition,
+                    phase=ValuePhase.LIQUID,
+                    component_ids=("methane", "ethane"),
+                ),
             ),
         )
 
