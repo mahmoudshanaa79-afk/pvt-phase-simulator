@@ -260,3 +260,103 @@ reproduction inputs and retains deterministic dataset/record ordering.
 Deferred: covariance machinery, retrospective diagnostic summaries, UI/dashboard,
 CH4+C3 dew-branch investigation, CoolProp, CO2, new datasets, real tolerances,
 uncertainty propagation and any engine, kij, solver or orchestration change.
+
+## V2-01-D validation evidence report
+
+`pvt_phase_simulator_validation.report` is a presentation, provenance,
+reproducibility and evidence layer over the frozen A/B/C objects. It neither
+reimplements scientific formulas nor changes the stored predictions. Its public API
+is:
+
+- `build_validation_evidence(repository_root, *, dataset="module17", run_id=None,
+  clock=None)`
+- `render_html(evidence)`
+- `export_json(evidence)`
+- `export_comparisons_csv(evidence)`
+- `export_case_ledger_csv(evidence)`
+- `write_validation_report(evidence, output_dir)`
+
+The CLI is `python -m pvt_phase_simulator_validation.report --output <directory>`.
+The output directory must be outside the repository tree. It receives exactly four
+files: self-contained HTML, canonical JSON, `comparisons.csv`, and
+`case_ledger.csv`. Generated report files are not repository artifacts and must not
+be committed.
+
+The JSON namespace is `openphase.validation_evidence`, schema version `1.0.0`.
+Serialization uses UTF-8, sorted keys, compact separators, and `allow_nan=False`.
+Undefined scientific quantities retain C's structured null value and reason. The
+`content_sha256` is computed from canonical JSON after removing both `volatile` and
+`content_sha256`; run ID and generation time therefore do not change the stable
+content identity. Identifiers, groups, cases, components and CSV rows are ordered
+deterministically.
+
+### Membership and scientific ownership
+
+C remains the sole owner of comparisons, errors, metrics, coverage, uncertainty
+assessment and sensitivity shifts. D partitions cases using the exact `GroupingKey`,
+then calls `aggregate_group` and requires frozen-dataclass equality with the C source
+aggregate. Membership is also proven separately for each metric. Absolute metrics
+use C comparisons in state `COMPARED`; percentage metrics use only observations for
+which C's `relative_error` is defined. Each metric's contributor count must equal
+`MetricResult.sample_count`, and aggregating only those contributing cases through C
+must reproduce the metric's state, value and sample count. A mismatch raises
+`EvidenceInconsistencyError`.
+
+Production evidence contains specified conditions, reference values, production
+prediction values and C results. Retrospective diagnostics occupy a different type
+and a visually isolated HTML section headed `RETROSPECTIVE DIAGNOSTICS — NOT
+PRODUCTION PREDICTIONS`. Production tables and figures accept only the production
+type. D version 1 accepts `EXPERIMENTAL_VALIDATION` only; cross-check or mixed-class
+input raises `UnsupportedDataClassError`.
+
+### Interpretation and uncertainty scope
+
+The Module 17 dataset roles are explicit: parameter fitting `NOT_USED`, solver
+development `NOT_ESTABLISHED`, regression testing `USED`, evaluation `USED`, and
+development separation `NOT_ESTABLISHED`. Their approved status/basis pairs are
+enforced when the declaration loads; evaluation is a `DECLARED` use with repository
+evidence pointers. The report does not assign an accuracy score, acceptance badge or
+default threshold. Solver failures and unavailable comparisons remain visible, and
+the uncertainty table retains C's `NotAssessed` reason. `NOT_FOUND` describes the
+configured numerical search; it does not establish that no physical solution exists.
+
+The uncertainty comparison uses uncertainty on the experimental/reference quantity
+only. It is not a complete propagated uncertainty budget and does not include
+specified-condition uncertainty, EOS-parameter uncertainty, covariance, or
+model-form uncertainty. Expanded and standard uncertainty, published and derived
+provenance, and the source-recorded confidence level remain distinct. An unstated
+coverage factor is rendered as “not stated by the source”; it is never inferred from
+95 percent confidence. Vector agreement means every required component lies within
+its own reference-uncertainty bound, not a joint confidence region. Historical 2U
+counts remain confined to the labelled legacy descriptive section.
+
+The 283.38 K methane + propane state remains in every primary result. The declaration
+records that the ThermoML archive and extractor verify the stored state, while the
+article table was inaccessible and article-level consistency remains `UNRESOLVED`.
+C's identity-defined sensitivity result is displayed separately and never replaces
+the primary result.
+
+### Export safety and reproducibility
+
+Every HTML insertion is escaped. Only validated HTTPS DOI and archive links are made
+clickable, with `rel="noopener noreferrer"`; Plotly is embedded once and no external
+resource is loaded. Tables use horizontally scrolling containers for narrow screens.
+CSV text fields beginning with `=`, `+`, `-`, `@`, tab, or carriage return receive a
+leading apostrophe to prevent spreadsheet formula execution; numeric cells are
+unchanged. Nullable uncertainty fields carry adjacent state and reason columns, so
+an unstated coverage factor is never an unexplained blank. Expanded and standard
+normalized-residual slots each carry their own state and reason. Exactly the slot
+selected by C's `kind_used` is available; the other is structurally not applicable,
+which does not imply or perform a conversion between expanded and standard
+uncertainty. JSON and CSV retain canonical SI values at full float round-trip
+precision, while HTML converts pressure to MPa for display through the engine's
+`convert_pressure` helper.
+
+Reproducibility distinguishes the stored prediction artifact, whose generating
+revision is not embedded, from the current comparison/report revision and tree state.
+A dirty tree is reported prominently as not reproducible from a commit alone. When
+Git or installed-package metadata cannot be read, the relevant revision, tree state,
+or package version is recorded as `UNKNOWN` rather than as a plausible fallback.
+Outputs contain repository-relative evidence pointers, coarse OS/architecture,
+package and schema versions, dataset hashes and the reproduction command; they
+contain no username, hostname or absolute repository path.
