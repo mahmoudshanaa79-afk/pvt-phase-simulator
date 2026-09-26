@@ -68,6 +68,6 @@
   "dependencies": [
     "v2_01_c_validation_metrics"
   ],
-  "status": "PENDING",
+  "status": "COMMITTED",
   "notes": "Approved design record: .ai/designs/v2_01_d_validation_evidence_report_design.md (a772dd6). Supplementary requirements S1-S4 approved by the user on 2026-09-25. commit_policy MANUAL: after verification and independent Claude audit, the supervisor runs visual QA of the real Module 17 report at ~1280 px and ~400 px, then commits and pushes v2-validation-framework, then regenerates the four artifacts from the committed revision outside the repository tree. Any code change after verification, audit or visual QA repeats the affected gates. Deferred: V2-01-E, cross-check reporting, dashboard (V2-02), manifest provenance correction."
 }
