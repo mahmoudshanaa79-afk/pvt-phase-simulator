@@ -19,6 +19,7 @@ from pvt_phase_simulator_ui.adapters import (
     ScientificInputs,
     validate_scientific_inputs,
 )
+from pvt_phase_simulator_ui.state import update_sweep_widget_state
 from pvt_phase_simulator_ui.sweeps import (
     SweepKind,
     SweepValidationError,
@@ -475,3 +476,4 @@ def apply_case_to_state(case: OpenPhaseCase, state: MutableMapping[str, Any]) ->
             "rendered_sweep_points_value": points,
         }
     )
+    update_sweep_widget_state(state)

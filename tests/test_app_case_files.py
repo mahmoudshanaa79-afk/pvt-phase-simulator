@@ -20,8 +20,13 @@ from pvt_phase_simulator_ui.case_files import (
     serialize_case,
 )
 from pvt_phase_simulator_ui.state import (
+    SWEEP_END_WIDGET_KEY,
+    SWEEP_KIND_WIDGET_KEY,
+    SWEEP_POINTS_WIDGET_KEY,
+    SWEEP_START_WIDGET_KEY,
     initialize_session,
     synchronize_sweep_inputs,
+    synchronize_sweep_widget_inputs,
     synchronize_unit_inputs,
 )
 from pvt_phase_simulator_ui.units import (
@@ -151,10 +156,76 @@ def test_sweep_widget_edits_and_unit_changes_are_captured_losslessly() -> None:
     ) == (260.5, 375.5, 31)
 
 
+def test_sweep_state_recovers_a_cleared_segmented_control_value() -> None:
+    state: dict[str, Any] = {}
+    initialize_session(state)
+    state["sweep_kind"] = None
+
+    synchronize_sweep_inputs(state)
+
+    assert state["sweep_kind"] == "pressure"
+    assert state["rendered_sweep_kind"] == "pressure"
+    assert state["sweep_points_value"] == state["sweep_points_pressure"]
+    assert "sweep_points_None" not in state
+
+
+def test_sweep_widget_callback_preserves_each_canonical_definition() -> None:
+    state: dict[str, Any] = {}
+    initialize_session(state)
+    state.update(
+        {
+            SWEEP_KIND_WIDGET_KEY: "temperature",
+            SWEEP_START_WIDGET_KEY: 1.0,
+            SWEEP_END_WIDGET_KEY: 20.0,
+            SWEEP_POINTS_WIDGET_KEY: 21,
+        }
+    )
+
+    synchronize_sweep_widget_inputs(state)
+
+    assert state["sweep_kind"] == "temperature"
+    assert state["sweep_pressure_start_pa"] == 1.0e6
+    assert state["sweep_pressure_end_pa"] == 20.0e6
+    assert state["sweep_start_value"] == 240.0
+    assert state["sweep_end_value"] == 340.0
+    assert state[SWEEP_START_WIDGET_KEY] == 240.0
+    assert state[SWEEP_END_WIDGET_KEY] == 340.0
+
+
+def test_required_unit_state_recovers_none_before_synchronization() -> None:
+    state: dict[str, Any] = {}
+    initialize_session(state)
+    state.update(
+        {
+            "temperature_unit": None,
+            "pressure_unit": None,
+            "rendered_temperature_unit": None,
+            "rendered_pressure_unit": None,
+            "rendered_sweep_temperature_unit": None,
+            "rendered_sweep_pressure_unit": None,
+        }
+    )
+
+    synchronize_unit_inputs(state)
+
+    assert state["temperature_unit"] == TemperatureUnit.KELVIN.value
+    assert state["pressure_unit"] == PressureUnit.MPA.value
+    assert state["rendered_temperature_unit"] == TemperatureUnit.KELVIN.value
+    assert state["rendered_pressure_unit"] == PressureUnit.MPA.value
+
+
 def test_applying_loaded_case_restores_widget_inputs_without_results() -> None:
     case = load_case(serialize_case(case_from_state(_configured_state())))
     target: dict[str, Any] = {}
     initialize_session(target)
+    target.update(
+        {
+            SWEEP_KIND_WIDGET_KEY: "pressure",
+            SWEEP_START_WIDGET_KEY: 1.0,
+            SWEEP_END_WIDGET_KEY: 20.0,
+            SWEEP_POINTS_WIDGET_KEY: 21,
+        }
+    )
     prior_result = object()
     target["results"] = {"flash": prior_result}
 
@@ -179,6 +250,10 @@ def test_applying_loaded_case_restores_widget_inputs_without_results() -> None:
         case.temperature_sweep.end, TemperatureUnit.FAHRENHEIT
     )
     assert target["sweep_points_value"] == 29
+    assert target[SWEEP_KIND_WIDGET_KEY] == "temperature"
+    assert target[SWEEP_START_WIDGET_KEY] == target["sweep_start_value"]
+    assert target[SWEEP_END_WIDGET_KEY] == target["sweep_end_value"]
+    assert target[SWEEP_POINTS_WIDGET_KEY] == 29
     assert target["submitted_inputs"] is None
     assert target["results"] == {"flash": prior_result}
 

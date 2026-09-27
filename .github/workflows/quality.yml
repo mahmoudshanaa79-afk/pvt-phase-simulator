@@ -63,11 +63,27 @@ jobs:
         run: |
           uv run python -c "import pvt_phase_simulator_ui; import pvt_phase_simulator_ui.app; import pvt_phase_simulator_ui.views; print('import smoke ok')"
 
+      - name: Install Chromium for real-browser smoke
+        run: uv run playwright install --with-deps chromium
+
+      - name: Real-browser application smoke
+        env:
+          OPENPHASE_BROWSER_EVIDENCE_DIR: browser-evidence
+        run: uv run pytest -q tests/test_app_browser.py
+
+      - name: Upload real-browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-browser-evidence-${{ github.run_id }}
+          path: browser-evidence
+          if-no-files-found: error
+
       - name: Full test suite
         # Includes the scientific regression suite, the golden master, and the
         # application release-QA tests.
         timeout-minutes: 20
-        run: uv run pytest -q
+        run: uv run pytest -q --ignore=tests/test_app_browser.py
 
       - name: Streamlit localhost health smoke
         # Loopback only, headless, bounded, and self-terminating. A cold runner

@@ -151,6 +151,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
         st.segmented_control(
             "Temperature unit",
             options=[unit.value for unit in TEMPERATURE_UNITS],
+            required=True,
             key="temperature_unit",
             on_change=synchronize_unit_inputs,
             args=(session(),),
@@ -158,6 +159,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
         st.segmented_control(
             "Pressure unit",
             options=[unit.value for unit in PRESSURE_UNITS],
+            required=True,
             key="pressure_unit",
             on_change=synchronize_unit_inputs,
             args=(session(),),

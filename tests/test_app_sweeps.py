@@ -715,6 +715,15 @@ def test_sweeps_page_states_that_failed_points_stay_failed() -> None:
     assert "interpolated" in captions
 
 
+def test_sweeps_page_starts_with_the_declared_default_controls() -> None:
+    app = _sweeps_page()
+    fields = {field.label: field.value for field in app.number_input}
+
+    assert fields["Start pressure (MPa)"] == 1.0
+    assert fields["End pressure (MPa)"] == 20.0
+    assert fields["Points"] == DEFAULT_SWEEP_POINTS
+
+
 def test_extreme_sweep_bound_is_reported_without_a_raw_exception() -> None:
     from streamlit.testing.v1 import AppTest
 

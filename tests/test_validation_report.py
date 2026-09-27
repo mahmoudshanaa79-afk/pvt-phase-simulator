@@ -85,6 +85,98 @@ from pvt_phase_simulator_validation.report.membership import (
 from .test_validation_core import _case, _dataset, _prediction, _record
 
 ROOT = Path(__file__).resolve().parents[1]
+D_BASELINE_COMMIT = "a772dd6ae212c255573c76a1aff68483d0189580"
+D_AUDITED_IMPLEMENTATION_COMMIT = "793b6516af09b0ceb5235ba62c18e41f75a8cd85"
+D_COMPLETION_COMMIT = "482350ee2eea9414571aeed102b210edd3ac7db5"
+D_PROTECTED_PATHS = (
+    "src/pvt_phase_simulator",
+    "src/pvt_phase_simulator_validation/__init__.py",
+    "src/pvt_phase_simulator_validation/_validation.py",
+    "src/pvt_phase_simulator_validation/aggregates.py",
+    "src/pvt_phase_simulator_validation/aggregation.py",
+    "src/pvt_phase_simulator_validation/comparisons.py",
+    "src/pvt_phase_simulator_validation/enums.py",
+    "src/pvt_phase_simulator_validation/exceptions.py",
+    "src/pvt_phase_simulator_validation/hashing.py",
+    "src/pvt_phase_simulator_validation/json_values.py",
+    "src/pvt_phase_simulator_validation/metrics.py",
+    "src/pvt_phase_simulator_validation/models.py",
+    "src/pvt_phase_simulator_validation/module17_adapter.py",
+    "src/pvt_phase_simulator_validation/module17_legacy.py",
+    "src/pvt_phase_simulator_validation/provenance.py",
+    "src/pvt_phase_simulator_validation/py.typed",
+    "src/pvt_phase_simulator_validation/scientific_serialization.py",
+    "src/pvt_phase_simulator_validation/sensitivity.py",
+    "src/pvt_phase_simulator_validation/serialization.py",
+    "data",
+    "docs/validation",
+    "docs/EXPERIMENTAL_VALIDATION.md",
+    "tests/golden_master",
+    "src/pvt_phase_simulator_ui",
+    "tools",
+    "pyproject.toml",
+    "uv.lock",
+    ".github",
+    "tests/test_validation_core.py",
+    "tests/test_validation_metrics.py",
+    "tests/test_validation_module17_adapter.py",
+    "tests/test_validation_serialization.py",
+)
+
+
+def _changed_paths_between(
+    repository: Path,
+    baseline: str,
+    endpoint: str,
+    protected_paths: tuple[str, ...] = D_PROTECTED_PATHS,
+) -> tuple[str, ...]:
+    """Return protected paths changed inside one frozen historical range."""
+
+    history = subprocess.run(
+        ("git", "diff", "--name-only", baseline, endpoint, "--", *protected_paths),
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return tuple(line for line in history.stdout.splitlines() if line)
+
+
+def _git(repository: Path, *arguments: str) -> str:
+    result = subprocess.run(
+        ("git", *arguments),
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return result.stdout.strip()
+
+
+def _initialize_synthetic_history(repository: Path) -> str:
+    repository.mkdir()
+    _git(repository, "init", "--quiet")
+    _git(repository, "config", "user.email", "tests@openphase.invalid")
+    _git(repository, "config", "user.name", "OpenPhase Tests")
+    protected_file = repository / "src/pvt_phase_simulator_ui/app.py"
+    protected_file.parent.mkdir(parents=True)
+    protected_file.write_text("baseline\n", encoding="utf-8")
+    _git(repository, "add", ".")
+    _git(repository, "commit", "--quiet", "-m", "baseline")
+    return _git(repository, "rev-parse", "HEAD")
+
+
+def _commit_synthetic_file(
+    repository: Path, relative_path: str, content: str, message: str
+) -> str:
+    path = repository / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    _git(repository, "add", relative_path)
+    _git(repository, "commit", "--quiet", "-m", message)
+    return _git(repository, "rev-parse", "HEAD")
 
 
 @pytest.fixture(scope="module")
@@ -939,58 +1031,70 @@ def test_report_import_does_not_load_plotly() -> None:
 
 
 def test_protected_paths_remain_unchanged() -> None:
-    protected = (
-        "src/pvt_phase_simulator",
-        "src/pvt_phase_simulator_validation/__init__.py",
-        "src/pvt_phase_simulator_validation/_validation.py",
-        "src/pvt_phase_simulator_validation/aggregates.py",
-        "src/pvt_phase_simulator_validation/aggregation.py",
-        "src/pvt_phase_simulator_validation/comparisons.py",
-        "src/pvt_phase_simulator_validation/enums.py",
-        "src/pvt_phase_simulator_validation/exceptions.py",
-        "src/pvt_phase_simulator_validation/hashing.py",
-        "src/pvt_phase_simulator_validation/json_values.py",
-        "src/pvt_phase_simulator_validation/metrics.py",
-        "src/pvt_phase_simulator_validation/models.py",
-        "src/pvt_phase_simulator_validation/module17_adapter.py",
-        "src/pvt_phase_simulator_validation/module17_legacy.py",
-        "src/pvt_phase_simulator_validation/provenance.py",
-        "src/pvt_phase_simulator_validation/py.typed",
-        "src/pvt_phase_simulator_validation/scientific_serialization.py",
-        "src/pvt_phase_simulator_validation/sensitivity.py",
-        "src/pvt_phase_simulator_validation/serialization.py",
-        "data",
-        "docs/validation",
-        "docs/EXPERIMENTAL_VALIDATION.md",
-        "tests/golden_master",
-        "src/pvt_phase_simulator_ui",
-        "tools",
-        "pyproject.toml",
-        "uv.lock",
-        ".github",
-        "tests/test_validation_core.py",
-        "tests/test_validation_metrics.py",
-        "tests/test_validation_module17_adapter.py",
-        "tests/test_validation_serialization.py",
+    # The final D commit adds only the frozen verification/audit record. It is
+    # protected-path-equivalent to the independently audited implementation
+    # commit, so the completion tip is the authoritative historical endpoint.
+    assert (
+        _changed_paths_between(
+            ROOT,
+            D_AUDITED_IMPLEMENTATION_COMMIT,
+            D_COMPLETION_COMMIT,
+        )
+        == ()
     )
-    worktree = subprocess.run(
-        ("git", "status", "--porcelain=v1", "--", *protected),
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
+    assert (
+        _changed_paths_between(
+            ROOT,
+            D_BASELINE_COMMIT,
+            D_COMPLETION_COMMIT,
+        )
+        == ()
     )
-    assert worktree.stdout == ""
-    history = subprocess.run(
-        ("git", "diff", "--name-only", "a772dd6", "--", *protected),
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
+
+
+def test_later_protected_change_does_not_change_frozen_d_answer(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "future-history"
+    baseline = _initialize_synthetic_history(repository)
+    completion = _commit_synthetic_file(
+        repository,
+        "src/pvt_phase_simulator_validation/report/evidence.py",
+        "d implementation\n",
+        "complete D",
     )
-    assert history.stdout == ""
+    future = _commit_synthetic_file(
+        repository,
+        "src/pvt_phase_simulator_ui/app.py",
+        "authorized TRUST change\n",
+        "future authorized package",
+    )
+
+    protected = ("src/pvt_phase_simulator_ui",)
+    assert _changed_paths_between(repository, baseline, completion, protected) == ()
+    assert _changed_paths_between(repository, baseline, future, protected) == (
+        "src/pvt_phase_simulator_ui/app.py",
+    )
+
+
+def test_historical_sentinel_detects_in_range_protected_change(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "invalid-d-history"
+    baseline = _initialize_synthetic_history(repository)
+    invalid_completion = _commit_synthetic_file(
+        repository,
+        "src/pvt_phase_simulator_ui/app.py",
+        "unauthorized D change\n",
+        "invalid D change",
+    )
+
+    assert _changed_paths_between(
+        repository,
+        baseline,
+        invalid_completion,
+        ("src/pvt_phase_simulator_ui",),
+    ) == ("src/pvt_phase_simulator_ui/app.py",)
 
 
 def test_writer_creates_exactly_four_hash_verified_artifacts(
