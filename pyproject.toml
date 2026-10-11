@@ -1,7 +1,7 @@
 [project]
 name = "pvt-phase-simulator"
-version = "0.1.0"
-description = "Validated Peng-Robinson pure-fluid and fixed-mixture calculation library."
+version = "1.3.0"
+description = "OpenPhase: an open phase-behavior simulator built on the Peng-Robinson equation of state."
 readme = "README.md"
 authors = [
     { name = "Magmoud Shanaa", email = "mahmoudshanaa79@gmail.com" }
