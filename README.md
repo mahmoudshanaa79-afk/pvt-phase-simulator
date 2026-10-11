@@ -1,6 +1,8 @@
-# PVT Phase Simulator
+# OpenPhase
 
-`pvt-phase-simulator` is a Python 3.12 educational and portfolio project for
+*An open phase-behavior simulator, built on the Peng–Robinson equation of state.*
+
+OpenPhase (distribution name `pvt-phase-simulator`) is a Python 3.12 educational and portfolio project for
 building auditable petroleum-fluid thermodynamics calculations. The current
 work implements the Peng–Robinson equation of state for pure fluids,
 fixed-composition mixtures, phase-stability trials, a stability-gated

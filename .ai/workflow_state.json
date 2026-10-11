@@ -3,25 +3,31 @@
   "phase": "post-v1.0-extensions",
   "workflow_status": "APPROVED",
   "last_scientific_commit": "d2a0a74",
-  "last_independent_audit_commit": "f7f6e79286dbced51f07ea19ab95d0c986bad9f4",
+  "last_independent_audit_commit": "793b6516af09b0ceb5235ba62c18e41f75a8cd85",
   "work_packages_since_audit": 0,
-  "current_work_package": "05_v1_2_release_qa",
-  "current_risk": "LOW",
+  "current_work_package": "v2_01_d_validation_evidence_report",
+  "current_risk": "MEDIUM",
   "audit_required": false,
   "audit_reason": null,
   "blocking_findings": [],
   "safe_defer_findings": [
     {
-      "id": "C-1",
+      "id": "D-1",
       "severity": "C",
       "blocks": false,
-      "summary": "reports.py's _termination_failed() substring check ('failed'/'failure'/'lost') under-classifies EnvelopeTerminationReason.MINIMUM_STEP_REACHED as non-failure even though its own message states 'without an acceptable correction' \u2014 contradicting the existing D-4 note's claim that the classifier is correct for all known enum members. Impact is cosmetic only (raw termination_status/message are always shown verbatim regardless), so no fabricated or hidden result occurs."
+      "summary": "Declaration field citation_title_range_ends_k is not rendered as a separate archive-verification item; the fact remains indirectly visible in the manifest anomaly prose."
     },
     {
-      "id": "D-5",
+      "id": "D-2",
       "severity": "D",
       "blocks": false,
-      "summary": "In run_app(), store_result_action_failure() for a failed flash retry is only set after page.run() has already rendered the Overview body, and there is no st.rerun() on the failure path \u2014 so on the exact run where a flash action fails, Overview shows the generic 'no result yet' info message instead of the specific failure text (which only appears in the sidebar that run, and in Overview on the next rerun). The new regression test only checks that some st.error element anywhere contains the message, so it doesn't catch this ordering gap. No stale/false data is ever shown."
+      "summary": "The HTML follows approved design section 9 by placing Model Configuration and Provenance after Limitations, while the objective listed a different order; the contradiction was resolved silently."
+    },
+    {
+      "id": "D-3",
+      "severity": "D",
+      "blocks": false,
+      "summary": "The frozen dataset-role sentence contains 'held out' while the hyphenated term 'held-out' is forbidden; the output complies literally and the requirement tension is informational only."
     }
   ],
   "deferred_independent_audits": [
@@ -61,34 +67,26 @@
   "codex_correction_cycles": 0,
   "claude_reaudit_cycles": 0,
   "provisional_review_cycles": 0,
-  "claude_cost_usd_this_package": 0.0,
+  "claude_cost_usd_this_package": 7.696271599999999,
   "claude_cost_unknown_runs": 0,
   "last_error": null,
-  "workflow_id": "c3d365745ae6",
+  "workflow_id": null,
   "builder": "codex",
   "reviewer": "claude",
   "last_completed_stage": "committed",
   "verification_status": "passed",
-  "base_commit": "b95f80c2889f95b4164959f187a111dad67b3394",
-  "resulting_commit": "f7f6e79286dbced51f07ea19ab95d0c986bad9f4",
-  "builder_report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260908-133040-05_v1_2_release_qa-codex-report.md",
-  "builder_evidence": {
-    "builder": "codex",
-    "package": "05_v1_2_release_qa",
-    "workflow_id": "c3d365745ae6",
-    "report_path": "C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260908-133040-05_v1_2_release_qa-codex-report.md",
-    "report_sha256": "ff28f99db820b91d24d2a41a7ef0f53ba918597719bf4d861a9e4e3439679c90",
-    "revision": 1,
-    "kind": "build"
-  },
-  "tree_fingerprint": "2d904d41672955f76341b976503524b2815ab3a5dd269a9c8b7d9edfc0fae8d6",
+  "base_commit": "a772dd6ae212c255573c76a1aff68483d0189580",
+  "resulting_commit": "793b6516af09b0ceb5235ba62c18e41f75a8cd85",
+  "builder_report_path": null,
+  "builder_evidence": null,
+  "tree_fingerprint": null,
   "revisions": [
     {
-      "package": "05_v1_2_release_qa",
+      "package": "v2_01_c_validation_metrics",
       "revision": 1,
       "author": "codex",
       "kind": "build",
-      "at": 1788865133.0810683
+      "at": 1789460208.016005
     }
   ],
   "role_transitions": [
@@ -161,6 +159,13 @@
       "to_builder": "claude",
       "reason": "preferred builder claude is available",
       "at": 1788862175.1038766
+    },
+    {
+      "package": "v2_01_b_module17_adapter",
+      "from_builder": "codex",
+      "to_builder": "claude",
+      "reason": "preferred builder claude is available",
+      "at": 1789028920.3494034
     }
   ],
   "history": [
@@ -953,6 +958,156 @@
       "from": "CLAUDE_RUNNING",
       "to": "APPROVED",
       "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_a_validation_core"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_b_module17_adapter"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CORRECTION_REQUIRED",
+      "reason": "local verification failed"
+    },
+    {
+      "from": "CORRECTION_REQUIRED",
+      "to": "CODEX_CORRECTION",
+      "reason": "correction cycle 1"
+    },
+    {
+      "from": "CODEX_CORRECTION",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "role policy: Claude is a read-only reviewer and may not build or correct; preserve the work and wait for Codex"
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "PLANNING",
+      "reason": "external resume shim: v2_01_b_module17_adapter build is complete and its work is intact; resuming into verification, independent audit and commit"
+    },
+    {
+      "from": "PLANNING",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_c_validation_metrics"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "HUMAN_ACTION_REQUIRED",
+      "reason": "codex output contract unusable: no <ORCHESTRATOR_RESULT> block found in agent output. Raw report preserved at C:\\Users\\user\\OneDrive - American University of Beirut\\Desktop\\pvt-phase-simulator\\.ai\\codex_reports\\20260915-000710-v2_01_c_validation_metrics-codex-report.md."
+    },
+    {
+      "from": "HUMAN_ACTION_REQUIRED",
+      "to": "PLANNING",
+      "reason": "planning v2_01_c_validation_metrics"
+    },
+    {
+      "from": "PLANNING",
+      "to": "CODEX_RUNNING",
+      "reason": "invoking codex builder"
+    },
+    {
+      "from": "CODEX_RUNNING",
+      "to": "CODEX_REVIEW",
+      "reason": "codex returned COMPLETE"
+    },
+    {
+      "from": "CODEX_REVIEW",
+      "to": "LOCAL_VERIFY",
+      "reason": "running local gates"
+    },
+    {
+      "from": "LOCAL_VERIFY",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "APPROVED",
+      "reason": "independent audit approved"
+    },
+    {
+      "from": "APPROVED",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
+    },
+    {
+      "from": "CLAUDE_RUNNING",
+      "to": "CLAUDE_RUNNING",
+      "reason": "invoking claude auditor"
     }
   ]
 }

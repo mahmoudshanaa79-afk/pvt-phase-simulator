@@ -151,6 +151,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
         st.segmented_control(
             "Temperature unit",
             options=[unit.value for unit in TEMPERATURE_UNITS],
+            required=True,
             key="temperature_unit",
             on_change=synchronize_unit_inputs,
             args=(session(),),
@@ -158,6 +159,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
         st.segmented_control(
             "Pressure unit",
             options=[unit.value for unit in PRESSURE_UNITS],
+            required=True,
             key="pressure_unit",
             on_change=synchronize_unit_inputs,
             args=(session(),),
@@ -266,7 +268,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
 
 
 def _header() -> None:
-    st.caption("PVT PHASE SIMULATOR")
+    st.caption("OPENPHASE")
     st.title("Hydrocarbon Phase Behavior")
     st.caption("Peng-Robinson EOS - 3 verified components - kij = 0")
 
@@ -275,7 +277,7 @@ def run_app() -> None:
     """Render the installed UI and run heavy flash work after stable page chrome."""
 
     st.set_page_config(
-        page_title="PVT Phase Simulator",
+        page_title="OpenPhase",
         page_icon=":material/science:",
         layout="wide",
         initial_sidebar_state="expanded",

@@ -64,13 +64,19 @@ from pvt_phase_simulator_ui.exports import (
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
 from pvt_phase_simulator_ui.reports import export_engineering_report_html
 from pvt_phase_simulator_ui.state import (
+    SWEEP_END_WIDGET_KEY,
+    SWEEP_KIND_WIDGET_KEY,
+    SWEEP_POINTS_WIDGET_KEY,
+    SWEEP_START_WIDGET_KEY,
     begin_result_attempt,
     get_result,
     get_result_action_failure,
+    initialize_sweep_widget_state,
     result_is_stale,
     store_result,
     store_result_action_failure,
     synchronize_sweep_inputs,
+    synchronize_sweep_widget_inputs,
 )
 from pvt_phase_simulator_ui.styles import phase_split_bar
 from pvt_phase_simulator_ui.sweeps import (
@@ -743,7 +749,12 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     component = st.selectbox("Composition component", COMPONENT_NAMES)
     branch = cast(
         Literal["bubble", "dew"],
-        st.segmented_control("Composition branch", ("bubble", "dew"), default="bubble"),
+        st.segmented_control(
+            "Composition branch",
+            ("bubble", "dew"),
+            default="bubble",
+            required=True,
+        ),
     )
     if st.button("SHOW PHASE COMPOSITIONS", icon=":material/show_chart:"):
         try:
@@ -975,7 +986,10 @@ def render_validation() -> None:
     direction = cast(
         Literal["bubble", "dew"],
         st.segmented_control(
-            "Prediction direction", ("bubble", "dew"), default="bubble"
+            "Prediction direction",
+            ("bubble", "dew"),
+            default="bubble",
+            required=True,
         ),
     )
     if st.button(
@@ -1368,14 +1382,16 @@ def _sweep_controls(
     """Collect sweep bounds; the fixed variable comes from the submitted case."""
 
     synchronize_sweep_inputs(session())
+    initialize_sweep_widget_state(session())
     kind = cast(
         SweepKind,
         st.segmented_control(
             "Swept variable",
             options=["pressure", "temperature"],
+            required=True,
             format_func=lambda value: value.capitalize(),
-            key="sweep_kind",
-            on_change=synchronize_sweep_inputs,
+            key=SWEEP_KIND_WIDGET_KEY,
+            on_change=synchronize_sweep_widget_inputs,
             args=(session(),),
         )
         or "pressure",
@@ -1401,19 +1417,25 @@ def _sweep_controls(
         start = st.number_input(
             label_start,
             step=1.0,
-            key="sweep_start_value",
+            key=SWEEP_START_WIDGET_KEY,
+            on_change=synchronize_sweep_widget_inputs,
+            args=(session(),),
         )
         end = st.number_input(
             label_end,
             step=1.0,
-            key="sweep_end_value",
+            key=SWEEP_END_WIDGET_KEY,
+            on_change=synchronize_sweep_widget_inputs,
+            args=(session(),),
         )
         points = st.number_input(
             "Points",
             min_value=MIN_SWEEP_POINTS,
             max_value=MAX_SWEEP_POINTS,
             step=1,
-            key="sweep_points_value",
+            key=SWEEP_POINTS_WIDGET_KEY,
+            on_change=synchronize_sweep_widget_inputs,
+            args=(session(),),
         )
     return kind, float(start), float(end), int(points)
 
