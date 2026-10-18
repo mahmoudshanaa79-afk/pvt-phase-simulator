@@ -319,3 +319,28 @@ critical point (321.58 K, 8.534 MPa). A 16-case survey (three shipped examples
 plus binaries and ternaries) closed both branches in 10 cases and stopped early in
 the other 6, all of them binaries (some with deliberately unfavourable start
 temperatures).
+
+## Learn mode
+
+A **Learn mode** switch at the top of the sidebar adds a short teaching panel to
+each page:
+
+- a plain-language explanation of what the page calculates (flash and
+  stability, reading a P-T envelope, the two critical-point conditions, sweeps,
+  verification versus validation, diagnostics);
+- "Try this" exercises on the shipped default case.
+
+Learn mode is off by default. It never runs a calculation, changes an input or
+alters a result. Every number an exercise quotes was produced with the unchanged
+engine for the stated case:
+
+- the vapour fraction at 300 K and 5 MPa;
+- the dew points at 300 K and 325 K;
+- the retrograde behaviour at 325 K, including where the flash becomes
+  inconclusive;
+- the cricondenbar, cricondentherm and certified critical point;
+- the default flash's iteration count and residual.
+
+`tests/test_app_learn.py` recomputes each one, so the text cannot drift from the
+model without a failing test. The real-browser smoke test turns Learn mode on
+and off.
