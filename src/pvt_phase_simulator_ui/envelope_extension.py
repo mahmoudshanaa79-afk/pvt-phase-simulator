@@ -296,6 +296,6 @@ PARTIAL_NOTE: Final = (
     "above are the engine's own and are not hidden."
 )
 DISPLAY_ONLY_NOTE: Final = (
-    "Extended branches are a display overlay. Exports and the engineering report "
-    "contain the standard envelope only."
+    "Extended branches are a display overlay. Exports, the engineering report and "
+    "the operating-point classification below use the standard envelope only."
 )

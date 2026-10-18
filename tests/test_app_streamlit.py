@@ -630,3 +630,44 @@ def test_ui_contains_no_duplicated_thermodynamic_implementations() -> None:
         "def criticality",
     )
     assert not any(definition in source for definition in forbidden_definitions)
+
+
+def test_extension_failure_keeps_the_standard_envelope_and_says_so(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def short_envelope(inputs: object) -> object:
+        # A real but deliberately short standard trace keeps the test fast.
+        settings = views.EnvelopeContinuationSettings(
+            target_temperature_k=280.0,
+            initial_temperature_step_k=5.0,
+            maximum_points=2,
+        )
+        return views.calculate_phase_envelope(
+            inputs.mixture(),  # type: ignore[attr-defined]
+            settings,
+            settings,
+            270.0,
+            270.0,
+        )
+
+    def raise_unexpected(_inputs: object) -> object:
+        raise RuntimeError("PRIVATE_INTERNAL_EXTENSION_DETAIL")
+
+    monkeypatch.setattr(views, "_calculate_envelope", short_envelope)
+    monkeypatch.setattr(views, "_calculate_extended_envelope", raise_unexpected)
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=60).run()
+    _button(app, "RUN FLASH").click().run()
+    phase_page = ROOT / "src" / "pvt_phase_simulator_ui" / "pages" / "phase_envelope.py"
+    app.switch_page(phase_page).run()
+    _button(app, "RUN PHASE ENVELOPE").click().run()
+
+    assert not app.exception
+    assert "envelope" in app.session_state["results"]
+    assert "envelope_extension" not in app.session_state["results"]
+    failure = app.session_state["result_action_failures"]["envelope_extension"]
+    assert failure == views.EXTENSION_ACTION_FAILURE
+    assert any(failure in item.value for item in app.error)
+    assert all(
+        "PRIVATE_INTERNAL_EXTENSION_DETAIL" not in item.value for item in app.error
+    )
+    assert not any("display overlay" in item.value for item in app.caption)

@@ -113,6 +113,10 @@ ENVELOPE_ACTION_FAILURE: Final = (
     "result. Any earlier envelope result was removed so it cannot be mistaken "
     "for the current calculation. Review the inputs and try again."
 )
+EXTENSION_ACTION_FAILURE: Final = (
+    "The extended envelope branches stopped unexpectedly and were not drawn. The "
+    "standard envelope shown here is unaffected."
+)
 CRITICAL_ACTION_FAILURE: Final = (
     "The critical-point calculation stopped unexpectedly and did not return a "
     "result. Any earlier critical-point result was removed so it cannot be "
@@ -705,9 +709,8 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                     )
                 except Exception:  # noqa: BLE001 - the standard envelope stays valid
                     LOGGER.exception("Unexpected failure extending the phase envelope")
-                    status.write(
-                        "The extended branches could not be calculated; the "
-                        "standard envelope below is unaffected."
+                    store_result_action_failure(
+                        session(), "envelope_extension", EXTENSION_ACTION_FAILURE
                     )
                 status.update(label="Envelope trace complete", state="complete")
             except Exception:  # noqa: BLE001 - preserve a safe application boundary
@@ -772,7 +775,9 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             ),
         ]
     )
-    if extension is not None:
+    if extension is None:
+        _show_action_failure("envelope_extension")
+    else:
         bubble_status, bubble_detail = describe_branch(extension.bubble)
         dew_status, dew_detail = describe_branch(extension.dew)
         _status_rows(
