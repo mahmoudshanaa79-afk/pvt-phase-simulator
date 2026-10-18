@@ -166,3 +166,12 @@ def test_a_branch_without_points_adds_no_trace() -> None:
     figure = add_extended_branches(go.Figure(), extension)
 
     assert BUBBLE_TRACE_NAME not in [trace.name for trace in figure.data]
+
+
+def test_the_legend_moves_below_the_axes_when_the_overlay_is_shown(
+    default_extension: ExtendedEnvelope,
+) -> None:
+    figure = add_extended_branches(go.Figure(), default_extension)
+
+    assert figure.layout.legend.y < 0
+    assert figure.layout.legend.yanchor == "top"

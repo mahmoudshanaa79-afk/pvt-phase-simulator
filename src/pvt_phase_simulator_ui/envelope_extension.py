@@ -246,6 +246,19 @@ def add_extended_branches(figure: Any, extension: ExtendedEnvelope) -> Any:
                 ),
             )
         )
+    if any(branch.points for branch in (extension.bubble, extension.dew)):
+        # The shared layout puts a horizontal legend above the plot. With the
+        # overlay entries it wraps over the title, so move it below the axes.
+        figure.update_layout(
+            legend={
+                "orientation": "h",
+                "yanchor": "top",
+                "y": -0.2,
+                "xanchor": "left",
+                "x": 0.0,
+            },
+            margin={"b": 150},
+        )
     return figure
 
 
