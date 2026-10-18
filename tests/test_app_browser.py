@@ -249,6 +249,12 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     _click_button(page, "RUN PHASE ENVELOPE")
     page.get_by_text("Envelope trace complete", exact=False).wait_for(timeout=180_000)
     page.get_by_text("Bubble branch", exact=True).first.wait_for(timeout=60_000)
+    page.get_by_text("Extended branches are a display overlay", exact=False).wait_for(
+        timeout=60_000
+    )
+    page.get_by_text("Bubble branch, extended (pseudo-arclength)").first.wait_for(
+        timeout=60_000
+    )
     _assert_healthy_ui(page)
     _screenshot(page, evidence_directory, "03-phase-envelope")
 

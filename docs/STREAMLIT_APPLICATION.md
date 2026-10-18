@@ -293,3 +293,29 @@ host log recorded any memory, resource, or process-termination message. No
 application or scientific defect has been identified. The event is therefore
 recorded as a non-reproducible hosting observation and will be revisited only
 if it recurs with diagnostic log evidence.
+
+## Extended phase-envelope branches
+
+The standard envelope steps in temperature, so it stops where a branch turns in
+pressure (the bubble side of the cricondenbar) or in temperature (the dew side of
+the cricondentherm). After the standard trace, the Phase Envelope page also calls
+the engine's existing opt-in pseudo-arclength continuation and overlays the result
+as dotted curves, with the engine's turning-point flags marked.
+
+This is application-layer selection among existing engine methods; no numerical
+method was added and no engine result is altered. The overlay is bounded (one
+bubble attempt, at most three dew attempts, 60 accepted points each) and display
+only: exports, the engineering report and the operating-point classification still
+use the standard envelope. If the extension itself fails unexpectedly, the standard
+envelope is kept and a plain-language error says the extended branches were not
+drawn.
+
+A branch is described as reaching the critical region only when the engine stopped
+it with its own near-critical guard. That is not a certified critical point, and a
+branch stopped for any other reason (for example `phase_role_lost`) is reported with
+the engine's reason and the envelope is not shown as closed. For the default 50/50
+methane/propane case both branches end within about 2 K and 0.1 MPa of the certified
+critical point (321.58 K, 8.534 MPa). A 16-case survey (three shipped examples
+plus binaries and ternaries) closed both branches in 10 cases and stopped early in
+the other 6, all of them binaries (some with deliberately unfavourable start
+temperatures).

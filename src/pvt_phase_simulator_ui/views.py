@@ -54,6 +54,15 @@ from pvt_phase_simulator_ui.adapters import (
     validation_pressure_error_summary,
 )
 from pvt_phase_simulator_ui.context import session, unit_preferences
+from pvt_phase_simulator_ui.envelope_extension import (
+    CLOSURE_NOTE,
+    DISPLAY_ONLY_NOTE,
+    PARTIAL_NOTE,
+    ExtendedEnvelope,
+    add_extended_branches,
+    describe_branch,
+    trace_extended_envelope,
+)
 from pvt_phase_simulator_ui.exports import (
     build_export_document,
     build_sweep_export_document,
@@ -103,6 +112,10 @@ ENVELOPE_ACTION_FAILURE: Final = (
     "The phase-envelope calculation stopped unexpectedly and did not return a "
     "result. Any earlier envelope result was removed so it cannot be mistaken "
     "for the current calculation. Review the inputs and try again."
+)
+EXTENSION_ACTION_FAILURE: Final = (
+    "The extended envelope branches stopped unexpectedly and were not drawn. The "
+    "standard envelope shown here is unaffected."
 )
 CRITICAL_ACTION_FAILURE: Final = (
     "The critical-point calculation stopped unexpectedly and did not return a "
@@ -653,6 +666,11 @@ def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
     )
 
 
+@st.cache_data(show_spinner=False, max_entries=8)
+def _calculate_extended_envelope(inputs: ScientificInputs) -> ExtendedEnvelope:
+    return trace_extended_envelope(inputs.mixture(), inputs.temperature_k)
+
+
 def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     st.header("Phase envelope")
     units = unit_preferences()
@@ -670,6 +688,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     ):
         assert action_inputs is not None
         begin_result_attempt(session(), "envelope")
+        begin_result_attempt(session(), "envelope_extension")
         with st.status("Tracing bubble and dew branches…", expanded=True) as status:
             status.write(
                 "Cold-starting below the operating point, then continuing both "
@@ -680,6 +699,19 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             try:
                 result = _calculate_envelope(action_inputs)
                 store_result(session(), "envelope", result, action_inputs)
+                status.write("Extending both branches through their turning points…")
+                try:
+                    store_result(
+                        session(),
+                        "envelope_extension",
+                        _calculate_extended_envelope(action_inputs),
+                        action_inputs,
+                    )
+                except Exception:  # noqa: BLE001 - the standard envelope stays valid
+                    LOGGER.exception("Unexpected failure extending the phase envelope")
+                    store_result_action_failure(
+                        session(), "envelope_extension", EXTENSION_ACTION_FAILURE
+                    )
                 status.update(label="Envelope trace complete", state="complete")
             except Exception:  # noqa: BLE001 - preserve a safe application boundary
                 LOGGER.exception("Unexpected failure in the phase-envelope action")
@@ -700,15 +732,23 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     )
     if result_is_stale(session(), "critical", inputs):
         critical = None
+    extension = cast(
+        ExtendedEnvelope | None, get_result(session(), "envelope_extension")
+    )
+    if result_is_stale(session(), "envelope_extension", inputs):
+        extension = None
+    envelope_figure = plot_phase_envelope(
+        result,
+        pressure_unit=PlotPressureUnit.PA,
+        critical_point=critical,
+        metadata={"model": "Peng-Robinson EOS; kij=0"},
+    )
+    if extension is not None:
+        envelope_figure = add_extended_branches(envelope_figure, extension)
     _wide_chart(
         _annotate_missing_envelope_branches(
             _presentation_figure(
-                plot_phase_envelope(
-                    result,
-                    pressure_unit=PlotPressureUnit.PA,
-                    critical_point=critical,
-                    metadata={"model": "Peng-Robinson EOS; kij=0"},
-                ),
+                envelope_figure,
                 units,
                 x_quantity="temperature",
                 y_quantity="pressure",
@@ -735,6 +775,22 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             ),
         ]
     )
+    if extension is None:
+        _show_action_failure("envelope_extension")
+    else:
+        bubble_status, bubble_detail = describe_branch(extension.bubble)
+        dew_status, dew_detail = describe_branch(extension.dew)
+        _status_rows(
+            [
+                ("Extended bubble branch", bubble_status, bubble_detail),
+                ("Extended dew branch", dew_status, dew_detail),
+            ]
+        )
+        st.caption(
+            (CLOSURE_NOTE if extension.both_reached_critical_region else PARTIAL_NOTE)
+            + " "
+            + DISPLAY_ONLY_NOTE
+        )
     if inputs is not None:
         st.info(
             "Operating point: "
