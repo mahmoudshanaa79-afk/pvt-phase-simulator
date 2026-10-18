@@ -257,7 +257,7 @@ uv run pytest -q tests/test_app_browser.py
 
 ## Public deployment
 
-The application is published as the **public v1.2 deployment**. It is the
+The application is published as the **public v1.3 deployment**. It is the
 released application rather than a candidate, and it inherits every
 applicability limit recorded above.
 
