@@ -68,6 +68,45 @@ _DEFAULT_INPUTS: Final = INPUT_EXAMPLES[0]
 _DEFAULT_PRESSURE_SWEEP_PA: Final = (1.0e6, 20.0e6)
 _DEFAULT_TEMPERATURE_SWEEP_K: Final = (240.0, 340.0)
 _DEFAULT_SWEEP_POINTS: Final = 21
+_SWEEP_KINDS: Final = ("pressure", "temperature")
+SWEEP_KIND_WIDGET_KEY: Final = "sweep_kind_control"
+SWEEP_START_WIDGET_KEY: Final = "sweep_start_control"
+SWEEP_END_WIDGET_KEY: Final = "sweep_end_control"
+SWEEP_POINTS_WIDGET_KEY: Final = "sweep_points_control"
+_SWEEP_WIDGET_STATE_KEYS: Final = (
+    (SWEEP_KIND_WIDGET_KEY, "sweep_kind"),
+    (SWEEP_START_WIDGET_KEY, "sweep_start_value"),
+    (SWEEP_END_WIDGET_KEY, "sweep_end_value"),
+    (SWEEP_POINTS_WIDGET_KEY, "sweep_points_value"),
+)
+
+
+def _repair_required_choice(
+    state: MutableMapping[str, Any],
+    key: str,
+    choices: tuple[str, ...],
+    default: str,
+) -> None:
+    """Restore required widget state before callbacks consume it."""
+
+    value = state.get(key)
+    if not isinstance(value, str) or value not in choices:
+        state[key] = default
+
+
+def update_sweep_widget_state(state: MutableMapping[str, Any]) -> None:
+    """Refresh already-rendered sweep controls from canonical UI state."""
+
+    for widget_key, state_key in _SWEEP_WIDGET_STATE_KEYS:
+        if widget_key in state:
+            state[widget_key] = state[state_key]
+
+
+def initialize_sweep_widget_state(state: MutableMapping[str, Any]) -> None:
+    """Seed transient control keys only when their widgets first render."""
+
+    for widget_key, state_key in _SWEEP_WIDGET_STATE_KEYS:
+        state.setdefault(widget_key, state[state_key])
 
 
 def initialize_session(state: MutableMapping[str, Any]) -> None:
@@ -86,13 +125,38 @@ def initialize_session(state: MutableMapping[str, Any]) -> None:
     state.setdefault("pressure_pa", _DEFAULT_INPUTS.pressure_pa)
     state.setdefault("temperature_unit", DEFAULT_UNITS.temperature.value)
     state.setdefault("pressure_unit", DEFAULT_UNITS.pressure.value)
+    _repair_required_choice(
+        state,
+        "temperature_unit",
+        tuple(unit.value for unit in TemperatureUnit),
+        DEFAULT_UNITS.temperature.value,
+    )
+    _repair_required_choice(
+        state,
+        "pressure_unit",
+        tuple(unit.value for unit in PressureUnit),
+        DEFAULT_UNITS.pressure.value,
+    )
     state.setdefault("rendered_temperature_unit", DEFAULT_UNITS.temperature.value)
     state.setdefault("rendered_pressure_unit", DEFAULT_UNITS.pressure.value)
+    _repair_required_choice(
+        state,
+        "rendered_temperature_unit",
+        tuple(unit.value for unit in TemperatureUnit),
+        str(state["temperature_unit"]),
+    )
+    _repair_required_choice(
+        state,
+        "rendered_pressure_unit",
+        tuple(unit.value for unit in PressureUnit),
+        str(state["pressure_unit"]),
+    )
     state.setdefault("temperature_value", _DEFAULT_INPUTS.temperature_k)
     state.setdefault("pressure_value", _DEFAULT_INPUTS.pressure_mpa)
     state.setdefault("rendered_temperature_value", state["temperature_value"])
     state.setdefault("rendered_pressure_value", state["pressure_value"])
     state.setdefault("sweep_kind", "pressure")
+    _repair_required_choice(state, "sweep_kind", _SWEEP_KINDS, "pressure")
     state.setdefault("sweep_pressure_start_pa", _DEFAULT_PRESSURE_SWEEP_PA[0])
     state.setdefault("sweep_pressure_end_pa", _DEFAULT_PRESSURE_SWEEP_PA[1])
     state.setdefault("sweep_points_pressure", _DEFAULT_SWEEP_POINTS)
@@ -115,6 +179,24 @@ def initialize_session(state: MutableMapping[str, Any]) -> None:
     state.setdefault("rendered_sweep_kind", state["sweep_kind"])
     state.setdefault("rendered_sweep_temperature_unit", state["temperature_unit"])
     state.setdefault("rendered_sweep_pressure_unit", state["pressure_unit"])
+    _repair_required_choice(
+        state,
+        "rendered_sweep_kind",
+        _SWEEP_KINDS,
+        str(state["sweep_kind"]),
+    )
+    _repair_required_choice(
+        state,
+        "rendered_sweep_temperature_unit",
+        tuple(unit.value for unit in TemperatureUnit),
+        str(state["temperature_unit"]),
+    )
+    _repair_required_choice(
+        state,
+        "rendered_sweep_pressure_unit",
+        tuple(unit.value for unit in PressureUnit),
+        str(state["pressure_unit"]),
+    )
     state.setdefault("rendered_sweep_start_value", state["sweep_start_value"])
     state.setdefault("rendered_sweep_end_value", state["sweep_end_value"])
     state.setdefault("rendered_sweep_points_value", state["sweep_points_value"])
@@ -190,6 +272,17 @@ def synchronize_sweep_inputs(state: MutableMapping[str, Any]) -> None:
     state["rendered_sweep_start_value"] = state["sweep_start_value"]
     state["rendered_sweep_end_value"] = state["sweep_end_value"]
     state["rendered_sweep_points_value"] = state["sweep_points_value"]
+    update_sweep_widget_state(state)
+
+
+def synchronize_sweep_widget_inputs(state: MutableMapping[str, Any]) -> None:
+    """Copy browser control values into canonical state before conversion."""
+
+    initialize_session(state)
+    for widget_key, state_key in _SWEEP_WIDGET_STATE_KEYS:
+        if widget_key in state:
+            state[state_key] = state[widget_key]
+    synchronize_sweep_inputs(state)
 
 
 def synchronize_unit_inputs(state: MutableMapping[str, Any]) -> None:

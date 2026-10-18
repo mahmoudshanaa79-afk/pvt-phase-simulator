@@ -233,9 +233,27 @@ APIs remain unchanged.
 `.github/workflows/quality.yml` reproduces the authoritative gates on a clean
 Ubuntu runner with Python 3.12 installed from the locked dependency graph:
 `uv lock --check`, Ruff, Ruff formatting, mypy over `src` and `app`,
-`compileall`, the application import smoke, the full test suite, and the
-localhost Streamlit health smoke. The workflow holds read-only repository
-permissions and uses no secret.
+`compileall`, the application import smoke, a Playwright Chromium smoke, the
+full test suite, and the localhost Streamlit health smoke. The real-browser
+gate exercises every primary page with the shipped examples, including case
+save/load, the default flash, phase envelope, critical solver and map,
+engineering sweep, validation figures, and diagnostics. It fails on raw
+Streamlit exception blocks, browser page errors, failed requests, or blocking
+console errors, and uploads its screenshots and server log as CI evidence.
+The workflow holds read-only repository permissions and uses no secret.
+
+Unexpected application exceptions are logged server-side and replaced in the
+UI with plain-language action or page errors. Structured scientific outcomes
+such as `NOT_FOUND`, `INCONCLUSIVE`, and non-convergence remain visible as
+scientific results and are not converted into generic application errors.
+
+For a local real-browser run after installing the locked development group and
+Playwright Chromium:
+
+```text
+uv run playwright install chromium
+uv run pytest -q tests/test_app_browser.py
+```
 
 ## Public deployment
 

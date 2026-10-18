@@ -1,0 +1,36 @@
+{
+  "work_package": "v2_01_d_validation_evidence_report",
+  "gate": "manual_real_browser_visual_qa",
+  "passed": true,
+  "date": "2026-09-26",
+  "candidate_content_identity": "e060efda1d5538d97ab254d225fba7965cf90dd6",
+  "implementation_commit": "793b6516af09b0ceb5235ba62c18e41f75a8cd85",
+  "artifact_binding": {
+    "html_sha256": "ebe29f82fb5b58d55484b3489d4b8446f9712e1052a6587fbc69e865867432fc",
+    "canonical_json_content_sha256": "9f5433c74dffce865834e24615408a631e97d72a593486b4f5b5a08339cabc4e"
+  },
+  "attestation": {
+    "performed_by": "user",
+    "method": "actual generated HTML opened in a local real browser",
+    "viewports_approximately_px": [1280, 400],
+    "checks": [
+      "all report sections accessible",
+      "all Plotly figures render",
+      "actual Plotly hover interaction works and displays case IDs",
+      "tables and scientific content remain readable",
+      "failure and unavailable evidence remains visible",
+      "uncertainty wording is visible",
+      "the 283.38 K source-anomaly disclosure is visible",
+      "RETROSPECTIVE DIAGNOSTICS — NOT PRODUCTION PREDICTIONS is clearly visible",
+      "primary and sensitivity evidence are distinguishable",
+      "no blocking clipping or layout defect found",
+      "no blocking browser-console error found"
+    ]
+  },
+  "linked_evidence": {
+    "final_verification": ".ai/verification/20260926-121001-v2_01_d_validation_evidence_report-audit-preflight.json",
+    "final_claude_audit": ".ai/claude_audits/20260926-121002-v2_01_d_validation_evidence_report-audit.md",
+    "final_claude_audit_transcript": ".ai/claude_audits/20260926-121002-v2_01_d_validation_evidence_report-audit.transcript.json"
+  },
+  "notes": "The user authorized this unchanged candidate's browser-QA gate as PASSED in the Codex session. No implementation change followed the attested candidate before its exact manual implementation commit."
+}

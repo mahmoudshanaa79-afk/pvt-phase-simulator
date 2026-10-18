@@ -1,0 +1,127 @@
+{
+  "format": "openphase.validation_evidence_declaration",
+  "version": "1.0.0",
+  "dataset": "module17",
+  "dataset_role": {
+    "parameter_fitting": {
+      "status": "NOT_USED",
+      "basis": "DECLARED_VERIFIED",
+      "evidence": [
+        "data/component_properties.csv",
+        "src/pvt_phase_simulator/eos/mixing_rules.py",
+        "src/pvt_phase_simulator/experimental_validation.py"
+      ]
+    },
+    "solver_development": {
+      "status": "NOT_ESTABLISHED",
+      "basis": "DECLARED",
+      "evidence": [
+        "git:248787a",
+        "git:80e8146"
+      ]
+    },
+    "regression_testing": {
+      "status": "USED",
+      "basis": "DECLARED",
+      "evidence": [
+        "tests/test_experimental_validation.py",
+        "tests/test_validation_metrics.py"
+      ]
+    },
+  "evaluation": {
+    "status": "USED",
+    "basis": "DECLARED",
+      "evidence": [
+        "docs/validation/module17_vle_validation.csv",
+        "docs/validation/module17_vle_validation_summary.json"
+      ]
+    },
+    "held_out_from_development": {
+      "status": "NOT_ESTABLISHED",
+      "basis": "DECLARED",
+      "evidence": [
+        "git:248787a",
+        "git:80e8146"
+      ]
+    }
+  },
+  "archive_verification": {
+    "verified_state_case_id": "may2015_ch4_c3_023",
+    "temperature_k": 283.38,
+    "pressure_pa": 7630000.0,
+    "liquid_methane_fraction": 0.4586,
+    "vapor_propane_fraction": 0.2045,
+    "pressure_uncertainty_pa": 54000.0,
+    "vapor_propane_uncertainty": 0.0046,
+    "pressure_dataset_number": 3,
+    "vapor_dataset_number": 4,
+    "raw_sha256_matches_manifest": true,
+    "extractor_reproduces_normalized_csv": true,
+    "paired_datasets_independently_contain_state": true,
+    "citation_title_range_ends_k": 273.0,
+    "article_table_check": "not performed (article inaccessible)",
+    "article_level_consistency": "UNRESOLVED",
+    "evidence": [
+      "data/experimental/may_2015_source_manifest.json",
+      "tools/extract_may_2015_thermoml.py",
+      ".ai/designs/v2_01_d_validation_evidence_report_design.md"
+    ]
+  },
+  "uncertainty_source": {
+    "evaluator": "Data file compiler",
+    "method": "Propagation of evaluated standard uncertainties",
+    "description": "combined expanded uncertainty evaluated by the ThermoML Data file compiler",
+    "confidence_level_percent": 95.0,
+    "coverage_factor": null,
+    "manifest_metadata_gap": "The protected manifest does not record the uncertainty evaluator or evaluation method.",
+    "evidence": [
+      "data/experimental/may_2015_source_manifest.json",
+      ".ai/designs/v2_01_d_validation_evidence_report_design.md"
+    ]
+  },
+  "model_configuration": {
+    "eos": "Peng-Robinson",
+    "omega_a": 0.45724,
+    "omega_b": 0.0778,
+    "kappa_expression": "0.37464 + 1.54226*omega - 0.26992*omega^2",
+    "mixing_rule": "classical van der Waals one-fluid mixing rules",
+    "binary_interaction_policy": "default_zero",
+    "prediction_artifact_introduced_revision": "80e8146",
+    "generating_revision_embedded": false,
+    "components": [
+      {
+        "component_id": "methane",
+        "critical_temperature_k": 190.564,
+        "critical_pressure_pa": 4599200.0,
+        "acentric_factor": 0.01142,
+        "kappa": 0.392217407205312
+      },
+      {
+        "component_id": "ethane",
+        "critical_temperature_k": 305.322,
+        "critical_pressure_pa": 4872200.0,
+        "acentric_factor": 0.0995,
+        "kappa": 0.52542259452
+      },
+      {
+        "component_id": "propane",
+        "critical_temperature_k": 369.89,
+        "critical_pressure_pa": 4251200.0,
+        "acentric_factor": 0.1521,
+        "kappa": 0.6029733060528
+      }
+    ],
+    "evidence": [
+      "src/pvt_phase_simulator/eos/peng_robinson.py",
+      "src/pvt_phase_simulator/eos/mixing_rules.py",
+      "src/pvt_phase_simulator/experimental_validation.py",
+      "data/component_properties.csv"
+    ]
+  },
+  "software_verification_pointers": [
+    "tests/test_validation_core.py",
+    "tests/test_validation_module17_adapter.py",
+    "tests/test_validation_metrics.py",
+    "tests/test_validation_report.py"
+  ]
+}
