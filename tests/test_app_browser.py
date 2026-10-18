@@ -207,6 +207,18 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     _assert_healthy_ui(page)
     _screenshot(page, evidence_directory, "00-overview-default")
 
+    learn_switch = page.get_by_role("switch", name="Learn mode")
+    page.get_by_text("Learn mode", exact=True).click()
+    page.get_by_text("Learn: What a flash calculation answers").wait_for()
+    assert learn_switch.is_checked()
+    _assert_healthy_ui(page)
+    _screenshot(page, evidence_directory, "00-learn-mode")
+    page.get_by_text("Learn mode", exact=True).click()
+    page.get_by_text("Learn: What a flash calculation answers").wait_for(
+        state="detached"
+    )
+    assert not learn_switch.is_checked()
+
     example = page.get_by_role("combobox", name="Example case")
     for label in SHIPPED_EXAMPLES:
         example.click()

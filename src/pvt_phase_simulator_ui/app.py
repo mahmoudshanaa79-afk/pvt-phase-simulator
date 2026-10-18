@@ -25,6 +25,7 @@ from pvt_phase_simulator_ui.case_files import (
     serialize_case,
 )
 from pvt_phase_simulator_ui.context import session
+from pvt_phase_simulator_ui.learn import render_learn_toggle
 from pvt_phase_simulator_ui.state import (
     INPUT_EXAMPLES,
     apply_selected_input_example,
@@ -145,6 +146,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
         # Capture any field edits from the prior browser event before building
         # the downloadable case, and before any load can replace widget state.
         synchronize_unit_inputs(session())
+        render_learn_toggle()
         _case_controls()
         st.subheader("Fluid inputs")
         st.caption("Display and entry units")

@@ -70,6 +70,7 @@ from pvt_phase_simulator_ui.exports import (
     export_json_bytes,
     export_sweep_csv_bytes,
 )
+from pvt_phase_simulator_ui.learn import render_learn_panel
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
 from pvt_phase_simulator_ui.reports import export_engineering_report_html
 from pvt_phase_simulator_ui.state import (
@@ -509,6 +510,7 @@ def _render_model_scope_panel() -> None:
 
 def render_overview(inputs: ScientificInputs | None) -> None:
     st.header("Overview")
+    render_learn_panel("overview")
     units = unit_preferences()
     _render_model_scope_panel()
     raw = get_result(session(), "flash")
@@ -673,6 +675,7 @@ def _calculate_extended_envelope(inputs: ScientificInputs) -> ExtendedEnvelope:
 
 def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     st.header("Phase envelope")
+    render_learn_panel("phase_envelope")
     units = unit_preferences()
     st.caption(
         "Independent bounded bubble and dew continuation · "
@@ -859,6 +862,7 @@ def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
 
 def render_critical_point(inputs: ScientificInputs | None) -> None:
     st.header("Critical point")
+    render_learn_panel("critical_point")
     units = unit_preferences()
     st.caption(
         "Certification requires solver convergence on both criticality conditions. "
@@ -1032,6 +1036,7 @@ def _records() -> tuple[Any, ...]:
 
 def render_validation() -> None:
     st.header("Validation")
+    render_learn_panel("validation")
     units = unit_preferences()
     st.info(
         "Existing experimental dataset: 40 methane/ethane and methane/propane "
@@ -1136,6 +1141,7 @@ def render_validation() -> None:
 
 def render_diagnostics(inputs: ScientificInputs | None) -> None:
     st.header("Diagnostics")
+    render_learn_panel("diagnostics")
     st.caption("Public engineering evidence; structured failures remain failures.")
     flash_raw = get_result(session(), "flash")
     envelope_raw = get_result(session(), "envelope")
@@ -1500,6 +1506,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
     """Bounded sweeps that call the existing verified flash API at every point."""
 
     st.header("Engineering sweeps")
+    render_learn_panel("engineering_sweeps")
     units = unit_preferences()
     st.caption(
         "Every point is one call into the existing verified flash and stability "
