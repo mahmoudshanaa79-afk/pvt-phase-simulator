@@ -64,6 +64,11 @@ The equations and their implementation mapping are documented in
 [`docs/EQUATIONS.md`](docs/EQUATIONS.md).
 The first experimental comparison and its limitations are documented in
 [`docs/EXPERIMENTAL_VALIDATION.md`](docs/EXPERIMENTAL_VALIDATION.md).
+A follow-up investigation in [`docs/DEW_INVESTIGATION.md`](docs/DEW_INVESTIGATION.md)
+finds that most of the CH4+C3 dew-pressure error comes from an ill-posed dew
+question near PR's maximum vapour composition, not from model error. It also
+traces early `phase_role_lost` envelope stops to the cubic root-count continuity
+rule. No engine change has been made.
 
 ## Streamlit application
 
