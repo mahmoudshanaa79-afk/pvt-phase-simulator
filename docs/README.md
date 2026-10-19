@@ -16,5 +16,8 @@
 - [Module 7 two-phase flash design](FLASH_DESIGN.md)
 - [Module 8 saturation-pressure design](SATURATION_PRESSURE_DESIGN.md)
 - [Module 9 phase-envelope continuation design](PHASE_ENVELOPE_DESIGN.md)
+- [Streamlit application, Learn mode and envelope overlay](STREAMLIT_APPLICATION.md)
+- [Dew-branch investigation](DEW_INVESTIGATION.md)
+- [Teaching lab 1: methane-propane phase behaviour](teaching/LAB_01_METHANE_PROPANE.md)
 - The project overview, setup instructions, capabilities, and limitations are
   maintained in the repository-level `README.md`.
