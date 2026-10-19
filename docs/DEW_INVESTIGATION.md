@@ -200,3 +200,7 @@ Both findings point at frozen engine policy. Neither has been changed.
 4. **Validation solver options.** Decide whether validation should run the
    bubble and dew solvers with the engine's Newton refinement on. It would have
    converged at 013–015.
+
+Exact proposed code, the hidden-root mechanism behind decision 2 (eight of eight
+missed second roots recovered by refining one grid interval), and the tests
+each change would need are in `docs/ENGINE_CHANGE_PROPOSALS.md`.
