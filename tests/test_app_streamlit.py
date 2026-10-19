@@ -671,3 +671,26 @@ def test_extension_failure_keeps_the_standard_envelope_and_says_so(
         "PRIVATE_INTERNAL_EXTENSION_DETAIL" not in item.value for item in app.error
     )
     assert not any("display overlay" in item.value for item in app.caption)
+
+
+def test_long_chart_titles_wrap_and_move_the_legend_below() -> None:
+    import plotly.graph_objects as go
+
+    figure = go.Figure(
+        layout={
+            "title": {"text": "Phase Envelope — Methane/Ethane/Propane (0.5/0/0.5)"},
+            "legend": {"y": 1.02},
+        }
+    )
+    wrapped = views._responsive_title(figure)
+
+    assert wrapped.layout.title.text.startswith("Phase Envelope<br>")
+    assert "Methane/Ethane/Propane (0.5/0/0.5)" in wrapped.layout.title.text
+    assert wrapped.layout.legend.y < 0
+    # The caller's figure is not modified.
+    assert (
+        figure.layout.title.text
+        == "Phase Envelope — Methane/Ethane/Propane (0.5/0/0.5)"
+    )
+    short = go.Figure(layout={"title": {"text": "Vapor fraction"}})
+    assert views._responsive_title(short) is short
