@@ -15,6 +15,9 @@ emphasizes explicit units, immutable inputs, traceable assumptions, numerical
 conditioning, and independently specified
 regression cases.
 
+Where the project stands, what is waiting on a decision, and what comes next:
+[`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+
 ## Implemented functionality
 
 - Pure-component Peng–Robinson parameters: reduced temperature, kappa, alpha,
