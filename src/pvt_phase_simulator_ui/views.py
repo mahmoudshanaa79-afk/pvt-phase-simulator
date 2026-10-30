@@ -105,6 +105,7 @@ from pvt_phase_simulator_ui.units import (
     pressure_from_pa,
     temperature_from_k,
 )
+from pvt_phase_simulator_ui.validation_evidence import render_further_evidence
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGGER = logging.getLogger(__name__)
@@ -1122,6 +1123,7 @@ def render_validation() -> None:
     requested = session().get("validation_direction")
     if requested is None:
         st.caption("Figures are generated only after the explicit action above.")
+        render_further_evidence(ROOT)
         return
     selected = cast(Literal["bubble", "dew"], requested)
     if selected != direction:
@@ -1197,6 +1199,7 @@ def render_validation() -> None:
     except ValueError as error:
         st.info(f"Retrospective diagnostics unavailable: {error}")
     st.caption("Signed relative pressure error = 100*(P_pred-P_exp)/P_exp.")
+    render_further_evidence(ROOT)
 
 
 def render_diagnostics(inputs: ScientificInputs | None) -> None:
