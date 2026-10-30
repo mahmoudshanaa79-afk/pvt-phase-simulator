@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 19 October 2026 (release v1.3.0).
+Last updated: 30 October 2026 (release v1.4.0).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
