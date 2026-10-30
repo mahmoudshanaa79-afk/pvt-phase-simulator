@@ -19,5 +19,6 @@
 - [Streamlit application, Learn mode and envelope overlay](STREAMLIT_APPLICATION.md)
 - [Dew-branch investigation](DEW_INVESTIGATION.md)
 - [Teaching lab 1: methane-propane phase behaviour](teaching/LAB_01_METHANE_PROPANE.md)
+- [Teaching lab 3: how composition moves the phase envelope](teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
 - The project overview, setup instructions, capabilities, and limitations are
   maintained in the repository-level `README.md`.
