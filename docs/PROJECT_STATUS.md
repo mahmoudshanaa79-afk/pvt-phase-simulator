@@ -91,6 +91,16 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-10-30, web (Lab 3):**
+  - Done: teaching Lab 3 (methane-propane 30/70, 50/50 and 70/30: envelope
+    landmarks, certified critical points, trends with composition, and oil
+    versus gas-condensate behaviour at 300 K), in PR #22. No fixed-temperature
+    dew pressures are quoted (P2). Every key number is recomputed by
+    `tests/test_teaching_lab_03.py`.
+  - Open: PR #21 (Lab 2) and PR #22 await CI. The desktop session is working on
+    P2, P3 and the Validation page.
+  - Next: send the faculty brief and act on the answers.
+
 - **2026-10-30, web (release v1.4.0):**
   - Done: the owner approved release v1.4. PRs #15 (P1), #16 (P5), #18 (P4
     report) and #17 (survey docs) are merged, each after CI passed. PR #19 bumps
