@@ -283,19 +283,15 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     pressure = page.get_by_role("radio", name="Pressure", exact=True)
     temperature = page.get_by_role("radio", name="Temperature", exact=True)
     expect(pressure).to_be_checked()
-    assert (
-        page.get_by_role(
-            "spinbutton", name="Start pressure (MPa)", exact=True
-        ).input_value()
-        == "1.00"
-    )
-    assert (
-        page.get_by_role(
-            "spinbutton", name="End pressure (MPa)", exact=True
-        ).input_value()
-        == "20.00"
-    )
-    assert page.get_by_role("spinbutton", name="Points", exact=True).input_value() == (
+    # Streamlit fills the number inputs just after the page renders; the
+    # waiting assertion reads them once they settle instead of racing them.
+    expect(
+        page.get_by_role("spinbutton", name="Start pressure (MPa)", exact=True)
+    ).to_have_value("1.00")
+    expect(
+        page.get_by_role("spinbutton", name="End pressure (MPa)", exact=True)
+    ).to_have_value("20.00")
+    expect(page.get_by_role("spinbutton", name="Points", exact=True)).to_have_value(
         "21"
     )
     pressure.click()
