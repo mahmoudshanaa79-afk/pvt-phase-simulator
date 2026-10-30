@@ -58,7 +58,7 @@ key whose numbers are recomputed from the engine by the tests.
 | P2: refine grid boundaries in the saturation scan | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Stops 8 known hidden-second-root results from being reported as unique; changes the Module 17 artifacts |
 | P3: conditioning-aware dew metric | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Honest dew accuracy reporting |
 | P4: Newton refinement in validation | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Three more CH4+C3 bubble states solved |
-| P5: neutral dew stop marker label | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Avoids implying a critical point at the cricondentherm |
+| P5: neutral dew stop marker label (approved, in PR #16) | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Avoids implying a critical point at the cricondentherm |
 | Pure-component reference data (V2-01-E) | draft PR, `docs/PURE_COMPONENT_SATURATION.md` | Accept CoolProp-evaluated reference EOS values as a source |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
@@ -85,6 +85,15 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-30, web (P5):**
+  - Done: the owner approved P5. The app now labels the standard dew stop marker
+    "Dew branch stopped (engine near-critical guard)", in PR #16. Application
+    layer only; the engine's own label in `plotting.py` is unchanged because the
+    approval did not name that file.
+  - Open: PR #16 awaits CI. P1 is in PR #15. P2, P3 and the pure-component data
+    are on hold until the faculty review. P4 (option B) is queued.
+  - Next: P4 option B as a separate PR.
 
 - **2026-10-30, desktop:**
   - Done: added `CLAUDE.md` with the project rules, the two-account workflow

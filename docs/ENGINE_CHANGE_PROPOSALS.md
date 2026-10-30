@@ -181,6 +181,8 @@ states (013–015) then fail with "No trustworthy saturation-pressure bracket".
 
 ## P5. Neutral wording for the standard trace's dew stop marker
 
+**Status: approved by the owner on 2026-10-30 and implemented in the application layer in PR #16. The engine's own label is unchanged.**
+
 **Observation.** On the default case, the standard (natural-temperature) dew
 branch stops near 329 K / 6.7 MPa, at the cricondentherm, not at the critical
 point. The engine plot labels that marker "Dew Near-critical termination". Users
