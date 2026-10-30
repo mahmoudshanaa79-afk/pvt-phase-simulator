@@ -83,12 +83,12 @@ key whose numbers are recomputed from the engine by the tests.
 
 ## Session log
 
-Newest first. One short entry per session, written by whichever account did the
-work.
+Newest first. One short entry per task, written by whichever account did the
+work and added in that task's PR. Sessions read only the latest few entries.
 
 - **2026-10-30, desktop:**
-  - Done: added `CLAUDE.md` with the project rules and this two-account
-    workflow.
+  - Done: added `CLAUDE.md` with the project rules, the two-account workflow
+    and token-saving defaults that sessions follow without being asked.
   - Open: draft PR #10 (pure-component reference data) awaits an owner
     decision.
   - Next: the owner decides on engine proposals P1–P5 and PR #10; send the
