@@ -58,13 +58,13 @@ key whose numbers are recomputed from the engine by the tests.
 | P5: neutral dew stop marker label | Done, PR #16, in the app layer. The engine's own label is unchanged. |
 | P2: refine grid boundaries in the saturation scan | Done, owner-approved. Nine dew results that looked unique are now reported as ambiguous (`HIDDEN_SATURATION_ROOT`); each second root is confirmed. The Module 17 artifacts were regenerated: CH4+C3 dew 7 → 1 unique results, CH4+C2 dew 15 → 12. Bubble results unchanged. |
 | Pure-component reference data (V2-01-E) | Accepted, PR #10 (`docs/PURE_COMPONENT_SATURATION.md`). |
+| P3: conditioning-aware dew metric | Done for both binaries (`docs/investigations/dew_conditioning.csv`). PR's vapour composition at the measured pressure is within the stated uncertainty at 22 of 23 CH4+C3 states and 15 of 15 assessable CH4+C2 states. Shown on the Validation page. |
 | P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
 
 ## Waiting on an owner decision
 
 | Item | Where | Effect |
 |---|---|---|
-| P3: conditioning-aware dew metric | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Honest dew accuracy reporting |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -77,8 +77,8 @@ key whose numbers are recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. P1, P2, P4 (option B), P5 and the pure-component data are done. Next: P3,
-   then the Validation page evidence tabs, then a release.
+1. P1–P5 and the pure-component data are done. Next: the Validation page
+   evidence tabs, then a release.
 2. Send the faculty brief and act on the answers, especially on kij and on
    which components and datasets come next.
 3. Add CO2 and N2, or the butanes, with verified properties and at least one
@@ -89,6 +89,15 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-30, desktop (P3):**
+  - Done: the dew conditioning study now covers CH4+C2 and CH4+C3 and survives
+    isolated bubble-solve failures (grid of converged solves, interpolation
+    fallback recorded per state). CH4+C3 values reproduce the earlier study to
+    1e-8. CH4+C2: 15 of 15 assessable states within 1 U, 2 states above the
+    converged isotherm.
+  - Next: the Validation page "Further evidence" tabs (branch
+    `validation-page`), then release v1.5.
 
 - **2026-10-30, desktop (P2):**
   - Done: applied P2 in `saturation_pressure.py` as a stepwise walk from each
