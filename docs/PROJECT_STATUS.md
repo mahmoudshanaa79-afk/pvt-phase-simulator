@@ -56,6 +56,7 @@ key whose numbers are recomputed from the engine by the tests.
 |---|---|
 | P1: root-count-tolerant continuation | Done, PR #15. The extended-envelope survey now closes 13 of 16 cases (9 before). The 3 that still stop early have other causes. |
 | P5: neutral dew stop marker label | Done, PR #16, in the app layer. The engine's own label is unchanged. |
+| P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
 
 ## Waiting on an owner decision
 
@@ -63,7 +64,6 @@ key whose numbers are recomputed from the engine by the tests.
 |---|---|---|
 | P2: refine grid boundaries in the saturation scan | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Stops 8 known hidden-second-root results from being reported as unique; changes the Module 17 artifacts |
 | P3: conditioning-aware dew metric | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Honest dew accuracy reporting |
-| P4: Newton refinement in validation | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Three more CH4+C3 bubble states solved |
 | Pure-component reference data (V2-01-E) | draft PR, `docs/PURE_COMPONENT_SATURATION.md` | Accept CoolProp-evaluated reference EOS values as a source |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
@@ -101,7 +101,18 @@ work and added in that task's PR. Sessions read only the latest few entries.
     `docs/DEW_INVESTIGATION.md`. Moved P1 and P5 to a "Decided" table.
   - Open: draft PR #10 awaits the faculty review. P2, P3 and the
     pure-component data are on hold until then.
-  - Next: release v1.4.0 after the P4 report and this PR are merged.
+  - Next: release v1.4.0 once this PR is merged and master CI is green.
+
+- **2026-10-30, web (P4):**
+  - Done: P4 option B. `tools/run_validation_newton_comparison.py` runs the Module
+    17 data with and without Newton refinement and writes
+    `docs/investigations/validation_newton_comparison.md`, in PR #18. The frozen
+    artifacts are not regenerated, and the default run is checked against them.
+    Newton solves 4 more CH4+C2 and 3 more CH4+C3 bubble states. Its extra dew
+    results are labelled one root of several and left out of accuracy (P2, on
+    hold). State CH4+C3 023 converges to different roots in the two runs.
+  - Merged in PR #18 after CI passed. Draft PR #10 awaits the faculty review.
+  - Next: merge the survey docs (PR #17), then release v1.4.0.
 
 - **2026-10-30, web (P5):**
   - Done: the owner approved P5. The app now labels the standard dew stop marker
