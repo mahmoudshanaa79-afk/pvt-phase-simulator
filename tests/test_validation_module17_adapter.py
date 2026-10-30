@@ -139,9 +139,9 @@ def test_legacy_solver_coverage_and_outcomes_are_preserved_structurally() -> Non
         for record in bubble
     ) == {"converged": 31, "not_found": 9}
     assert len(dew) == 40
+    # P2 turns nine apparently unique dew results into ambiguous ones.
     assert Counter(
         record.prediction.solver_metadata[LEGACY_SOLVER_OUTCOME_KEY] for record in dew
-    # P2 turns nine apparently unique dew results into ambiguous ones.
     ) == {"converged": 13, "not_found": 4, "inconclusive": 23}
 
     for record in (*bubble, *dew):
