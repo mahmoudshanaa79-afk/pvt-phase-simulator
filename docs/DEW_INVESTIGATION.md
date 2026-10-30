@@ -23,7 +23,7 @@ uv run python tools/run_dew_conditioning_study.py
 uv run python tools/run_root_count_whatif.py
 ```
 
-The first writes `docs/investigations/ch4_c3_dew_conditioning.csv`. The protected
+The first writes `docs/investigations/dew_conditioning.csv` (both binaries). The protected
 Module 17 artifacts under `docs/validation` are only read.
 
 ## 1. CH4+C3 dew error is mostly an ill-posed question, not model error

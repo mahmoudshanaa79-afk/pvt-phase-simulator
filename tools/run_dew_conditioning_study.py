@@ -1,10 +1,11 @@
-"""Separate PR model error from dew-problem conditioning for CH4+C3 (read-only).
+"""Separate PR model error from dew-problem conditioning (read-only).
 
 The production dew direction asks for the pressure at which a vapour of the
 measured composition ``y`` starts to condense at the measured ``T``. Near the
 maximum of ``y`` along an isotherm that question is ill-conditioned: ``dP/dy``
 grows without bound, two dew pressures exist just below the maximum and none
-above it. This tool quantifies that for every CH4+C3 dew state, using only the
+above it. This tool quantifies that for every measured dew state (CH4+C2 and
+CH4+C3), using only the
 unchanged engine:
 
 * PR's own isotherm is followed with the bubble solver (Newton refinement on, an
@@ -42,13 +43,15 @@ from pvt_phase_simulator.experimental_validation import (
     load_experimental_vle_dataset,
 )
 from pvt_phase_simulator.fluid_models import (
+    ETHANE,
     METHANE,
     PROPANE,
+    Component,
     FluidMixture,
     MixtureComponent,
 )
 
-SYSTEM_ID = "ch4_c3"
+HEAVY: dict[str, Component] = {"ethane": ETHANE, "propane": PROPANE}
 #: Isotherm coordinate grid used only to find how far the bubble solver reaches.
 REACH_START = 0.01
 REACH_STEP = 0.01
@@ -58,6 +61,7 @@ DERIVATIVE_STEP = 2e-4
 @dataclass(frozen=True, slots=True)
 class DewConditioning:
     source_point_id: str
+    system_id: str
     temperature_k: float
     experimental_pressure_pa: float
     experimental_vapor_ch4: float
@@ -72,11 +76,13 @@ class DewConditioning:
     pressure_spread_from_vapor_uncertainty_pa: float | None
 
 
-def _bubble(temperature_k: float, methane: float) -> tuple[float, float] | None:
+def _bubble(
+    temperature_k: float, methane: float, heavy: Component
+) -> tuple[float, float] | None:
     mixture = FluidMixture(
         (
             MixtureComponent(METHANE, methane),
-            MixtureComponent(PROPANE, 1.0 - methane),
+            MixtureComponent(heavy, 1.0 - methane),
         )
     )
     result = calculate_saturation_pressure(
@@ -90,11 +96,11 @@ def _bubble(temperature_k: float, methane: float) -> tuple[float, float] | None:
     return result.pressure_pa, result.incipient_composition[0]
 
 
-def _reach(temperature_k: float) -> float:
+def _reach(temperature_k: float, heavy: Component) -> float:
     last: float | None = None
     methane = REACH_START
     while methane < 0.995:
-        if _bubble(temperature_k, methane) is None:
+        if _bubble(temperature_k, methane, heavy) is None:
             break
         last = methane
         methane = round(methane + REACH_STEP, 10)
@@ -118,15 +124,18 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
     uncertainty = point.vapor_expanded_uncertainties[0]
     if uncertainty is None:
         raise ValueError(f"{point.source_point_id} has no vapour uncertainty")
-    upper = _reach(temperature)
+    heavy = HEAVY[point.component_ids[1]]
+    upper = _reach(temperature, heavy)
     maximum = minimize_scalar(
-        lambda x: -_require(_bubble(temperature, x))[1],
+        lambda x: -_require(_bubble(temperature, x, heavy))[1],
         bounds=(REACH_START, upper),
         method="bounded",
         options={"xatol": 1e-5},
     )
-    pressure_at_maximum, vapor_maximum = _require(_bubble(temperature, maximum.x))
-    highest_pressure = _require(_bubble(temperature, upper))[0]
+    pressure_at_maximum, vapor_maximum = _require(
+        _bubble(temperature, maximum.x, heavy)
+    )
+    highest_pressure = _require(_bubble(temperature, upper, heavy))[0]
     comparison: dict[str, float | None] = dict.fromkeys(
         (
             "model_vapor_ch4_at_experimental_pressure",
@@ -138,16 +147,18 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
     )
     if pressure <= highest_pressure:
         methane = brentq(
-            lambda x: _require(_bubble(temperature, x))[0] - pressure,
+            lambda x: _require(_bubble(temperature, x, heavy))[0] - pressure,
             REACH_START,
             upper,
             xtol=1e-10,
         )
-        model_vapor = _require(_bubble(temperature, methane))[1]
+        model_vapor = _require(_bubble(temperature, methane, heavy))[1]
         low = _require(
-            _bubble(temperature, max(REACH_START, methane - DERIVATIVE_STEP))
+            _bubble(temperature, max(REACH_START, methane - DERIVATIVE_STEP), heavy)
         )
-        high = _require(_bubble(temperature, min(upper, methane + DERIVATIVE_STEP)))
+        high = _require(
+            _bubble(temperature, min(upper, methane + DERIVATIVE_STEP), heavy)
+        )
         slope = (high[0] - low[0]) / (high[1] - low[1])
         comparison = {
             "model_vapor_ch4_at_experimental_pressure": model_vapor,
@@ -158,6 +169,7 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
         }
     return DewConditioning(
         source_point_id=point.source_point_id,
+        system_id=point.system_id,
         temperature_k=temperature,
         experimental_pressure_pa=pressure,
         experimental_vapor_ch4=vapor,
@@ -191,8 +203,6 @@ def main() -> None:
     }
     rows = []
     for point in dataset.points:
-        if point.system_id != SYSTEM_ID:
-            continue
         result = asdict(analyze_dew_state(point))
         production = stored[point.source_point_id]
         result |= {
@@ -204,7 +214,7 @@ def main() -> None:
         }
         rows.append(result)
         print(json.dumps(result), flush=True)
-    output = root / "docs/investigations/ch4_c3_dew_conditioning.csv"
+    output = root / "docs/investigations/dew_conditioning.csv"
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
