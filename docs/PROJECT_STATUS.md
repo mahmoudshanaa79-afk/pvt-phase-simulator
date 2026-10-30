@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 19 October 2026 (release v1.3.0).
+Last updated: 30 October 2026 (release v1.4.0).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -90,6 +90,18 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-30, web (release v1.4.0):**
+  - Done: the owner approved release v1.4. PRs #15 (P1), #16 (P5), #18 (P4
+    report) and #17 (survey docs) are merged, each after CI passed. PR #19 bumps
+    the version to 1.4.0 and describes the public deployment as v1.4 once it is
+    rebooted.
+  - Open: after PR #19 merges and master CI is green, the web session pushes the
+    tag v1.4.0 on that master commit. The desktop session creates the GitHub
+    release (the notes are in the web session's last message). The owner then
+    reboots the Streamlit app. Draft PR #10 awaits the faculty review. P2, P3 and
+    the pure-component data stay on hold.
+  - Next: send the faculty brief and act on the answers.
 
 - **2026-10-30, web (survey):**
   - Done: re-ran the extended-envelope survey with the current code and added
