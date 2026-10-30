@@ -181,6 +181,32 @@ def _convert_axis_values(values: Any, converter: Any) -> tuple[object, ...]:
     return tuple(None if value is None else converter(float(value)) for value in values)
 
 
+#: The engine labels a branch that ended at its near-critical guard "<Branch>
+#: Near-critical termination". The standard dew branch can end that way at the
+#: cricondentherm, where there is no critical point, so the label would mislead.
+ENGINE_DEW_STOP_MARKER_NAME = "Dew Near-critical termination"
+DEW_STOP_MARKER_NAME = "Dew branch stopped (engine near-critical guard)"
+
+
+def _neutral_dew_stop_label(figure: go.Figure) -> go.Figure:
+    """Say what happened at the dew stop marker instead of implying a critical point.
+
+    Only the display label and its hover text change; the marker's position and
+    the engine's termination reason are untouched.
+    """
+
+    for trace in figure.data:
+        if getattr(trace, "name", None) != ENGINE_DEW_STOP_MARKER_NAME:
+            continue
+        trace.name = DEW_STOP_MARKER_NAME
+        template = getattr(trace, "hovertemplate", None)
+        if isinstance(template, str):
+            trace.hovertemplate = template.replace(
+                ENGINE_DEW_STOP_MARKER_NAME, DEW_STOP_MARKER_NAME
+            )
+    return figure
+
+
 def _presentation_figure(
     figure: go.Figure,
     units: UnitPreferences,
@@ -772,11 +798,13 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     )
     if result_is_stale(session(), "envelope_extension", inputs):
         extension = None
-    envelope_figure = plot_phase_envelope(
-        result,
-        pressure_unit=PlotPressureUnit.PA,
-        critical_point=critical,
-        metadata={"model": "Peng-Robinson EOS; kij=0"},
+    envelope_figure = _neutral_dew_stop_label(
+        plot_phase_envelope(
+            result,
+            pressure_unit=PlotPressureUnit.PA,
+            critical_point=critical,
+            metadata={"model": "Peng-Robinson EOS; kij=0"},
+        )
     )
     if extension is not None:
         envelope_figure = add_extended_branches(envelope_figure, extension)
