@@ -12,6 +12,8 @@ Evidence comes from `docs/DEW_INVESTIGATION.md` and the read-only tools
 
 ## P1. Accept a cubic root-count change in pseudo-arclength continuity
 
+**Status: approved by the owner on 2026-10-30 and implemented in PR #15.**
+
 **Problem.** `trace_pseudo_arclength_branch` rejects a step when
 `_root_branch_is_continuous` fails, and that shared rule requires the number of
 real cubic roots to be unchanged. Along a saturation curve, one phase's cubic
