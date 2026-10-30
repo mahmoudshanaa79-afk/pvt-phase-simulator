@@ -56,15 +56,15 @@ key whose numbers are recomputed from the engine by the tests.
 |---|---|
 | P1: root-count-tolerant continuation | Done, PR #15. The extended-envelope survey now closes 13 of 16 cases (9 before). The 3 that still stop early have other causes. |
 | P5: neutral dew stop marker label | Done, PR #16, in the app layer. The engine's own label is unchanged. |
+| P2: refine grid boundaries in the saturation scan | Done, owner-approved. Nine dew results that looked unique are now reported as ambiguous (`HIDDEN_SATURATION_ROOT`); each second root is confirmed. The Module 17 artifacts were regenerated: CH4+C3 dew 7 → 1 unique results, CH4+C2 dew 15 → 12. Bubble results unchanged. |
+| Pure-component reference data (V2-01-E) | Accepted, PR #10 (`docs/PURE_COMPONENT_SATURATION.md`). |
 | P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
 
 ## Waiting on an owner decision
 
 | Item | Where | Effect |
 |---|---|---|
-| P2: refine grid boundaries in the saturation scan | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Stops 8 known hidden-second-root results from being reported as unique; changes the Module 17 artifacts |
 | P3: conditioning-aware dew metric | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Honest dew accuracy reporting |
-| Pure-component reference data (V2-01-E) | draft PR, `docs/PURE_COMPONENT_SATURATION.md` | Accept CoolProp-evaluated reference EOS values as a source |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -77,9 +77,8 @@ key whose numbers are recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. P1 and P5 are done. P2, P3 and the pure-component data source are on hold
-   until the faculty review; each engine change then lands on its own branch
-   with the tests named in the proposal and an independent review.
+1. P1, P2, P4 (option B), P5 and the pure-component data are done. Next: P3,
+   then the Validation page evidence tabs, then a release.
 2. Send the faculty brief and act on the answers, especially on kij and on
    which components and datasets come next.
 3. Add CO2 and N2, or the butanes, with verified properties and at least one
@@ -90,6 +89,39 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-30, desktop (P2):**
+  - Done: applied P2 in `saturation_pressure.py` as a stepwise walk from each
+    converged node beside a failed one. Nine dew states became ambiguous. The
+    ninth, CH4+C2 010, has a second root the Module 17 scan had missed. All nine
+    second roots are confirmed by `tools/run_hidden_dew_root_check.py`.
+    Regenerated the Module 17 artifacts and the Newton comparison, and updated
+    the pinned values with explanations. Labs 2 and 3 quote no dew values and
+    are unaffected.
+  - Next: P3 (conditioning-aware dew metric for both binaries), then the
+    Validation page "Further evidence" tabs (branch `validation-page`).
+
+- **2026-10-30, web (Lab 3):**
+  - Done: teaching Lab 3 (methane-propane 30/70, 50/50 and 70/30: envelope
+    landmarks, certified critical points, trends with composition, and oil
+    versus gas-condensate behaviour at 300 K), in PR #22. No fixed-temperature
+    dew pressures are quoted (P2). Every key number is recomputed by
+    `tests/test_teaching_lab_03.py`.
+  - Open: PR #22 awaits CI. The desktop session is working on P2, P3 and the
+    Validation page; if P2 changes bubble or critical results, the lab tests
+    will flag the key.
+  - Next: the desktop session continues with P2, then P3 and the Validation
+    page.
+
+- **2026-10-30, web (Lab 2):**
+  - Done: teaching Lab 2 (methane-ethane at 243.6 K: bubble pressures, a P-x-y
+    diagram from flash results, comparison with the May 2015 bubble data and the
+    protected validation record), in PR #21. No dew pressures are quoted (P2).
+    Every key number is recomputed by `tests/test_teaching_lab_02.py`.
+  - Merged in PR #21 after CI passed. Lab 3 (composition effects on the
+    methane-propane envelope) is in PR #22. If P2 changes bubble results, the
+    lab tests will flag the key.
+  - Next: Lab 3.
 
 - **2026-10-30, desktop (pure-component data):**
   - Done: the owner dropped the wait for faculty review and approved P2, P3 and

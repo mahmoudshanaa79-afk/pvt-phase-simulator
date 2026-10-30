@@ -170,7 +170,23 @@ Counting the two kinds separately would let one exact hit plus one genuinely
 separate bracket pass as a unique answer.
 
 A sign change spanning a failed evaluation is never trusted, so a root can be
-missed and honestly reported as `NOT_FOUND`. One bracket is solved in `ln(P)`
+missed and honestly reported as `NOT_FOUND`.
+
+**Hidden-root refinement (P2, 30 October 2026).** A root can also sit unseen
+next to a failed evaluation while the grid sees exactly one other root. The
+answer would then look unique when it is not. When the grid finds exactly one
+apparent root, each interval with one usable and one failed end is therefore
+walked from the usable end toward the failed end. The walk takes
+`BOUNDARY_REFINEMENT_STEPS = 40` log-pressure steps and stops at the first
+failed evaluation. A sign change or exact hit found on the walk makes the
+result `INCONCLUSIVE`, with the `HIDDEN_SATURATION_ROOT` diagnostic beside the
+usual multiple-root reason. The walk's evaluations are recorded in the history.
+On the May (2015) dataset this changes nine dew results from apparently unique
+to ambiguous. Each second root was confirmed independently
+(`tools/run_hidden_dew_root_check.py`). No bubble result and no envelope test
+changed. The optional Newton layer is a local solve from
+the Wilson estimate, used for continuation. It returns the root near that
+estimate and does **not** certify uniqueness; only this scanning path does. One bracket is solved in `ln(P)`
 with bracketed `brentq`, never Newton alone. The final pressure state is
 reconstructed from a fresh, fully converged inner solve rather than borrowing a
 partially converged state.

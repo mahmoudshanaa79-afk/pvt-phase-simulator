@@ -1,5 +1,25 @@
 # Module 17 Experimental VLE Validation
 
+> **Updated 30 October 2026 (engine change P2, owner-approved).** The
+> production saturation solver now refines grid intervals next to a
+> non-converged node. When that reveals a second root, it reports the state as
+> ambiguous (`inconclusive`, `HIDDEN_SATURATION_ROOT`) instead of returning one
+> root as if it were unique. Regenerating this record turned nine apparently
+> unique dew results into ambiguous ones:
+>
+> - CH4+C2: 010, 012 and 015;
+> - CH4+C3: 001, 003, 004, 014, 015 and 023.
+>
+> The diagnostic scan below missed the second root at CH4+C2 010. The production
+> refinement found it at 6.6076 MPa, with a fugacity residual of 9×10⁻¹¹.
+> Bubble results are unchanged. The tables below show the current record. The
+> pre-P2 values were:
+>
+> - CH4+C2 dew: 15 successes, 6.045523 % AARD;
+> - CH4+C3 dew: 7 successes, 36.668238 % AARD.
+>
+> See `docs/ENGINE_CHANGE_PROPOSALS.md` (P2).
+
 ## A. Experimental source and data quality
 
 Module 17 asks how the unchanged Peng--Robinson (PR) implementation compares
@@ -82,17 +102,19 @@ errors, never zero, infinite, or arbitrary errors.
 | System/direction | Source / success / failure | Pressure AARD (%) | RMS (%) | Bias (%) | Composition MAE / maximum |
 |---|---:|---:|---:|---:|---:|
 | CH4+C2 bubble | 17 / 11 / 6 | 0.454690 | 0.695762 | -0.290249 | 0.00370912 / 0.00881340 |
-| CH4+C2 production-selected dew | 17 / 15 / 2 | 6.045523 | 9.847260 | -4.646067 | 0.03902500 / 0.18938747 |
+| CH4+C2 production-selected dew | 17 / 12 / 5 | 5.338393 | 9.655766 | -3.939801 | 0.03443752 / 0.18938747 |
 | CH4+C3 bubble | 23 / 20 / 3 | 1.033805 | 1.247494 | -1.022857 | 0.00228860 / 0.00704091 |
-| CH4+C3 production-selected dew | 23 / 7 / 16 | 36.668238 | 42.402174 | -35.858326 | 0.22488983 / 0.51006121 |
+| CH4+C3 production-selected dew | 23 / 1 / 22 | 2.834693 | 2.834693 | 2.834693 | 0.00313156 / 0.00313156 |
 
-The production-selected CH4+C3 dew AARD of approximately 36.7% characterizes
-the current solver's selected branches on its seven successful states. It must
-not be read as the intrinsic PR error across all available dew branches.
+Since P2, a production dew pressure is reported only when no second root is
+found. Only one CH4+C3 dew state (009) has a unique PR dew root, so its 2.83 %
+AARD rests on a single state. The other CH4+C3 dew states are ambiguous or have
+no PR root. That is a property of the dew question near the vapour-composition
+maximum (`docs/DEW_INVESTIGATION.md`), not a solver success rate.
 
 Pressure uncertainty results remain: CH4+C2 bubble 10/11 within 1U and 11/11
-within 2U; CH4+C2 dew 8/15 and 13/15; CH4+C3 bubble 11/20 and 15/20; CH4+C3 dew
-1/7 and 1/7. Bubble-composition counts are CH4+C2 10/11 and 11/11, and CH4+C3
+within 2U; CH4+C2 dew 7/12 and 11/12; CH4+C3 bubble 11/20 and 15/20; CH4+C3 dew
+1/1 and 1/1. Bubble-composition counts are CH4+C2 10/11 and 11/11, and CH4+C3
 20/20 and 20/20. Dew composition uncertainty is unavailable.
 
 ## C. PR dew branch-landscape diagnostics
@@ -163,10 +185,12 @@ Recomputed production-selected sensitivity is:
 | Direction | With point: n / AARD / RMS / bias (%) | Without point: n / AARD / RMS / bias (%) | AARD shift when excluded |
 |---|---:|---:|---:|
 | CH4+C3 bubble | 20 / 1.033805 / 1.247494 / -1.022857 | 19 / 0.980767 / 1.191129 / -0.969243 | -0.053038 percentage points |
-| CH4+C3 dew | 7 / 36.668238 / 42.402174 / -35.858326 | 6 / 38.869719 / 44.787032 / -37.924821 | +2.201481 percentage points |
+| CH4+C3 dew | 1 / 2.834693 / 2.834693 / 2.834693 | 1 / 2.834693 / 2.834693 / 2.834693 | 0.000000 percentage points |
 
-Removing 283.38 K makes the problematic production-selected dew AARD worse,
-not better. Retaining it is therefore not favorable cherry-picking.
+Since P2, the 283.38 K dew state is ambiguous, so it no longer enters the dew
+metric and excluding it changes nothing. Before P2, removing it made the dew
+AARD worse (36.67 % to 38.87 %), so retaining it was not favourable
+cherry-picking.
 
 ## D. Measured-state fugacity residuals
 
@@ -186,8 +210,8 @@ thermodynamic mismatch from outer pressure-search and branch-selection behavior.
 `tools/run_module17_validation.py` regenerates the result CSV and machine-readable
 summary. Their SHA-256 values are currently:
 
-- result CSV: `B14728D51AAC06AF38FC4F4E5F408942B253FEBE32D3E12EC26E9623CFA42482`;
-- summary JSON: `5B120B77BF05567FCC6A0EE0D0054C6D1DEBA35FE26A7C837352C92017D24870`.
+- result CSV: `BF11C4BE8462DBDBCFB25B2DF859A165475EA0BEBACB9227C7FEAFBE539B2397`;
+- summary JSON: `97178CB190814DFB9D8D1D32EB4260373F319EEA31D60EFC641D502CEDEC9AE3`.
 
 Coverage remains limited to two binaries, one source, its sampled domain,
 `kij=0`, and a finite diagnostic scan. No numerical T or liquid-x uncertainty

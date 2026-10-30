@@ -669,9 +669,11 @@ def test_module17_all_fields_match_protected_summary_exactly(module_cases):
 def test_module17_coverage_and_observation_units(module_cases):
     expected = {
         ("ch4_c2", C.BUBBLE_POINT): (17, 11, 6, 0),
-        ("ch4_c2", C.DEW_POINT): (17, 15, 2, 0),
+        # P2: hidden second dew roots make 3 CH4+C2 and 6 CH4+C3 states
+        # ambiguous (inconclusive) instead of apparently unique.
+        ("ch4_c2", C.DEW_POINT): (17, 12, 2, 3),
         ("ch4_c3", C.BUBBLE_POINT): (23, 20, 3, 0),
-        ("ch4_c3", C.DEW_POINT): (23, 7, 2, 14),
+        ("ch4_c3", C.DEW_POINT): (23, 1, 2, 20),
     }
     per_component = aggregate_experimental_accuracy(module_cases)
     per_case = aggregate_experimental_accuracy(
@@ -802,10 +804,10 @@ def test_protected_artifacts_unchanged():
             "C6F6BA9AE9C2F4C7F257BBC09A75DF0D7065255868AA46BF3E8C81AC5A8B9B3A"
         ),
         "docs/validation/module17_vle_validation.csv": (
-            "B14728D51AAC06AF38FC4F4E5F408942B253FEBE32D3E12EC26E9623CFA42482"
+            "BF11C4BE8462DBDBCFB25B2DF859A165475EA0BEBACB9227C7FEAFBE539B2397"
         ),
         "docs/validation/module17_vle_validation_summary.json": (
-            "5B120B77BF05567FCC6A0EE0D0054C6D1DEBA35FE26A7C837352C92017D24870"
+            "97178CB190814DFB9D8D1D32EB4260373F319EEA31D60EFC641D502CEDEC9AE3"
         ),
     }
     for path, digest in expected.items():
