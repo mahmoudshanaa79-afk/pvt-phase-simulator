@@ -71,3 +71,22 @@ def test_validation_page_shows_the_evidence_tabs_without_errors() -> None:
         "Newton refinement",
         "Pure components",
     ]
+
+
+def test_dew_conditioning_summary_on_the_committed_results() -> None:
+    from pvt_phase_simulator_ui.validation_evidence import DEW_CONDITIONING
+
+    summary = dew_conditioning_summary(pd.read_csv(ROOT / DEW_CONDITIONING))
+    rows = summary.set_index("System")
+
+    propane = rows.loc["Methane + propane"]
+    assert (propane["Dew states"], propane["Within 1 U"], propane["Within 2 U"]) == (
+        23,
+        22,
+        23,
+    )
+    assert propane["Ill-posed (> 1 MPa from U_y)"] == 15
+    assert propane["Measured y above PR maximum"] == 2
+    ethane = rows.loc["Methane + ethane"]
+    assert (ethane["Dew states"], ethane["Within 1 U"]) == (17, 15)
+    assert ethane["Ill-posed (> 1 MPa from U_y)"] == 3
