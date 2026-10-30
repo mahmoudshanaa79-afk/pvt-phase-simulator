@@ -1,10 +1,11 @@
-"""Separate PR model error from dew-problem conditioning for CH4+C3 (read-only).
+"""Separate PR model error from dew-problem conditioning (read-only).
 
 The production dew direction asks for the pressure at which a vapour of the
 measured composition ``y`` starts to condense at the measured ``T``. Near the
 maximum of ``y`` along an isotherm that question is ill-conditioned: ``dP/dy``
 grows without bound, two dew pressures exist just below the maximum and none
-above it. This tool quantifies that for every CH4+C3 dew state, using only the
+above it. This tool quantifies that for every measured dew state (CH4+C2 and
+CH4+C3), using only the
 unchanged engine:
 
 * PR's own isotherm is followed with the bubble solver (Newton refinement on, an
@@ -42,22 +43,25 @@ from pvt_phase_simulator.experimental_validation import (
     load_experimental_vle_dataset,
 )
 from pvt_phase_simulator.fluid_models import (
+    ETHANE,
     METHANE,
     PROPANE,
+    Component,
     FluidMixture,
     MixtureComponent,
 )
 
-SYSTEM_ID = "ch4_c3"
-#: Isotherm coordinate grid used only to find how far the bubble solver reaches.
-REACH_START = 0.01
-REACH_STEP = 0.01
+HEAVY: dict[str, Component] = {"ethane": ETHANE, "propane": PROPANE}
+#: Liquid CH4 fractions at which PR's isotherm is sampled. Only converged bubble
+#: solves are kept, so an isolated failure inside the range is simply skipped.
+GRID = tuple(round(0.01 * index, 2) for index in range(1, 100))
 DERIVATIVE_STEP = 2e-4
 
 
 @dataclass(frozen=True, slots=True)
 class DewConditioning:
     source_point_id: str
+    system_id: str
     temperature_k: float
     experimental_pressure_pa: float
     experimental_vapor_ch4: float
@@ -70,13 +74,23 @@ class DewConditioning:
     vapor_difference_over_uncertainty: float | None
     pressure_composition_slope_pa: float | None
     pressure_spread_from_vapor_uncertainty_pa: float | None
+    #: "solved" (refined with the solver), "grid_interpolated" (a refinement
+    #: step failed, so the value is interpolated between converged grid
+    #: points) or "above_isotherm" (no converged bubble pressure reaches P_exp).
+    comparison_method: str
 
 
-def _bubble(temperature_k: float, methane: float) -> tuple[float, float] | None:
+class _BubbleFailure(Exception):
+    pass
+
+
+def _bubble(
+    temperature_k: float, methane: float, heavy: Component
+) -> tuple[float, float] | None:
     mixture = FluidMixture(
         (
             MixtureComponent(METHANE, methane),
-            MixtureComponent(PROPANE, 1.0 - methane),
+            MixtureComponent(heavy, 1.0 - methane),
         )
     )
     result = calculate_saturation_pressure(
@@ -90,23 +104,25 @@ def _bubble(temperature_k: float, methane: float) -> tuple[float, float] | None:
     return result.pressure_pa, result.incipient_composition[0]
 
 
-def _reach(temperature_k: float) -> float:
-    last: float | None = None
-    methane = REACH_START
-    while methane < 0.995:
-        if _bubble(temperature_k, methane) is None:
-            break
-        last = methane
-        methane = round(methane + REACH_STEP, 10)
-    if last is None:
-        raise RuntimeError(f"no converged bubble state at {temperature_k} K")
-    return last
-
-
 def _require(state: tuple[float, float] | None) -> tuple[float, float]:
     if state is None:
-        raise RuntimeError("bubble solve failed inside the converged isotherm range")
+        raise _BubbleFailure
     return state
+
+
+def _isotherm(
+    temperature_k: float, heavy: Component
+) -> list[tuple[float, float, float]]:
+    """Converged ``(x, P, y)`` samples of PR's bubble isotherm, by ``x``."""
+
+    samples = []
+    for methane in GRID:
+        state = _bubble(temperature_k, methane, heavy)
+        if state is not None:
+            samples.append((methane, state[0], state[1]))
+    if not samples:
+        raise RuntimeError(f"no converged bubble state at {temperature_k} K")
+    return samples
 
 
 def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
@@ -118,15 +134,30 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
     uncertainty = point.vapor_expanded_uncertainties[0]
     if uncertainty is None:
         raise ValueError(f"{point.source_point_id} has no vapour uncertainty")
-    upper = _reach(temperature)
-    maximum = minimize_scalar(
-        lambda x: -_require(_bubble(temperature, x))[1],
-        bounds=(REACH_START, upper),
-        method="bounded",
-        options={"xatol": 1e-5},
+    heavy = HEAVY[point.component_ids[1]]
+    samples = _isotherm(temperature, heavy)
+
+    # Vapour-composition maximum: refine around the best grid sample.
+    best = max(range(len(samples)), key=lambda index: samples[index][2])
+    window = (
+        samples[max(best - 1, 0)][0],
+        samples[min(best + 1, len(samples) - 1)][0],
     )
-    pressure_at_maximum, vapor_maximum = _require(_bubble(temperature, maximum.x))
-    highest_pressure = _require(_bubble(temperature, upper))[0]
+    pressure_at_maximum, vapor_maximum = samples[best][1], samples[best][2]
+    if window[0] < window[1]:
+        try:
+            maximum = minimize_scalar(
+                lambda x: -_require(_bubble(temperature, x, heavy))[1],
+                bounds=window,
+                method="bounded",
+                options={"xatol": 1e-5},
+            )
+            refined = _require(_bubble(temperature, maximum.x, heavy))
+            if refined[1] >= vapor_maximum:
+                pressure_at_maximum, vapor_maximum = refined
+        except _BubbleFailure:
+            pass
+
     comparison: dict[str, float | None] = dict.fromkeys(
         (
             "model_vapor_ch4_at_experimental_pressure",
@@ -136,19 +167,38 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
             "pressure_spread_from_vapor_uncertainty_pa",
         )
     )
-    if pressure <= highest_pressure:
-        methane = brentq(
-            lambda x: _require(_bubble(temperature, x))[0] - pressure,
-            REACH_START,
-            upper,
-            xtol=1e-10,
-        )
-        model_vapor = _require(_bubble(temperature, methane))[1]
-        low = _require(
-            _bubble(temperature, max(REACH_START, methane - DERIVATIVE_STEP))
-        )
-        high = _require(_bubble(temperature, min(upper, methane + DERIVATIVE_STEP)))
-        slope = (high[0] - low[0]) / (high[1] - low[1])
+    method = "above_isotherm"
+    bracket = next(
+        (
+            (low, high)
+            for low, high in zip(samples, samples[1:], strict=False)
+            if low[1] <= pressure <= high[1]
+        ),
+        None,
+    )
+    if bracket is not None:
+        low, high = bracket
+        try:
+            methane = brentq(
+                lambda x: _require(_bubble(temperature, x, heavy))[0] - pressure,
+                low[0],
+                high[0],
+                xtol=1e-10,
+            )
+            model_vapor = _require(_bubble(temperature, methane, heavy))[1]
+            below = _require(
+                _bubble(temperature, max(low[0], methane - DERIVATIVE_STEP), heavy)
+            )
+            above = _require(
+                _bubble(temperature, min(high[0], methane + DERIVATIVE_STEP), heavy)
+            )
+            slope = (above[0] - below[0]) / (above[1] - below[1])
+            method = "solved"
+        except _BubbleFailure:
+            weight = (pressure - low[1]) / (high[1] - low[1])
+            model_vapor = low[2] + weight * (high[2] - low[2])
+            slope = (high[1] - low[1]) / (high[2] - low[2])
+            method = "grid_interpolated"
         comparison = {
             "model_vapor_ch4_at_experimental_pressure": model_vapor,
             "vapor_ch4_difference": vapor - model_vapor,
@@ -158,14 +208,16 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
         }
     return DewConditioning(
         source_point_id=point.source_point_id,
+        system_id=point.system_id,
         temperature_k=temperature,
         experimental_pressure_pa=pressure,
         experimental_vapor_ch4=vapor,
         vapor_uncertainty=uncertainty,
         isotherm_vapor_ch4_maximum=vapor_maximum,
         pressure_at_vapor_maximum_pa=pressure_at_maximum,
-        highest_converged_bubble_pressure_pa=highest_pressure,
+        highest_converged_bubble_pressure_pa=max(sample[1] for sample in samples),
         **comparison,
+        comparison_method=method,
     )
 
 
@@ -191,8 +243,6 @@ def main() -> None:
     }
     rows = []
     for point in dataset.points:
-        if point.system_id != SYSTEM_ID:
-            continue
         result = asdict(analyze_dew_state(point))
         production = stored[point.source_point_id]
         result |= {
@@ -204,7 +254,7 @@ def main() -> None:
         }
         rows.append(result)
         print(json.dumps(result), flush=True)
-    output = root / "docs/investigations/ch4_c3_dew_conditioning.csv"
+    output = root / "docs/investigations/dew_conditioning.csv"
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))

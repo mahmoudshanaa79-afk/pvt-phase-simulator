@@ -1,5 +1,6 @@
 """Fixed-temperature Peng–Robinson bubble- and dew-pressure calculations."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from math import exp, expm1, fsum, isclose, isfinite, log
@@ -89,6 +90,10 @@ PHASES_INDISTINGUISHABLE_DIAGNOSTIC_CODE: Final = "SATURATION_PHASES_INDISTINGUI
 INITIAL_LOG_K_PHASE_ROLE_DIAGNOSTIC_CODE: Final = "SATURATION_INITIAL_LOG_K_PHASE_ROLE"
 DEFAULT_MAXIMUM_INNER_ITERATIONS: Final = 100
 DEFAULT_PRESSURE_SEARCH_POINTS: Final = 81
+#: Steps used to walk from a converged grid node toward a neighbouring node whose
+#: inner iteration did not converge. A sign change found on that walk is a root
+#: the coarse grid could not see; it makes an apparently unique root ambiguous.
+BOUNDARY_REFINEMENT_STEPS: Final = 40
 DEFAULT_MAXIMUM_OUTER_ITERATIONS: Final = 100
 DEFAULT_MAXIMUM_NEWTON_ITERATIONS: Final = 15
 DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER: Final = 1e12
@@ -1413,6 +1418,41 @@ def _newton_is_trivial(
     )
 
 
+def _boundary_hides_another_root(
+    scanned: tuple[SaturationPressureEvaluation, ...],
+    evaluate_log_pressure: Callable[[float], SaturationPressureEvaluation],
+) -> bool:
+    """Return whether a converged/non-converged grid boundary hides a root.
+
+    The grid scan only sees sign changes between two converged nodes. Next to a
+    node whose inner iteration failed, a root can sit unseen. Walk from each
+    converged node toward such a neighbour in ``BOUNDARY_REFINEMENT_STEPS``
+    log-pressure steps, stopping at the first non-converged evaluation, and
+    report any sign change or exact hit found on the way.
+    """
+
+    for left, right in zip(scanned[:-1], scanned[1:], strict=True):
+        left_ok = left.converged and left.objective is not None
+        right_ok = right.converged and right.objective is not None
+        if left_ok == right_ok:
+            continue
+        start, end = (left, right) if left_ok else (right, left)
+        start_log = log(start.pressure_pa)
+        step = (log(end.pressure_pa) - start_log) / BOUNDARY_REFINEMENT_STEPS
+        previous = start.objective
+        assert previous is not None
+        for index in range(1, BOUNDARY_REFINEMENT_STEPS):
+            evaluation = evaluate_log_pressure(start_log + index * step)
+            if not evaluation.converged or evaluation.objective is None:
+                break
+            if abs(evaluation.objective) <= SATURATION_OBJECTIVE_TOLERANCE:
+                return True
+            if evaluation.objective * previous < 0.0:
+                return True
+            previous = evaluation.objective
+    return False
+
+
 def _empty_result(
     saturation_kind: SaturationKind,
     status: SaturationStatus,
@@ -2256,7 +2296,18 @@ def _calculate_saturation_pressure_historical(
         if left.pressure_pa not in exact_pressures
         and right.pressure_pa not in exact_pressures
     ]
-    if len(exact) + len(distinct_brackets) > 1:
+    hidden_root = len(exact) + len(
+        distinct_brackets
+    ) == 1 and _boundary_hides_another_root(scanned, evaluate_log_pressure)
+    if hidden_root:
+        diagnostics.append(
+            _failure_diagnostic(
+                "HIDDEN_SATURATION_ROOT",
+                "Refining a grid interval next to a non-converged node revealed "
+                "another sign change of the saturation objective.",
+            )
+        )
+    if len(exact) + len(distinct_brackets) > 1 or hidden_root:
         reason = "Multiple apparent saturation-pressure roots were observed."
         diagnostics.append(_failure_diagnostic("MULTIPLE_SATURATION_ROOTS", reason))
         return _empty_result(

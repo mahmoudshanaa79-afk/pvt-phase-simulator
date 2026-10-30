@@ -19,17 +19,17 @@
       "rms_shift_when_excluded_percentage_points": -0.05636510021903862
     },
     "dew": {
-      "aard_shift_when_excluded_percentage_points": 2.201480888209616,
-      "bias_shift_when_excluded_percentage_points": -2.0664955079113554,
-      "excluded_aard_percent": 38.86971885863611,
-      "excluded_bias_percent": -37.92482119654825,
-      "excluded_rms_relative_percent": 44.787032110686084,
-      "excluded_success_count": 6,
-      "included_aard_percent": 36.668237970426496,
-      "included_bias_percent": -35.858325688636896,
-      "included_rms_relative_percent": 42.40217430079411,
-      "included_success_count": 7,
-      "rms_shift_when_excluded_percentage_points": 2.384857809891976
+      "aard_shift_when_excluded_percentage_points": 0.0,
+      "bias_shift_when_excluded_percentage_points": 0.0,
+      "excluded_aard_percent": 2.8346929862635895,
+      "excluded_bias_percent": 2.8346929862635895,
+      "excluded_rms_relative_percent": 2.8346929862635895,
+      "excluded_success_count": 1,
+      "included_aard_percent": 2.8346929862635895,
+      "included_bias_percent": 2.8346929862635895,
+      "included_rms_relative_percent": 2.8346929862635895,
+      "included_success_count": 1,
+      "rms_shift_when_excluded_percentage_points": 0.0
     }
   },
   "source_id": "may_et_al_2015_thermoml",
@@ -38,7 +38,7 @@
     {
       "dew_branch_diagnostics": {
         "failed_no_root_found_in_scan_count": 0,
-        "failed_root_demonstrated_count": 2,
+        "failed_root_demonstrated_count": 5,
         "multiple_root_state_count": 4,
         "nearest_available_root_all_states": {
           "aard_percent": 5.03158158845209,
@@ -49,18 +49,18 @@
           "rms_relative_percent": 8.518170332965926
         },
         "nearest_available_root_production_successful_states": {
-          "aard_percent": 5.112453121993826,
-          "bias_percent": -2.3101014597891147,
-          "count": 15,
+          "aard_percent": 5.338392662247675,
+          "bias_percent": -3.939800564981002,
+          "count": 12,
           "maximum_absolute_relative_percent": 25.850018506256962,
-          "mean_absolute_error_pa": 295495.2785733833,
-          "rms_relative_percent": 8.9227496778253
+          "mean_absolute_error_pa": 305762.4626975762,
+          "rms_relative_percent": 9.655766184625318
         },
-        "production_failure_count": 2,
+        "production_failure_count": 5,
         "production_intermediate_root_count": 0,
-        "production_lower_root_count": 2,
-        "production_single_root_count": 13,
-        "production_success_count": 15,
+        "production_lower_root_count": 0,
+        "production_single_root_count": 12,
+        "production_success_count": 12,
         "production_unmatched_root_count": 0,
         "production_upper_root_count": 0,
         "single_root_state_count": 13,
@@ -93,28 +93,28 @@
       },
       "production_selected_dew_metrics": {
         "composition_maximum_absolute_component_error": 0.18938747494145863,
-        "composition_mean_absolute_component_error": 0.03902500301144884,
+        "composition_mean_absolute_component_error": 0.034437517232548565,
         "composition_uncertainty_available_count": null,
         "composition_within_one_uncertainty_count": null,
         "composition_within_two_uncertainties_count": null,
-        "failure_count": 2,
-        "pressure_aard_percent": 6.045523060713735,
-        "pressure_bias_percent": -4.646066590639891,
+        "failure_count": 5,
+        "pressure_aard_percent": 5.338392662244331,
+        "pressure_bias_percent": -3.939800564977448,
         "pressure_maximum_absolute_relative_percent": 25.85001850624154,
-        "pressure_mean_absolute_error_pa": 355947.236133196,
-        "pressure_rms_relative_percent": 9.84725988020644,
-        "pressure_uncertainty_available_count": 15,
-        "pressure_within_one_uncertainty_count": 8,
-        "pressure_within_two_uncertainties_count": 13,
+        "pressure_mean_absolute_error_pa": 305762.46269738214,
+        "pressure_rms_relative_percent": 9.65576618461874,
+        "pressure_uncertainty_available_count": 12,
+        "pressure_within_one_uncertainty_count": 7,
+        "pressure_within_two_uncertainties_count": 11,
         "source_count": 17,
-        "success_count": 15
+        "success_count": 12
       },
       "system_id": "ch4_c2"
     },
     {
       "dew_branch_diagnostics": {
         "failed_no_root_found_in_scan_count": 2,
-        "failed_root_demonstrated_count": 14,
+        "failed_root_demonstrated_count": 20,
         "multiple_root_state_count": 20,
         "nearest_available_root_all_states": {
           "aard_percent": 10.710867888242271,
@@ -125,18 +125,18 @@
           "rms_relative_percent": 15.35763608169251
         },
         "nearest_available_root_production_successful_states": {
-          "aard_percent": 13.517855671281982,
-          "bias_percent": 1.5701065143686042,
-          "count": 7,
-          "maximum_absolute_relative_percent": 37.74032763483425,
-          "mean_absolute_error_pa": 577933.2718011101,
-          "rms_relative_percent": 19.433548163052375
+          "aard_percent": 2.8346929862626746,
+          "bias_percent": 2.8346929862626746,
+          "count": 1,
+          "maximum_absolute_relative_percent": 2.8346929862626746,
+          "mean_absolute_error_pa": 25257.114507600432,
+          "rms_relative_percent": 2.8346929862626746
         },
-        "production_failure_count": 16,
+        "production_failure_count": 22,
         "production_intermediate_root_count": 0,
-        "production_lower_root_count": 6,
+        "production_lower_root_count": 0,
         "production_single_root_count": 1,
-        "production_success_count": 7,
+        "production_success_count": 1,
         "production_unmatched_root_count": 0,
         "production_upper_root_count": 0,
         "single_root_state_count": 1,
@@ -168,22 +168,22 @@
         "success_count": 20
       },
       "production_selected_dew_metrics": {
-        "composition_maximum_absolute_component_error": 0.5100612078291445,
-        "composition_mean_absolute_component_error": 0.22488983468365503,
+        "composition_maximum_absolute_component_error": 0.003131555935215413,
+        "composition_mean_absolute_component_error": 0.0031315559352154063,
         "composition_uncertainty_available_count": null,
         "composition_within_one_uncertainty_count": null,
         "composition_within_two_uncertainties_count": null,
-        "failure_count": 16,
-        "pressure_aard_percent": 36.668237970426496,
-        "pressure_bias_percent": -35.858325688636896,
-        "pressure_maximum_absolute_relative_percent": 69.34850660325354,
-        "pressure_mean_absolute_error_pa": 2390110.907199142,
-        "pressure_rms_relative_percent": 42.40217430079411,
-        "pressure_uncertainty_available_count": 7,
+        "failure_count": 22,
+        "pressure_aard_percent": 2.8346929862635895,
+        "pressure_bias_percent": 2.8346929862635895,
+        "pressure_maximum_absolute_relative_percent": 2.8346929862635895,
+        "pressure_mean_absolute_error_pa": 25257.11450760858,
+        "pressure_rms_relative_percent": 2.8346929862635895,
+        "pressure_uncertainty_available_count": 1,
         "pressure_within_one_uncertainty_count": 1,
         "pressure_within_two_uncertainties_count": 1,
         "source_count": 23,
-        "success_count": 7
+        "success_count": 1
       },
       "system_id": "ch4_c3"
     }
