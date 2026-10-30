@@ -91,15 +91,26 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-10-30, web (Lab 3):**
+  - Done: teaching Lab 3 (methane-propane 30/70, 50/50 and 70/30: envelope
+    landmarks, certified critical points, trends with composition, and oil
+    versus gas-condensate behaviour at 300 K), in PR #22. No fixed-temperature
+    dew pressures are quoted (P2). Every key number is recomputed by
+    `tests/test_teaching_lab_03.py`.
+  - Open: PR #22 awaits CI. The desktop session is working on P2, P3 and the
+    Validation page; if P2 changes bubble or critical results, the lab tests
+    will flag the key.
+  - Next: the desktop session continues with P2, then P3 and the Validation
+    page.
+
 - **2026-10-30, web (Lab 2):**
   - Done: teaching Lab 2 (methane-ethane at 243.6 K: bubble pressures, a P-x-y
     diagram from flash results, comparison with the May 2015 bubble data and the
     protected validation record), in PR #21. No dew pressures are quoted (P2).
     Every key number is recomputed by `tests/test_teaching_lab_02.py`.
-  - Open: PR #21 awaits CI. Lab 3 (composition effects on the methane-propane
-    envelope) is in PR #22. The desktop session is working on P2, P3 and the
-    Validation page; if P2 changes bubble results, the lab tests will flag the
-    key.
+  - Merged in PR #21 after CI passed. Lab 3 (composition effects on the
+    methane-propane envelope) is in PR #22. If P2 changes bubble results, the
+    lab tests will flag the key.
   - Next: Lab 3.
 
 - **2026-10-30, desktop (pure-component data):**
