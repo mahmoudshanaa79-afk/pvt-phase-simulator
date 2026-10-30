@@ -106,6 +106,25 @@ repeated for context. It is not a prediction.
   5 MPa) the production dew pressure is within 2.8%. At 010, 012, 017, 019, 022
   and 023 the appropriate PR root is within 2% of the measurement.
 
+### Methane + ethane (P3, both binaries)
+
+The same comparison over the 17 CH4+C2 dew states
+(`docs/investigations/dew_conditioning.csv`, column `system_id`) gives:
+
+- **Composition agreement.** PR's vapour composition at the measured pressure
+  is within the stated uncertainty at 15 of the 15 assessable states.
+- **Two states not assessed.** At 013 and 017, near the 243.6 K critical
+  region, the measured pressure is above the highest converged PR bubble
+  pressure on the isotherm. They are reported as `above_isotherm` rather than
+  given a number.
+- **Conditioning.** The dew question is much better posed than for CH4+C3:
+  only 3 of 17 states allow more than 1 MPa of dew-pressure spread from the
+  composition uncertainty. All three sit at 243.6 K close to the vapour
+  maximum (012, 015, 016).
+
+This is why the production CH4+C2 dew pressures (5.34 % AARD over 12 unique
+states) are informative, while the CH4+C3 ones are mostly not.
+
 ### Limits and a real bias
 
 - At 203–244 K (001–008), PR's vapour CH4 fraction is consistently higher than
