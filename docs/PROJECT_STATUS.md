@@ -96,11 +96,14 @@ work and added in that task's PR. Sessions read only the latest few entries.
     report) and #17 (survey docs) are merged, each after CI passed. PR #19 bumps
     the version to 1.4.0 and describes the public deployment as v1.4 once it is
     rebooted.
-  - Open: after PR #19 merges and master CI is green, the web session pushes the
-    tag v1.4.0 on that master commit. The desktop session creates the GitHub
-    release (the notes are in the web session's last message). The owner then
-    reboots the Streamlit app. Draft PR #10 awaits the faculty review. P2, P3 and
-    the pure-component data stay on hold.
+  - PR #19 merged as commit 609a809 and master CI passed on it. The web session
+    could not push the tag: the git proxy returned HTTP 403 for `v1.4.0`, while
+    branch pushes work.
+  - Open: the desktop session creates the tag `v1.4.0` on commit 609a809 (not on
+    the current master head) and publishes the GitHub release. The notes are in
+    the web session's last message. The owner then reboots the Streamlit app.
+    Draft PR #10 awaits the faculty review. P2, P3 and the pure-component data
+    stay on hold.
   - Next: send the faculty brief and act on the answers.
 
 - **2026-10-30, web (survey):**
