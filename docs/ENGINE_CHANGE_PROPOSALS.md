@@ -12,6 +12,8 @@ Evidence comes from `docs/DEW_INVESTIGATION.md` and the read-only tools
 
 ## P1. Accept a cubic root-count change in pseudo-arclength continuity
 
+**Status: approved by the owner on 2026-10-30 and implemented in PR #15.**
+
 **Problem.** `trace_pseudo_arclength_branch` rejects a step when
 `_root_branch_is_continuous` fails, and that shared rule requires the number of
 real cubic roots to be unchanged. Along a saturation curve, one phase's cubic
@@ -180,6 +182,8 @@ states (013–015) then fail with "No trustworthy saturation-pressure bracket".
 ---
 
 ## P5. Neutral wording for the standard trace's dew stop marker
+
+**Status: approved by the owner on 2026-10-30 and implemented in the application layer in PR #16. The engine's own label is unchanged.**
 
 **Observation.** On the default case, the standard (natural-temperature) dew
 branch stops near 329 K / 6.7 MPa, at the cricondentherm, not at the critical
