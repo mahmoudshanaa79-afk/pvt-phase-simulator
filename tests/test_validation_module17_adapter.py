@@ -141,7 +141,8 @@ def test_legacy_solver_coverage_and_outcomes_are_preserved_structurally() -> Non
     assert len(dew) == 40
     assert Counter(
         record.prediction.solver_metadata[LEGACY_SOLVER_OUTCOME_KEY] for record in dew
-    ) == {"converged": 22, "not_found": 4, "inconclusive": 14}
+    # P2 turns nine apparently unique dew results into ambiguous ones.
+    ) == {"converged": 13, "not_found": 4, "inconclusive": 23}
 
     for record in (*bubble, *dew):
         legacy_outcome = record.prediction.solver_metadata[LEGACY_SOLVER_OUTCOME_KEY]
@@ -422,13 +423,15 @@ def test_retrospective_nearest_root_cannot_replace_production_prediction() -> No
     legacy = _csv_rows(LEGACY_PATH)["may2015_ch4_c2_012"]
     adapted, records = _records_by_capability()
     record = records[CapabilityUnderTest.DEW_POINT]["may2015_ch4_c2_012"]
-    production_pressure = cast(
-        float, _value(record.prediction.values, ValidationQuantity.PRESSURE)
-    )
     nearest_pressure = float(legacy["dew_nearest_experimental_root_pressure_pa"])
 
-    assert production_pressure == float(legacy["dew_predicted_pressure_pa"])
-    assert production_pressure != nearest_pressure
+    # Since P2 this state is reported as ambiguous (two PR dew roots), so
+    # production has no pressure at all. The retrospective nearest root exists,
+    # but it must stay in the diagnostic and never fill the empty prediction.
+    assert legacy["dew_status"] == "inconclusive"
+    assert legacy["dew_predicted_pressure_pa"] == ""
+    assert record.prediction.outcome is PredictionOutcome.FAILURE
+    assert not record.prediction.values
     assert (
         adapted.interpretation["dew_branch_diagnostics"]
         == summary["interpretation"]["dew_branch_diagnostics"]
