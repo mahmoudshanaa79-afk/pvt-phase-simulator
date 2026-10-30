@@ -197,7 +197,7 @@ in PR #15; the rest have not been changed.
    pseudo-arclength tracer only. The evidence above supports it. The rule was a
    deliberate, audited choice, so changing it needs a design note, tests on the
    cases above, and an independent review.
-2. **Ambiguous "converged" dew results.** When PR has more than one dew root at
+2. **Done (P2, 30 October 2026).** **Ambiguous "converged" dew results.** When PR has more than one dew root at
    `(T, y)`, the production dew solver should not report a single converged
    root. The Module 17 scan already finds the roots; the production path does
    not use it.

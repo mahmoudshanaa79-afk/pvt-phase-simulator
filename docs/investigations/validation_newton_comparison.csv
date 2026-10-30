@@ -18,29 +18,29 @@ ch4_c2,may2015_ch4_c2_008,243.60,4831000.0,dew,converged,4845107.1,0.292,converg
 ch4_c2,may2015_ch4_c2_009,243.60,5094000.0,bubble,not_found,,,converged,5040661.3,-1.047,,true,,false,true
 ch4_c2,may2015_ch4_c2_009,243.60,5094000.0,dew,converged,5186945.8,1.825,converged,5186945.8,1.825,,false,1,true,true
 ch4_c2,may2015_ch4_c2_010,243.60,5395000.0,bubble,converged,5317839.9,-1.430,converged,5317839.9,-1.430,,false,,true,true
-ch4_c2,may2015_ch4_c2_010,243.60,5395000.0,dew,converged,5508530.8,2.104,converged,5508530.8,2.104,,false,1,true,true
+ch4_c2,may2015_ch4_c2_010,243.60,5395000.0,dew,inconclusive,,,converged,5508530.8,2.104,,true,1,false,true
 ch4_c2,may2015_ch4_c2_011,243.60,5564000.0,bubble,converged,5490784.1,-1.316,converged,5490784.1,-1.316,,false,,true,true
 ch4_c2,may2015_ch4_c2_011,243.60,5564000.0,dew,not_found,,,converged,5823427.0,4.663,,true,2,false,false
 ch4_c2,may2015_ch4_c2_012,243.60,6487000.0,bubble,not_found,,,not_found,,,No trustworthy saturation-pressure bracket was found.,false,,false,false
-ch4_c2,may2015_ch4_c2_012,243.60,6487000.0,dew,converged,5437473.8,-16.179,converged,5437473.8,-16.179,,false,2,false,false
+ch4_c2,may2015_ch4_c2_012,243.60,6487000.0,dew,inconclusive,,,converged,5437473.8,-16.179,,true,2,false,false
 ch4_c2,may2015_ch4_c2_013,243.60,6885000.0,bubble,not_found,,,converged,6704273.3,-2.625,,true,,false,true
 ch4_c2,may2015_ch4_c2_013,243.60,6885000.0,dew,converged,5105226.2,-25.850,converged,5105226.2,-25.850,,false,1,true,true
 ch4_c2,may2015_ch4_c2_014,243.61,3718000.0,bubble,converged,3729309.2,0.304,converged,3729309.2,0.304,,false,,true,true
 ch4_c2,may2015_ch4_c2_014,243.61,3718000.0,dew,converged,3839480.0,3.267,converged,3839480.0,3.267,,false,1,true,true
 ch4_c2,may2015_ch4_c2_015,243.61,6080000.0,bubble,not_found,,,converged,5967866.8,-1.844,,true,,false,true
-ch4_c2,may2015_ch4_c2_015,243.61,6080000.0,dew,converged,5572998.1,-8.339,converged,5572998.1,-8.339,,false,2,false,false
+ch4_c2,may2015_ch4_c2_015,243.61,6080000.0,dew,inconclusive,,,converged,5572998.1,-8.339,,true,2,false,false
 ch4_c2,may2015_ch4_c2_016,243.61,6469000.0,bubble,not_found,,,converged,6304821.6,-2.538,,true,,false,true
 ch4_c2,may2015_ch4_c2_016,243.61,6469000.0,dew,not_found,,,converged,6061776.6,-6.295,,true,2,false,false
 ch4_c2,may2015_ch4_c2_017,243.61,6691000.0,bubble,not_found,,,not_found,,,No trustworthy saturation-pressure bracket was found.,false,,false,false
 ch4_c2,may2015_ch4_c2_017,243.61,6691000.0,dew,converged,5385666.1,-19.509,converged,5385666.1,-19.509,,false,1,true,true
 ch4_c3,may2015_ch4_c3_001,203.40,3576000.0,bubble,converged,3561800.5,-0.397,converged,3561800.5,-0.397,,false,,true,true
-ch4_c3,may2015_ch4_c3_001,203.40,3576000.0,dew,converged,2226405.9,-37.740,converged,2226405.9,-37.740,,false,2,false,false
+ch4_c3,may2015_ch4_c3_001,203.40,3576000.0,dew,inconclusive,,,converged,2226405.9,-37.740,,true,2,false,false
 ch4_c3,may2015_ch4_c3_002,213.38,4108000.0,bubble,converged,4092800.9,-0.370,converged,4092800.9,-0.370,,false,,true,true
 ch4_c3,may2015_ch4_c3_002,213.38,4108000.0,dew,inconclusive,,,converged,2792488.1,-32.023,,true,2,false,false
 ch4_c3,may2015_ch4_c3_003,223.36,4628000.0,bubble,converged,4603864.0,-0.522,converged,4603864.0,-0.522,,false,,true,true
-ch4_c3,may2015_ch4_c3_003,223.36,4628000.0,dew,converged,3223681.0,-30.344,converged,3223681.0,-30.344,,false,2,false,false
+ch4_c3,may2015_ch4_c3_003,223.36,4628000.0,dew,inconclusive,,,converged,3223681.0,-30.344,,true,2,false,false
 ch4_c3,may2015_ch4_c3_004,223.54,4622000.0,bubble,converged,4619044.5,-0.064,converged,4619044.5,-0.064,,false,,true,true
-ch4_c3,may2015_ch4_c3_004,223.54,4622000.0,dew,converged,3242468.1,-29.847,converged,3242468.1,-29.847,,false,2,false,false
+ch4_c3,may2015_ch4_c3_004,223.54,4622000.0,dew,inconclusive,,,converged,3242468.1,-29.847,,true,2,false,false
 ch4_c3,may2015_ch4_c3_005,233.61,5077000.0,bubble,converged,5049471.1,-0.542,converged,5049471.1,-0.542,,false,,true,true
 ch4_c3,may2015_ch4_c3_005,233.61,5077000.0,dew,inconclusive,,,converged,3866515.4,-23.843,,true,2,false,false
 ch4_c3,may2015_ch4_c3_006,233.67,5119000.0,bubble,converged,5096518.1,-0.439,converged,5096518.1,-0.439,,false,,true,true
@@ -60,9 +60,9 @@ ch4_c3,may2015_ch4_c3_012,243.62,6402000.0,dew,inconclusive,,,converged,6433522.
 ch4_c3,may2015_ch4_c3_013,243.62,7530000.0,bubble,not_found,,,converged,7565885.2,0.477,,true,,false,true
 ch4_c3,may2015_ch4_c3_013,243.62,7530000.0,dew,inconclusive,,,converged,3508735.7,-53.403,,true,2,false,false
 ch4_c3,may2015_ch4_c3_014,243.62,7943000.0,bubble,not_found,,,converged,7997810.4,0.690,,true,,false,true
-ch4_c3,may2015_ch4_c3_014,243.62,7943000.0,dew,converged,2930670.1,-63.104,converged,2930670.1,-63.104,,false,2,false,false
+ch4_c3,may2015_ch4_c3_014,243.62,7943000.0,dew,inconclusive,,,converged,2930670.1,-63.104,,true,2,false,false
 ch4_c3,may2015_ch4_c3_015,243.62,8320000.0,bubble,not_found,,,converged,8427152.1,1.288,,true,,false,true
-ch4_c3,may2015_ch4_c3_015,243.62,8320000.0,dew,converged,2550204.3,-69.349,converged,2550204.3,-69.349,,false,2,false,false
+ch4_c3,may2015_ch4_c3_015,243.62,8320000.0,dew,inconclusive,,,converged,2550204.3,-69.349,,true,2,false,false
 ch4_c3,may2015_ch4_c3_016,243.63,5500000.0,bubble,converged,5446443.2,-0.974,converged,5446443.2,-0.974,,false,,true,true
 ch4_c3,may2015_ch4_c3_016,243.63,5500000.0,dew,inconclusive,,,converged,5802232.9,5.495,,true,2,false,false
 ch4_c3,may2015_ch4_c3_017,243.63,6989000.0,bubble,converged,6996651.2,0.109,converged,6996651.2,0.109,,false,,true,true
@@ -78,4 +78,4 @@ ch4_c3,may2015_ch4_c3_021,263.56,6560000.0,dew,not_found,,,not_found,,,No trustw
 ch4_c3,may2015_ch4_c3_022,273.48,7102000.0,bubble,converged,6977714.6,-1.750,converged,6977714.6,-1.750,,false,,true,true
 ch4_c3,may2015_ch4_c3_022,273.48,7102000.0,dew,inconclusive,,,converged,7236139.2,1.889,,true,2,false,false
 ch4_c3,may2015_ch4_c3_023,283.38,7630000.0,bubble,converged,7474231.1,-2.042,converged,7474231.1,-2.042,,false,,true,true
-ch4_c3,may2015_ch4_c3_023,283.38,7630000.0,dew,converged,5840051.4,-23.459,converged,7701834.6,0.941,,true,2,false,false
+ch4_c3,may2015_ch4_c3_023,283.38,7630000.0,dew,inconclusive,,,converged,7701834.6,0.941,,true,2,false,false

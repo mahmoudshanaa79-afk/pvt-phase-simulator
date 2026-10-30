@@ -96,6 +96,14 @@ logic could then be simplified, but not before the change is reviewed.
 
 ## P2. Do not report a unique dew pressure when a second root is hidden
 
+**Status: applied on 30 October 2026** with the owner's approval (best-science
+option: report the state as ambiguous). It is implemented as a stepwise walk
+from the converged node, which stops at the first failed evaluation, rather
+than a dense 41-point scan. It changed nine dew results, not eight. The ninth,
+CH4+C2 010, has a second root at 6.6076 MPa that the Module 17 diagnostic scan
+had also missed. The Module 17 artifacts were regenerated; see
+`docs/EXPERIMENTAL_VALIDATION.md`.
+
 **Problem.** The production fixed-temperature solver scans an 81-point log grid
 from 1 kPa to 100 MPa. It counts sign changes only between nodes where the inner
 iteration converged. When the second root lies next to a non-converged node, it

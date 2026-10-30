@@ -25,26 +25,37 @@ only sits beside them.
 
 A converged dew pressure at a state where PR has more than one dew root is
 **one root of several**. It is not an accuracy result, because the measured
-state does not say which root is meant (`docs/DEW_INVESTIGATION.md`, and the
-separate question P2, which is on hold). Those states are counted in the
-converged columns, listed in the next columns, and left out of the AARD.
+state does not say which root is meant (`docs/DEW_INVESTIGATION.md`). Those
+states are counted in the converged columns, listed in the next columns, and
+left out of the AARD.
+
+Since P2 the default (scanning) solver reports such states as ambiguous, so
+its column of multi-root results is zero. Newton refinement is a local
+solve from the Wilson estimate: it returns the root near that estimate and
+does not check whether another root exists.
 
 | System | Sources | Converged (default) | Converged (Newton) | One root of several (default) | One root of several (Newton) | AARD, other states (default) | AARD, other states (Newton) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| ch4_c2 | 17 | 15 | 17 | 2 | 4 | 5.09 % (n=13) | 5.09 % (n=13) |
-| ch4_c3 | 23 | 7 | 21 | 6 | 20 | 2.83 % (n=1) | 2.83 % (n=1) |
+| ch4_c2 | 17 | 12 | 17 | 0 | 4 | 5.34 % (n=12) | 5.09 % (n=13) |
+| ch4_c3 | 23 | 1 | 21 | 0 | 20 | 2.83 % (n=1) | 2.83 % (n=1) |
 
 ## States whose outcome changes
 
 | System | State | Direction | Default | Newton |
 |---|---|---|---|---|
 | ch4_c2 | may2015_ch4_c2_009 | bubble | not_found | 5.041 MPa (-1.0 %) |
+| ch4_c2 | may2015_ch4_c2_010 | dew | inconclusive | 5.509 MPa (2.1 %) |
 | ch4_c2 | may2015_ch4_c2_011 | dew | not_found | 5.823 MPa, one root of 2 |
+| ch4_c2 | may2015_ch4_c2_012 | dew | inconclusive | 5.437 MPa, one root of 2 |
 | ch4_c2 | may2015_ch4_c2_013 | bubble | not_found | 6.704 MPa (-2.6 %) |
 | ch4_c2 | may2015_ch4_c2_015 | bubble | not_found | 5.968 MPa (-1.8 %) |
+| ch4_c2 | may2015_ch4_c2_015 | dew | inconclusive | 5.573 MPa, one root of 2 |
 | ch4_c2 | may2015_ch4_c2_016 | bubble | not_found | 6.305 MPa (-2.5 %) |
 | ch4_c2 | may2015_ch4_c2_016 | dew | not_found | 6.062 MPa, one root of 2 |
+| ch4_c3 | may2015_ch4_c3_001 | dew | inconclusive | 2.226 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_002 | dew | inconclusive | 2.792 MPa, one root of 2 |
+| ch4_c3 | may2015_ch4_c3_003 | dew | inconclusive | 3.224 MPa, one root of 2 |
+| ch4_c3 | may2015_ch4_c3_004 | dew | inconclusive | 3.242 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_005 | dew | inconclusive | 3.867 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_006 | dew | inconclusive | 3.945 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_007 | dew | inconclusive | 4.066 MPa, one root of 2 |
@@ -55,21 +66,19 @@ converged columns, listed in the next columns, and left out of the AARD.
 | ch4_c3 | may2015_ch4_c3_013 | bubble | not_found | 7.566 MPa (0.5 %) |
 | ch4_c3 | may2015_ch4_c3_013 | dew | inconclusive | 3.509 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_014 | bubble | not_found | 7.998 MPa (0.7 %) |
+| ch4_c3 | may2015_ch4_c3_014 | dew | inconclusive | 2.931 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_015 | bubble | not_found | 8.427 MPa (1.3 %) |
+| ch4_c3 | may2015_ch4_c3_015 | dew | inconclusive | 2.550 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_016 | dew | inconclusive | 5.802 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_017 | dew | inconclusive | 3.625 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_018 | dew | inconclusive | 6.273 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_019 | dew | inconclusive | 6.069 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_022 | dew | inconclusive | 7.236 MPa, one root of 2 |
-| ch4_c3 | may2015_ch4_c3_023 | dew | 5.840 MPa, one root of 2 | 7.702 MPa, one root of 2 |
+| ch4_c3 | may2015_ch4_c3_023 | dew | inconclusive | 7.702 MPa, one root of 2 |
 
 ## Converged in both runs at different pressures
 
-Each run returned a different root. Neither is an accuracy result.
-
-| System | State | Direction | Default | Newton |
-|---|---|---|---|---|
-| ch4_c3 | may2015_ch4_c3_023 | dew | 5.840 MPa, one root of 2 | 7.702 MPa, one root of 2 |
+None.
 
 A state that does not converge keeps the engine's own status and reason in
 the CSV next to this report. The measured pressure is only the comparison

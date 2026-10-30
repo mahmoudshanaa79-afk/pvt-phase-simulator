@@ -686,11 +686,11 @@ def test_app_code_contains_labels_but_no_thermodynamic_implementation() -> None:
         ),
         (
             "docs/validation/module17_vle_validation.csv",
-            "B14728D51AAC06AF38FC4F4E5F408942B253FEBE32D3E12EC26E9623CFA42482",
+            "BF11C4BE8462DBDBCFB25B2DF859A165475EA0BEBACB9227C7FEAFBE539B2397",
         ),
         (
             "docs/validation/module17_vle_validation_summary.json",
-            "5B120B77BF05567FCC6A0EE0D0054C6D1DEBA35FE26A7C837352C92017D24870",
+            "97178CB190814DFB9D8D1D32EB4260373F319EEA31D60EFC641D502CEDEC9AE3",
         ),
     ),
 )

@@ -294,15 +294,18 @@ def test_one_point_production_validation_and_serialization_are_deterministic():
     assert first == second
     assert validation_results_to_csv(first) == validation_results_to_csv(second)
     result = first[0]
-    assert result.dew.predicted_pressure_pa == pytest.approx(2_550_204.2506093)
-    assert result.dew_branch_diagnostic.production_selected_root_class == "LOWER"
+    # P2: the upper root hides beside a non-converged grid node. Refining that
+    # interval reveals it, so production reports the state as ambiguous instead
+    # of returning the lower root (2.550 MPa) as if it were unique.
+    assert result.dew.status == "inconclusive"
+    assert result.dew.predicted_pressure_pa is None
+    assert "HIDDEN_SATURATION_ROOT" in result.dew.diagnostic_codes
     assert len(result.dew_branch_diagnostic.roots) == 2
+    assert result.dew_branch_diagnostic.roots[0].pressure_pa == pytest.approx(
+        2_550_204.2506093
+    )
     assert result.dew_branch_diagnostic.roots[-1].pressure_pa == pytest.approx(
         8_158_606.566932067
-    )
-    assert (
-        result.dew.predicted_pressure_pa
-        != result.dew_branch_diagnostic.nearest_pr_root_to_experiment_pressure_pa
     )
 
 
@@ -316,9 +319,11 @@ def test_branch_artifact_reproduces_root_and_failure_accounting() -> None:
     assert c2["multiple_root_state_count"] == 4
     assert (c3["zero_root_state_count"], c3["single_root_state_count"]) == (2, 1)
     assert c3["multiple_root_state_count"] == 20
-    assert c2["failed_root_demonstrated_count"] == 2
+    # P2 makes three more CH4+C2 and six more CH4+C3 dew states ambiguous
+    # (a second root found beside a non-converged grid node).
+    assert c2["failed_root_demonstrated_count"] == 5
     assert c2["failed_no_root_found_in_scan_count"] == 0
-    assert c3["failed_root_demonstrated_count"] == 14
+    assert c3["failed_root_demonstrated_count"] == 20
     assert c3["failed_no_root_found_in_scan_count"] == 2
     no_root_ids = {
         row["source_point_id"]
@@ -331,7 +336,7 @@ def test_branch_artifact_reproduces_root_and_failure_accounting() -> None:
         for row in rows
         if row["system_id"] == "ch4_c2" and row["dew_status"] != "converged"
     ]
-    assert len(c2_failed) == 2
+    assert len(c2_failed) == 5
     assert {row["dew_failure_classification"] for row in c2_failed} == {
         "PR_ROOT_DEMONSTRATED_PRODUCTION_UNREACHED"
     }
@@ -349,25 +354,26 @@ def test_production_and_nearest_branch_metrics_remain_separate() -> None:
             "may2015_ch4_c3_023",
         }
     }
+    # Before P2, production returned the LOWER root at these states while the
+    # nearest root to experiment was the UPPER one. Production now reports them
+    # as ambiguous; the retrospective nearest root is still recorded separately
+    # and never becomes a production prediction.
     expected = {
         "may2015_ch4_c3_014": (2_930_670.1363515155, 7_773_260.512799223),
         "may2015_ch4_c3_015": (2_550_204.2506093043, 8_158_606.566932067),
         "may2015_ch4_c3_023": (5_840_051.393478824, 7_701_834.625901307),
     }
-    for point_id, (production_pressure, nearest_pressure) in expected.items():
+    for point_id, (lower_root, nearest_pressure) in expected.items():
         row = audit[point_id]
-        assert float(row["dew_predicted_pressure_pa"]) == pytest.approx(
-            production_pressure
-        )
-        assert row["dew_production_selected_root_class"] == "LOWER"
+        assert row["dew_status"] == "inconclusive"
+        assert row["dew_predicted_pressure_pa"] == ""
+        assert "HIDDEN_SATURATION_ROOT" in json.loads(row["dew_diagnostic_codes"])
+        roots = json.loads(row["dew_diagnostic_root_pressures_pa"])
+        assert roots == pytest.approx([lower_root, nearest_pressure])
         assert float(row["dew_nearest_experimental_root_pressure_pa"]) == pytest.approx(
             nearest_pressure
         )
         assert row["dew_nearest_experimental_root_class"] == "UPPER"
-        assert (
-            row["dew_predicted_pressure_pa"]
-            != row["dew_nearest_experimental_root_pressure_pa"]
-        )
 
 
 def test_highest_root_is_not_a_universal_selection_rule() -> None:
@@ -420,9 +426,9 @@ def test_out_of_title_points_and_283_38_k_sensitivity_are_pinned() -> None:
     assert bubble["aard_shift_when_excluded_percentage_points"] == pytest.approx(
         -0.053038278107787606
     )
-    assert (dew["included_success_count"], dew["excluded_success_count"]) == (7, 6)
-    assert dew["included_aard_percent"] == pytest.approx(36.668237970426496)
-    assert dew["excluded_aard_percent"] == pytest.approx(38.86971885863611)
-    assert dew["aard_shift_when_excluded_percentage_points"] == pytest.approx(
-        2.201480888209616
-    )
+    # P2: only state 009 remains a unique converged CH4+C3 dew pressure, and it
+    # is not the 283.38 K point, so excluding that point changes nothing.
+    assert (dew["included_success_count"], dew["excluded_success_count"]) == (1, 1)
+    assert dew["included_aard_percent"] == pytest.approx(2.8346929862635895)
+    assert dew["excluded_aard_percent"] == pytest.approx(2.8346929862635895)
+    assert dew["aard_shift_when_excluded_percentage_points"] == pytest.approx(0.0)
