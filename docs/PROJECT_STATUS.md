@@ -57,7 +57,7 @@ key whose numbers are recomputed from the engine by the tests.
 | P1: root-count-tolerant continuation (approved, merged in PR #15) | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Closes every early-stopped envelope branch surveyed |
 | P2: refine grid boundaries in the saturation scan | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Stops 8 known hidden-second-root results from being reported as unique; changes the Module 17 artifacts |
 | P3: conditioning-aware dew metric | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Honest dew accuracy reporting |
-| P4: Newton refinement in validation | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Three more CH4+C3 bubble states solved |
+| P4: Newton refinement in validation (option B approved, report in PR #18) | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Both runs reported side by side in `docs/investigations/validation_newton_comparison.md`; frozen artifacts unchanged. Newton dew results at multi-root states are labelled one root of several, not accuracy |
 | P5: neutral dew stop marker label (approved, in PR #16) | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Avoids implying a critical point at the cricondentherm |
 | Pure-component reference data (V2-01-E) | draft PR, `docs/PURE_COMPONENT_SATURATION.md` | Accept CoolProp-evaluated reference EOS values as a source |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
@@ -85,6 +85,18 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-30, web (P4):**
+  - Done: P4 option B. `tools/run_validation_newton_comparison.py` runs the Module
+    17 data with and without Newton refinement and writes
+    `docs/investigations/validation_newton_comparison.md`, in PR #18. The frozen
+    artifacts are not regenerated, and the default run is checked against them.
+    Newton solves 4 more CH4+C2 and 3 more CH4+C3 bubble states. Its extra dew
+    results are labelled one root of several and left out of accuracy (P2, on
+    hold). State CH4+C3 023 converges to different roots in the two runs.
+  - Open: PR #17 (envelope survey docs) and PR #18 await CI. Draft PR #10 awaits
+    the faculty review.
+  - Next: merge PR #18 then PR #17, then release v1.4.0.
 
 - **2026-10-30, web (P5):**
   - Done: the owner approved P5. The app now labels the standard dew stop marker
