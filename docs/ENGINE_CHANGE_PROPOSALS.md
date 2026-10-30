@@ -146,6 +146,10 @@ multiple-root decision. The existing rule then reports these states as
 
 ## P3. Report dew accuracy with a conditioning-aware metric
 
+**Status: applied on 30 October 2026** for both binaries, as an evidence table
+(`docs/investigations/dew_conditioning.csv`) shown on the Validation page. The
+frozen Module 17 metric definitions are unchanged.
+
 **Problem.** Near the maximum of PR's vapour composition on an isotherm,
 `dP/dy → ∞`. At 15 of 23 CH4+C3 states, the stated composition uncertainty alone
 allows more than 1 MPa of dew pressure. A dew-pressure error there says almost
