@@ -97,9 +97,30 @@ work and added in that task's PR. Sessions read only the latest few entries.
     versus gas-condensate behaviour at 300 K), in PR #22. No fixed-temperature
     dew pressures are quoted (P2). Every key number is recomputed by
     `tests/test_teaching_lab_03.py`.
-  - Open: PR #21 (Lab 2) and PR #22 await CI. The desktop session is working on
-    P2, P3 and the Validation page.
-  - Next: send the faculty brief and act on the answers.
+  - Open: PR #22 awaits CI. The desktop session is working on P2, P3 and the
+    Validation page; if P2 changes bubble or critical results, the lab tests
+    will flag the key.
+  - Next: the desktop session continues with P2, then P3 and the Validation
+    page.
+
+- **2026-10-30, web (Lab 2):**
+  - Done: teaching Lab 2 (methane-ethane at 243.6 K: bubble pressures, a P-x-y
+    diagram from flash results, comparison with the May 2015 bubble data and the
+    protected validation record), in PR #21. No dew pressures are quoted (P2).
+    Every key number is recomputed by `tests/test_teaching_lab_02.py`.
+  - Merged in PR #21 after CI passed. Lab 3 (composition effects on the
+    methane-propane envelope) is in PR #22. If P2 changes bubble results, the
+    lab tests will flag the key.
+  - Next: Lab 3.
+
+- **2026-10-30, desktop (pure-component data):**
+  - Done: the owner dropped the wait for faculty review and approved P2, P3 and
+    the pure-component reference data, each with the best-science option.
+    Accepted the CoolProp-evaluated reference EOS data (PR #10). Published the
+    v1.4.0 release on master `9787226`, with code identical to `609a809`.
+  - Next: P2 (refine hidden-root grid intervals and report several roots as
+    inconclusive), then P3 (conditioning-aware dew metric), then show both and
+    the pure-component check on the Validation page.
 
 - **2026-10-30, web (release v1.4.0):**
   - Done: the owner approved release v1.4. PRs #15 (P1), #16 (P5), #18 (P4
