@@ -91,7 +91,7 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
-- **2026-10-31, web (Lab 2):**
+- **2026-10-30, web (Lab 2):**
   - Done: teaching Lab 2 (methane-ethane at 243.6 K: bubble pressures, a P-x-y
     diagram from flash results, comparison with the May 2015 bubble data and the
     protected validation record), in PR #21. No dew pressures are quoted (P2).
