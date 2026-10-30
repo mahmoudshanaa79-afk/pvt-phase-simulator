@@ -1,7 +1,9 @@
 # Dew-branch investigation
 
-Status: investigation complete; **no engine change made**. Two findings need a
-decision from the project owner before any engine change (see the last section).
+Status: investigation complete. Decision 1 (root-count continuity, proposal P1)
+has been made and applied in PR #15 (2026-10-30). The other decisions are open or
+on hold pending the faculty review (see the last section). The findings below
+describe the engine as it was when they were measured.
 
 This note answers the two open dew questions:
 
@@ -140,6 +142,12 @@ The Module 17 validation calls the solver with defaults, which leave Newton off.
 
 ## 2. Early `phase_role_lost` stops on the extended envelope
 
+*Update, 2026-10-30:* proposal P1 was applied in PR #15. The default 50/50
+methane/propane dew branch from 270 K now ends at 322.52 K / 8.472 MPa, and the
+extended-envelope survey closes 13 of 16 cases instead of 9
+(`docs/investigations/envelope_survey.md`). The text below is the measurement that
+led to that decision.
+
 The pseudo-arclength tracer rejects a step when fixed-root continuity is lost,
 and that check requires the **number of real cubic roots** to stay the same
 (docs/NEWTON_SATURATION_DESIGN.md). Along a saturation curve, one phase's cubic
@@ -181,9 +189,10 @@ Two other early stops have different causes and are not explained by this:
 
 ## Decisions for the project owner
 
-Both findings point at frozen engine policy. Neither has been changed.
+Both findings point at frozen engine policy. Decision 1 was approved and applied
+in PR #15; the rest have not been changed.
 
-1. **Root-count continuity rule.** Allow a change in the number of cubic roots
+1. **Root-count continuity rule. DONE (P1, PR #15, 2026-10-30).** Allow a change in the number of cubic roots
    when the selected root is the unambiguous nearest stable continuation, in the
    pseudo-arclength tracer only. The evidence above supports it. The rule was a
    deliberate, audited choice, so changing it needs a design note, tests on the

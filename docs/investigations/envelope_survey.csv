@@ -1,0 +1,17 @@
+case,methane_pct,ethane_pct,propane_pct,temperature_k,before_bubble,before_dew,before_closed,current_bubble,current_dew,current_closed
+shipped: Default two-phase-oriented case,50.0,0.0,50.0,300.0,near_critical,near_critical,true,near_critical,near_critical,true
+shipped: Known single-phase case at 300 K and 20 MPa,50.0,0.0,50.0,300.0,near_critical,near_critical,true,near_critical,near_critical,true
+shipped: Audited critical-solver seed,50.0,0.0,50.0,321.5829183194,near_critical,near_critical,true,near_critical,near_critical,true
+"C1/C3 50/50, warm start",50.0,0.0,50.0,330.0,initialization_failed,near_critical,false,initialization_failed,near_critical,false
+C1/C3 10/90,10.0,0.0,90.0,330.0,near_critical,phase_role_lost,false,near_critical,near_critical,true
+C1/C3 30/70,30.0,0.0,70.0,310.0,near_critical,near_critical,true,near_critical,near_critical,true
+C1/C3 70/30,70.0,0.0,30.0,270.0,trivial_state,near_critical,false,trivial_state,near_critical,false
+C1/C3 90/10,90.0,0.0,10.0,230.0,near_critical,near_critical,true,near_critical,near_critical,true
+C2/C3 30/70,0.0,30.0,70.0,315.5,phase_role_lost,phase_role_lost,false,near_critical,near_critical,true
+C2/C3 70/30,0.0,70.0,30.0,300.0,phase_role_lost,phase_role_lost,false,near_critical,near_critical,true
+C1/C2 50/50,50.0,50.0,0.0,250.0,near_critical,near_critical,true,near_critical,near_critical,true
+C1/C2/C3 40/30/30,40.0,30.0,30.0,290.0,near_critical,near_critical,true,near_critical,near_critical,true
+C1/C3 20/80,20.0,0.0,80.0,320.0,near_critical,near_critical,true,near_critical,near_critical,true
+C2/C3 50/50,0.0,50.0,50.0,310.0,phase_role_lost,phase_role_lost,false,near_critical,near_critical,true
+C1/C2/C3 30/40/30,30.0,40.0,30.0,300.0,near_critical,near_critical,true,near_critical,near_critical,true
+C1/C3 80/20,80.0,0.0,20.0,250.0,trivial_state,near_critical,false,trivial_state,near_critical,false
