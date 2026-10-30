@@ -54,7 +54,7 @@ key whose numbers are recomputed from the engine by the tests.
 
 | Item | Where | Effect |
 |---|---|---|
-| P1: root-count-tolerant continuation | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Closes every early-stopped envelope branch surveyed |
+| P1: root-count-tolerant continuation (approved, in PR #15) | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Closes every early-stopped envelope branch surveyed |
 | P2: refine grid boundaries in the saturation scan | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Stops 8 known hidden-second-root results from being reported as unique; changes the Module 17 artifacts |
 | P3: conditioning-aware dew metric | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Honest dew accuracy reporting |
 | P4: Newton refinement in validation | [proposals](ENGINE_CHANGE_PROPOSALS.md) | Three more CH4+C3 bubble states solved |
@@ -85,6 +85,17 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-30, web (P1):**
+  - Done: the owner approved P1. Implemented root-count-tolerant continuity in
+    `pseudo_arclength.py` only, with the 25% jump guard and the proposal's
+    tests, in PR #15. The 50/50 methane/propane dew branch now reaches
+    322.52 K / 8.472 MPa. One existing test changed its example input, because
+    P1 closes the case it used.
+  - Open: PR #15 awaits CI and an independent review; draft PR #10 awaits the
+    faculty review. P2, P3 and the pure-component data are on hold until then.
+    P4 (option B) and P5 are approved and queued as separate PRs.
+  - Next: P5 as a separate small PR, then P4 option B.
 
 - **2026-10-30, desktop:**
   - Done: added `CLAUDE.md` with the project rules, the two-account workflow
