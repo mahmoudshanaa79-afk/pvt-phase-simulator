@@ -22,6 +22,7 @@ from pvt_phase_simulator.eos.mixing_rules import (
     BinaryInteractionPolicy,
     calculate_peng_robinson_mixture_parameters,
 )
+from pvt_phase_simulator.eos.peng_robinson import MechanicalStabilityClassification
 from pvt_phase_simulator.eos.phase_envelope import (
     EnvelopeBranchKind,
     EnvelopeContinuationSettings,
@@ -47,6 +48,7 @@ StateValidator = Callable[[Array], bool]
 
 DEFAULT_NULL_SPACE_RELATIVE_TOLERANCE: Final = 1e-11
 DEFAULT_TURNING_COMPONENT_TOLERANCE: Final = 1e-4
+ROOT_COUNT_CHANGE_MAXIMUM_RELATIVE_JUMP: Final = 0.25
 
 
 class PseudoArclengthTerminationReason(StrEnum):
@@ -873,6 +875,38 @@ def _physical_stop_reason(
     return None
 
 
+def _arclength_root_is_continuous(
+    previous: FlashPhaseResult, current: FlashPhaseResult
+) -> bool:
+    if _root_branch_is_continuous(previous, current):
+        return True
+    if previous.trial_kind is not current.trial_kind:
+        return False
+    if len(previous.root_selection.candidates) == len(
+        current.root_selection.candidates
+    ):
+        return False  # same topology: the shared rejection stands
+    stable = tuple(
+        candidate.compressibility_factor
+        for candidate in current.root_selection.candidates
+        if candidate.classification is MechanicalStabilityClassification.STABLE
+    )
+    if not stable:
+        return False
+    previous_z = previous.selected_compressibility_factor
+    current_z = current.selected_compressibility_factor
+    tolerance = 1e-8 * max(1.0, abs(previous_z), abs(current_z))
+    distances = sorted(abs(value - previous_z) for value in stable)
+    if len(distances) > 1 and abs(distances[1] - distances[0]) <= tolerance:
+        return False
+    nearest = min(stable, key=lambda value: abs(value - previous_z))
+    if abs(nearest - current_z) > tolerance:
+        return False
+    return abs(current_z - previous_z) <= (
+        ROOT_COUNT_CHANGE_MAXIMUM_RELATIVE_JUMP * abs(previous_z)
+    )
+
+
 def trace_pseudo_arclength_branch(
     mixture: FluidMixture,
     branch_kind: EnvelopeBranchKind,
@@ -1089,10 +1123,10 @@ def trace_pseudo_arclength_branch(
             )
             equilibrium_evaluations += 1
             if stop is None and (
-                not _root_branch_is_continuous(
+                not _arclength_root_is_continuous(
                     previous_evaluation.parent_phase, candidate.parent_phase
                 )
-                or not _root_branch_is_continuous(
+                or not _arclength_root_is_continuous(
                     previous_evaluation.incipient_phase, candidate.incipient_phase
                 )
             ):
