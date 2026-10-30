@@ -91,6 +91,15 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-10-30, desktop (pure-component data):**
+  - Done: the owner dropped the wait for faculty review and approved P2, P3 and
+    the pure-component reference data, each with the best-science option.
+    Accepted the CoolProp-evaluated reference EOS data (PR #10). Published the
+    v1.4.0 release on master `9787226`, with code identical to `609a809`.
+  - Next: P2 (refine hidden-root grid intervals and report several roots as
+    inconclusive), then P3 (conditioning-aware dew metric), then show both and
+    the pure-component check on the Validation page.
+
 - **2026-10-30, web (release v1.4.0):**
   - Done: the owner approved release v1.4. PRs #15 (P1), #16 (P5), #18 (P4
     report) and #17 (survey docs) are merged, each after CI passed. PR #19 bumps

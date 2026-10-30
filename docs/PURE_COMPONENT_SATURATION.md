@@ -1,7 +1,7 @@
-# Pure-component saturation check (V2-01-E, investigation)
+# Pure-component saturation check (V2-01-E)
 
-Status: investigation; **proposed new reference data source, awaiting owner
-review.** No engine, validation artifact or application behaviour is changed.
+Status: **accepted by the owner on 30 October 2026** as a reference source for
+pure-component checks. No engine or protected validation artifact is changed.
 
 ## Question
 
@@ -78,12 +78,12 @@ Selected states (signed relative error, PR minus reference):
 
 These are pure-component results. They do not test mixing rules or kij.
 
-## Decisions for the project owner
+## Decisions (30 October 2026)
 
-1. Accept CoolProp-evaluated reference equations as a reference source for
-   pure-component checks. The alternative is tabulated literature data, which
-   would need its own provenance work.
-2. Decide whether this becomes part of the formal validation framework (V2-01)
-   or stays an investigation.
-3. Decide whether to show liquid densities in the app with a warning, or to add
-   Péneloux volume translation as a future engine module.
+1. **Accepted:** reference equations of state evaluated with CoolProp are a
+   reference source for pure-component checks. The provenance file records the
+   version and the equation of each component.
+2. The comparison is shown on the app's Validation page next to the mixture
+   validation. It stays separate from the frozen Module 17 framework.
+3. Liquid densities stay visible but carry the warning above. Péneloux volume
+   translation is a candidate future engine module.
