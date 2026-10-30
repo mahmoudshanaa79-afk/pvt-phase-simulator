@@ -97,20 +97,20 @@ def test_three_to_one_roots_onto_the_other_phase_is_rejected() -> None:
     assert not _arclength_root_is_continuous(previous, current)
 
 
-def test_the_jump_guard_alone_blocks_the_phase_switch() -> None:
-    """Without the guard the nearest-root test passes, so the guard must do the work."""
-    previous = _phase(THREE_ROOTS, 0.0637)
-    current = _phase(((0.5000, STABLE),), 0.5000)
-    nearest = min((0.5000,), key=lambda z: abs(z - 0.0637))
-    assert nearest == current.selected_compressibility_factor
-    assert not _arclength_root_is_continuous(previous, current)
-
-
 def test_equal_count_discontinuity_is_still_rejected() -> None:
-    """Same topology: the shared rejection stands. The selected root hops roots."""
+    """Same root count: the shared rejection stands, however small the move is.
+
+    The selected root is the nearest stable one and moved 8%, so every other
+    condition of the new rule would accept it. Only the classification pattern
+    differs, which the shared rule rejects.
+    """
     previous = _phase(THREE_ROOTS, 0.0637)
-    jumped = _phase(THREE_ROOTS, 0.5443)
-    assert not _arclength_root_is_continuous(previous, jumped)
+    changed_pattern = _phase(
+        ((0.0690, STABLE), (0.3400, STABLE), (0.5300, UNSTABLE)), 0.0690
+    )
+    assert not _arclength_root_is_continuous(previous, changed_pattern)
+    hopped = _phase(THREE_ROOTS, 0.5443)
+    assert not _arclength_root_is_continuous(previous, hopped)
 
 
 def test_equal_count_continuous_step_is_accepted_by_the_shared_rule() -> None:
@@ -132,14 +132,20 @@ def test_no_stable_root_is_rejected() -> None:
 
 
 def test_a_tie_between_two_stable_roots_is_rejected() -> None:
+    """Two stable roots equally near the previous one: the continuation is ambiguous.
+
+    The selected root is the one the nearest-root search returns and the move is 10%,
+    so only the tie check can reject this step.
+    """
     previous = _phase(((0.30, STABLE),), 0.30)
-    current = _phase(((0.20, STABLE), (0.30, UNSTABLE), (0.40, STABLE)), 0.20)
+    current = _phase(((0.27, STABLE), (0.30, UNSTABLE), (0.33, STABLE)), 0.27)
     assert not _arclength_root_is_continuous(previous, current)
 
 
 def test_selected_root_that_is_not_the_nearest_stable_root_is_rejected() -> None:
+    """The move is under 7%, so only the nearest-stable-root check can reject it."""
     previous = _phase(((0.30, STABLE),), 0.30)
-    current = _phase(((0.28, STABLE), (0.35, UNSTABLE), (0.55, STABLE)), 0.55)
+    current = _phase(((0.28, STABLE), (0.295, UNSTABLE), (0.31, STABLE)), 0.28)
     assert not _arclength_root_is_continuous(previous, current)
 
 

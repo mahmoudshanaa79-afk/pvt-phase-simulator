@@ -77,6 +77,7 @@ def test_a_branch_that_stops_early_is_reported_and_never_called_closed() -> None
     extension = trace_extended_envelope(_mixture((70.0, 0.0, 30.0), 270.0), 270.0)
 
     assert not extension.both_reached_critical_region
+    assert extension.bubble.termination_reason == "trivial_state"
     stopped = [
         branch
         for branch in (extension.bubble, extension.dew)
