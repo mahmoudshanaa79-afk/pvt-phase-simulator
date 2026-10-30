@@ -350,3 +350,20 @@ engine for the stated case:
 `tests/test_app_learn.py` recomputes each one, so the text cannot drift from the
 model without a failing test. The real-browser smoke test turns Learn mode on
 and off.
+
+## Validation page: further evidence
+
+Below the Module 17 figures, the Validation page shows three evidence tabs. Each
+is read from committed results under `docs/investigations`, so opening the page
+runs no calculation:
+
+- **Dew conditioning (P3):** per binary, how many dew states agree in
+  composition within one and two stated uncertainties at the measured
+  pressure, how many are ill-posed (more than 1 MPa of dew pressure from the
+  composition uncertainty alone), and the per-state table.
+- **Newton refinement (P4):** converged counts and accuracy results with and
+  without the engine's Newton refinement. A converged dew pressure at a
+  multi-root state is not counted as an accuracy result.
+- **Pure components (V2-01-E):** Peng–Robinson against reference equations of
+  state for vapour pressure and saturated densities, with a warning that liquid
+  densities are not quantitative without volume translation.

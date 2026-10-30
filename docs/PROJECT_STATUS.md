@@ -77,8 +77,8 @@ key whose numbers are recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. P1–P5 and the pure-component data are done. Next: the Validation page
-   evidence tabs, then a release.
+1. P1–P5, the pure-component data and the Validation page evidence tabs are
+   done. Next: release v1.5.
 2. Send the faculty brief and act on the answers, especially on kij and on
    which components and datasets come next.
 3. Add CO2 and N2, or the butanes, with verified properties and at least one
@@ -89,6 +89,16 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-31, desktop (Validation page):**
+  - Done: the Validation page has a "Further evidence" section with three tabs,
+    each read from committed results with no calculation at page load:
+    - dew conditioning (P3);
+    - Newton refinement (P4);
+    - pure components (V2-01-E).
+
+    Checked visually in the local app; tests cover the summaries and the page.
+  - Next: release v1.5 (owner approval), then the owner reboots the app.
 
 - **2026-10-30, desktop (P3):**
   - Done: the dew conditioning study now covers CH4+C2 and CH4+C3 and survives
