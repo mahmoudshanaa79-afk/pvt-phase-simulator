@@ -930,3 +930,16 @@ def test_failed_abscissae_are_still_marked_on_the_charts() -> None:
         if getattr(shape, "line", None) is not None
     ]
     assert len(vlines) == result.failed_count
+
+
+def test_sweep_table_columns_have_one_type_each_for_arrow() -> None:
+    import pyarrow as pa
+
+    from pvt_phase_simulator_ui.views import _sweep_table
+
+    frame = _sweep_table(_sweep_with_failure_at(2))
+    for column in frame.columns:
+        kinds = {type(value) for value in frame[column]}
+        assert len(kinds) == 1, (column, kinds)
+    # The conversion Streamlit performs must succeed without falling back.
+    pa.Table.from_pandas(frame)

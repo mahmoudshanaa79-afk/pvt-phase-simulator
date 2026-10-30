@@ -181,6 +181,32 @@ def _convert_axis_values(values: Any, converter: Any) -> tuple[object, ...]:
     return tuple(None if value is None else converter(float(value)) for value in values)
 
 
+#: The engine labels a branch that ended at its near-critical guard "<Branch>
+#: Near-critical termination". The standard dew branch can end that way at the
+#: cricondentherm, where there is no critical point, so the label would mislead.
+ENGINE_DEW_STOP_MARKER_NAME = "Dew Near-critical termination"
+DEW_STOP_MARKER_NAME = "Dew branch stopped (engine near-critical guard)"
+
+
+def _neutral_dew_stop_label(figure: go.Figure) -> go.Figure:
+    """Say what happened at the dew stop marker instead of implying a critical point.
+
+    Only the display label and its hover text change; the marker's position and
+    the engine's termination reason are untouched.
+    """
+
+    for trace in figure.data:
+        if getattr(trace, "name", None) != ENGINE_DEW_STOP_MARKER_NAME:
+            continue
+        trace.name = DEW_STOP_MARKER_NAME
+        template = getattr(trace, "hovertemplate", None)
+        if isinstance(template, str):
+            trace.hovertemplate = template.replace(
+                ENGINE_DEW_STOP_MARKER_NAME, DEW_STOP_MARKER_NAME
+            )
+    return figure
+
+
 def _presentation_figure(
     figure: go.Figure,
     units: UnitPreferences,
@@ -251,13 +277,45 @@ def _action_inputs(inputs: ScientificInputs | None) -> ScientificInputs | None:
     return inputs
 
 
+#: Plotly titles never wrap. Beyond this length a "Name — detail" title is split
+#: onto two lines so it stays inside the figure at phone width.
+TITLE_WRAP_LENGTH: Final = 32
+
+
+def _responsive_title(figure: Any) -> Any:
+    """Return a copy whose long ``Name — detail`` title is split over two lines."""
+
+    text = figure.layout.title.text
+    if not text or "<br>" in text or len(text) <= TITLE_WRAP_LENGTH:
+        return figure
+    head, separator, tail = text.partition(" — ")
+    if not separator:
+        return figure
+    wrapped = go.Figure(figure)
+    bottom = wrapped.layout.margin.b or 0
+    wrapped.update_layout(
+        title={"text": f"{head}<br><span style='font-size:0.78em'>{tail}</span>"},
+        # A legend left above the axes would collide with the second title line
+        # once it wraps on a narrow screen.
+        legend={
+            "orientation": "h",
+            "yanchor": "top",
+            "y": -0.2,
+            "xanchor": "left",
+            "x": 0.0,
+        },
+        margin={"t": 96, "b": max(bottom, 150)},
+    )
+    return wrapped
+
+
 def _wide_chart(figure: Any, *, key: str | None = None) -> None:
-    st.plotly_chart(figure, width="stretch", height=500, key=key)
+    st.plotly_chart(_responsive_title(figure), width="stretch", height=500, key=key)
 
 
 def _square_chart(figure: Any, *, key: str) -> None:
     with st.container(horizontal_alignment="center"):
-        st.plotly_chart(figure, width=680, height=640, key=key)
+        st.plotly_chart(_responsive_title(figure), width=680, height=640, key=key)
 
 
 def _annotate_missing_envelope_branches(
@@ -740,11 +798,13 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     )
     if result_is_stale(session(), "envelope_extension", inputs):
         extension = None
-    envelope_figure = plot_phase_envelope(
-        result,
-        pressure_unit=PlotPressureUnit.PA,
-        critical_point=critical,
-        metadata={"model": "Peng-Robinson EOS; kij=0"},
+    envelope_figure = _neutral_dew_stop_label(
+        plot_phase_envelope(
+            result,
+            pressure_unit=PlotPressureUnit.PA,
+            critical_point=critical,
+            metadata={"model": "Peng-Robinson EOS; kij=0"},
+        )
     )
     if extension is not None:
         envelope_figure = add_extended_branches(envelope_figure, extension)
@@ -1283,10 +1343,15 @@ SWEEP_TABLE_COLUMNS: Final = (
 )
 
 
-def _rounded(value: float | None, digits: int) -> float | str:
-    """Round for reading. Exports keep full precision; this display does not."""
+def _rounded(value: float | None, digits: int) -> str:
+    """Round for reading. Exports keep full precision; this display does not.
 
-    return "—" if value is None else round(float(value), digits)
+    Every display cell is text, so a column that mixes values with the "—"
+    placeholder still has one Arrow type and renders without a conversion
+    warning.
+    """
+
+    return "—" if value is None else f"{float(value):.{digits}f}"
 
 
 def _sweep_table(
@@ -1318,7 +1383,7 @@ def _sweep_table(
                 "Vapor Z": _rounded(point.vapor_z, 5),
                 "Single-phase Z": _rounded(point.single_phase_z, 5),
                 "Iterations": (
-                    "—" if point.iteration_count is None else point.iteration_count
+                    "—" if point.iteration_count is None else str(point.iteration_count)
                 ),
             }
         )

@@ -71,9 +71,13 @@ def test_the_extension_passes_the_cricondenbar_that_the_standard_trace_cannot(
 
 
 def test_a_branch_that_stops_early_is_reported_and_never_called_closed() -> None:
-    extension = trace_extended_envelope(_mixture((0.0, 30.0, 70.0), 315.5), 315.5)
+    # 70/30 methane/propane: the bubble branch ends in the engine's trivial-state
+    # guard near 9.9 MPa, a cause unrelated to cubic root counts. (Ethane/propane
+    # 30/70 used to stop early here; root-count-tolerant continuity, P1, closes it.)
+    extension = trace_extended_envelope(_mixture((70.0, 0.0, 30.0), 270.0), 270.0)
 
     assert not extension.both_reached_critical_region
+    assert extension.bubble.termination_reason == "trivial_state"
     stopped = [
         branch
         for branch in (extension.bubble, extension.dew)
