@@ -80,3 +80,16 @@ key whose numbers are recomputed from the engine by the tests.
 3. Add CO2 and N2, or the butanes, with verified properties and at least one
    experimental dataset each.
 4. Consider Péneloux volume translation as a new engine module.
+
+## Session log
+
+Newest first. One short entry per session, written by whichever account did the
+work.
+
+- **2026-10-30, desktop:**
+  - Done: added `CLAUDE.md` with the project rules and this two-account
+    workflow.
+  - Open: draft PR #10 (pure-component reference data) awaits an owner
+    decision.
+  - Next: the owner decides on engine proposals P1–P5 and PR #10; send the
+    faculty brief.

@@ -40,6 +40,25 @@ waiting on a decision.
 - When reporting, separate the tests you ran yourself from results you only
   saw in CI.
 
+## Two accounts, one repository
+
+The owner works from two Claude accounts: a desktop session and a web session.
+Neither can see the other's chat or memory. **GitHub is the only shared state.**
+
+- **Start of every session:** `git fetch` and update from `origin/master`. Read
+  the "Session log" at the end of `docs/PROJECT_STATUS.md`, especially the
+  latest "Next" entry.
+- **During a session:** work on a branch named for the task. Never commit to
+  `master` directly.
+- **End of every session**, even if the work is unfinished:
+  - commit and push the branch;
+  - open or update its PR;
+  - add one short dated entry to the "Session log": the account, what was done,
+    the open PRs, and what comes next.
+- **Only one session works on a given area at a time.** If both are active,
+  they work on different branches and different files. Before merging, update
+  the branch from `master` with a merge, never a rebase plus force-push.
+
 ## Commands
 
 ```bash
