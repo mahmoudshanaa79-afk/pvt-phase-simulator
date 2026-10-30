@@ -184,7 +184,9 @@ usual multiple-root reason. The walk's evaluations are recorded in the history.
 On the May (2015) dataset this changes nine dew results from apparently unique
 to ambiguous. Each second root was confirmed independently
 (`tools/run_hidden_dew_root_check.py`). No bubble result and no envelope test
-changed. One bracket is solved in `ln(P)`
+changed. The optional Newton layer is a local solve from
+the Wilson estimate, used for continuation. It returns the root near that
+estimate and does **not** certify uniqueness; only this scanning path does. One bracket is solved in `ln(P)`
 with bracketed `brentq`, never Newton alone. The final pressure state is
 reconstructed from a fresh, fully converged inner solve rather than borrowing a
 partially converged state.

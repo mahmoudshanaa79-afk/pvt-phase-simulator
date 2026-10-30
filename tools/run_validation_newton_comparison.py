@@ -349,9 +349,14 @@ def render_markdown(comparison: Comparison) -> str:
         "",
         "A converged dew pressure at a state where PR has more than one dew root is",
         "**one root of several**. It is not an accuracy result, because the measured",
-        "state does not say which root is meant (`docs/DEW_INVESTIGATION.md`, and the",
-        "separate question P2, which is on hold). Those states are counted in the",
-        "converged columns, listed in the next columns, and left out of the AARD.",
+        "state does not say which root is meant (`docs/DEW_INVESTIGATION.md`). Those",
+        "states are counted in the converged columns, listed in the next columns, and",
+        "left out of the AARD.",
+        "",
+        "Since P2 the default (scanning) solver reports such states as ambiguous, so",
+        "its column of multi-root results is zero. Newton refinement is a local",
+        "solve from the Wilson estimate: it returns the root near that estimate and",
+        "does not check whether another root exists.",
         "",
         "| System | Sources | Converged (default) | Converged (Newton) |"
         " One root of several (default) | One root of several (Newton) |"
