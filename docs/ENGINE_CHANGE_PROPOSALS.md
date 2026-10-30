@@ -160,6 +160,8 @@ Module 17 results are summarised, so it needs the same review gate.
 
 ## P4. Run validation with the engine's Newton saturation refinement
 
+**Status: option B approved by the owner on 2026-10-30 and implemented in PR #18. The frozen artifacts are unchanged; the side-by-side report is `docs/investigations/validation_newton_comparison.md`.**
+
 **Problem.** `experimental_validation.py` calls the saturation solver with
 defaults, which leave Newton refinement off. Three near-critical CH4+C3 bubble
 states (013–015) then fail with "No trustworthy saturation-pressure bracket".
