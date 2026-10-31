@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 30 October 2026 (release v1.4.0).
+Last updated: 31 October 2026 (release v1.5.0).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -77,8 +77,8 @@ key whose numbers are recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. P1–P5, the pure-component data and the Validation page evidence tabs are
-   done. Next: release v1.5.
+1. P1–P5, the pure-component data, the Validation page evidence tabs and
+   release v1.5 are done.
 2. Send the faculty brief and act on the answers, especially on kij and on
    which components and datasets come next.
 3. Add CO2 and N2, or the butanes, with verified properties and at least one
@@ -89,6 +89,13 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-10-31, desktop (release v1.5.0):**
+  - Done: the owner approved v1.5. This PR bumps the version to 1.5.0. After it
+    merges and master CI passes, the desktop session publishes the release
+    (tag `v1.5.0`) and the owner reboots the Streamlit app.
+  - Next: choose the next large step from `## Suggested next steps` (new
+    components, kij, volume translation) or the faculty review.
 
 - **2026-10-31, desktop (Validation page):**
   - Done: the Validation page has a "Further evidence" section with three tabs,
