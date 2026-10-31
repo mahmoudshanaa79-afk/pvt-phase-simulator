@@ -114,14 +114,14 @@ the locked dependency graph: lockfile check, Ruff, Ruff formatting, mypy,
 Streamlit health smoke. It requires no secret and has read-only repository
 permissions.
 
-**Public deployment (v1.4):**
+**Public deployment (v1.5):**
 <https://pvt-phase-simulator-wpykmumyxwefbv3prht7gv.streamlit.app/>
 
 It is hosted on Streamlit Community Cloud from the `master` branch of
 `mahmoudshanaa79-afk/pvt-phase-simulator`, with `streamlit_app.py` as the entry
 point, Python 3.12, and `uv.lock` as the dependency source. **No secrets are
 stored or required.** It serves the released application from `master`, which is
-v1.4 once Streamlit Community Cloud has picked it up, and remains subject to
+v1.5 once Streamlit Community Cloud has picked it up, and remains subject to
 every applicability limit recorded in the application itself.
 
 Deployment is not automated. It was a deliberate, separate, human-authorized
