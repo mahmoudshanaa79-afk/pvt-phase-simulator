@@ -90,6 +90,20 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-01, desktop (new components proposal):**
+  - Done: `docs/NEW_COMPONENTS_PROPOSAL.md`. The May (2015) ThermoML record
+    already holds CH4+isobutane (17 states) and CH4+n-butane (19 states); a PR
+    preview at kij = 0 gives bubble AARD 3.45 % and 3.51 % (bias about -3.5 %)
+    with provisional CoolProp critical constants. Two solver findings, proposed
+    as P7 (refine boundaries when the scan finds no root: recovers all 9
+    `not_found` bubble states of the current record) and P8 (the P2 walk stops
+    one step short: one butane dew result is the wrong root of two). An
+    independent audit finds the same in the published record: CH4+C2 dew 009
+    and 013 have a second PR root (013: reported -25.8 %, other root -1.4 %).
+  - Parallel: the web session runs the kij study (P6) on branch `kij-study`.
+  - Next: owner decisions in section 7 of the proposal; read the butane values
+    in Yang & Richter (2025) Table 5.
+
 - **2026-10-31, desktop (release v1.5.0):**
   - Done: the owner approved v1.5. This PR bumps the version to 1.5.0. After it
     merges and master CI passes, the desktop session publishes the release
