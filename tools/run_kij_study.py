@@ -82,6 +82,7 @@ ISOTHERM_GAP_K = 1.0
 
 SUMMARY_FILE = "docs/investigations/kij_study.csv"
 STATES_FILE = "docs/investigations/kij_study_states.csv"
+FINE_FILE = "docs/investigations/kij_study_fine_bubble.csv"
 FIT_FILE = "docs/investigations/kij_study_fit.json"
 REPORT_FILE = "docs/investigations/kij_study.md"
 DATA_FILE = "data/experimental/may_2015_ch4_c2_ch4_c3_vle.csv"
@@ -453,6 +454,9 @@ SUMMARY_FIELDS = (
 )
 
 
+FINE_FIELDS = ("system_id", "point_id", "kij", "category", "percent_error")
+
+
 def _cell(value: object) -> str:
     if value is None:
         return ""
@@ -544,7 +548,19 @@ def compute(root: Path, include_butanes: bool, workers: int) -> None:
         if "optimum" in fits[system]
     }
 
+    fine_rows = [
+        {
+            "system_id": o.system_id,
+            "point_id": o.point_id,
+            "kij": o.kij,
+            "category": o.category,
+            "percent_error": o.percent_error,
+        }
+        for o in outcomes
+        if o.kind == "bubble"
+    ]
     write_csv(root / SUMMARY_FILE, SUMMARY_FIELDS, summary_rows)
+    write_csv(root / FINE_FILE, FINE_FIELDS, fine_rows)
     write_csv(root / STATES_FILE, tuple(Outcome.__dataclass_fields__), state_rows)
     document = {
         "coarse_grid": list(COARSE_GRID),
