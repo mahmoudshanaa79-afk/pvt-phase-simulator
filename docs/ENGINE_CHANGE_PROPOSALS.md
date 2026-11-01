@@ -209,3 +209,16 @@ temperature turning point (needs investigation), or the plot label should say
 what happened: "Dew branch stopped (engine near-critical guard)". A label change
 could be done in the application layer, but the label belongs to the engine
 plotting API, so it is listed here.
+
+---
+
+## P6. Non-zero binary interaction parameters (kij)
+
+**Status: awaiting owner decision. Study in progress (branch `kij-study`).**
+
+**Question.** What does a non-zero kij do for Peng–Robinson on the May (2015)
+data, and should OpenPhase use one? The engine already accepts kij; the study
+changes no engine file and leaves the kij = 0 validation record as it is.
+
+The evidence, the fitted values and the options are in
+`docs/investigations/kij_study.md`.

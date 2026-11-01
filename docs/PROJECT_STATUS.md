@@ -90,6 +90,13 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-01, web (kij study, in progress):**
+  - Doing: the kij study (P6) on branch `kij-study`: what a non-zero kij does
+    for Peng–Robinson on the May (2015) data, without changing the engine.
+  - Open: waits for the desktop's `engine-p7-p8` PR, which changes the kij = 0
+    reference numbers; the study is rerun on top of it.
+  - Next: finish the study, then Lab 4 (kij).
+
 - **2026-10-31, desktop (release v1.5.0):**
   - Done: the owner approved v1.5. This PR bumps the version to 1.5.0. After it
     merges and master CI passes, the desktop session publishes the release
