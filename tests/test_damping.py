@@ -251,9 +251,11 @@ def test_damped_bubble_is_deterministic_and_preserves_objective() -> None:
 
 
 def test_damping_preserves_structured_saturation_not_found() -> None:
+    # No bubble point exists at 270 K (above the mixture critical point near
+    # 261 K). Until P7 this used 250 K, where the grid scan alone missed a root.
     result = calculate_saturation_pressure(
         _methane_ethane(),
-        250.0,
+        270.0,
         SaturationKind.BUBBLE_POINT,
         successive_substitution_damping_factor=0.5,
     )

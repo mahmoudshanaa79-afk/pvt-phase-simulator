@@ -189,21 +189,42 @@ def _number(value: float | None, digits: int) -> str:
     return "" if value is None else f"{value:.{digits}f}"
 
 
-def one_root_of_several(
-    result: ExperimentalVLEValidationResult, direction: str
-) -> bool:
-    """A dew result at a state where PR has more than one dew root (the P2 issue)."""
+def ambiguous_states(comparison: Comparison) -> frozenset[str]:
+    """States whose default (scanning) dew solve reports more than one root.
 
-    return (
-        direction == "dew" and result.dew_branch_diagnostic.multiple_dew_roots_detected
+    The diagnostic scan misses roots beside non-converged inner evaluations
+    (P2, P8), so the production solver's own verdict is used as well.
+    """
+
+    return frozenset(
+        item.point.source_point_id
+        for item in comparison.default
+        if "MULTIPLE_SATURATION_ROOTS" in item.dew.diagnostic_codes
     )
 
 
-def counts_as_accuracy(result: ExperimentalVLEValidationResult, direction: str) -> bool:
+def one_root_of_several(
+    result: ExperimentalVLEValidationResult,
+    direction: str,
+    ambiguous: frozenset[str] = frozenset(),
+) -> bool:
+    """A dew result at a state where PR has more than one dew root (the P2 issue)."""
+
+    return direction == "dew" and (
+        result.dew_branch_diagnostic.multiple_dew_roots_detected
+        or result.point.source_point_id in ambiguous
+    )
+
+
+def counts_as_accuracy(
+    result: ExperimentalVLEValidationResult,
+    direction: str,
+    ambiguous: frozenset[str] = frozenset(),
+) -> bool:
     """Converged, and not just one root of several, so it says something about PR."""
 
     return _direction(result, direction).predicted_pressure_pa is not None and (
-        not one_root_of_several(result, direction)
+        not one_root_of_several(result, direction, ambiguous)
     )
 
 
@@ -213,6 +234,7 @@ def render_csv(comparison: Comparison) -> str:
     stream = StringIO(newline="")
     writer = csv.DictWriter(stream, fieldnames=CSV_FIELDS, lineterminator="\n")
     writer.writeheader()
+    ambiguous = ambiguous_states(comparison)
     for before, after in zip(comparison.default, comparison.newton, strict=True):
         point = before.point
         for direction in DIRECTIONS:
@@ -242,10 +264,10 @@ def render_csv(comparison: Comparison) -> str:
                         else ""
                     ),
                     "default_counts_as_accuracy": str(
-                        counts_as_accuracy(before, direction)
+                        counts_as_accuracy(before, direction, ambiguous)
                     ).lower(),
                     "newton_counts_as_accuracy": str(
-                        counts_as_accuracy(after, direction)
+                        counts_as_accuracy(after, direction, ambiguous)
                     ).lower(),
                 }
             )
@@ -264,13 +286,18 @@ class RunStatistics:
 
 
 def _statistics(
-    results: tuple[ExperimentalVLEValidationResult, ...], system_id: str, direction: str
+    results: tuple[ExperimentalVLEValidationResult, ...],
+    system_id: str,
+    direction: str,
+    ambiguous: frozenset[str] = frozenset(),
 ) -> RunStatistics:
     chosen = [item for item in results if item.point.system_id == system_id]
     converged = [
         item for item in chosen if _direction(item, direction).predicted_pressure_pa
     ]
-    accuracy = [item for item in chosen if counts_as_accuracy(item, direction)]
+    accuracy = [
+        item for item in chosen if counts_as_accuracy(item, direction, ambiguous)
+    ]
     errors = [
         abs(float(_direction(item, direction).pressure_percent_error or 0.0))
         for item in accuracy
@@ -279,7 +306,7 @@ def _statistics(
         sources=len(chosen),
         converged=len(converged),
         one_root_of_several=sum(
-            one_root_of_several(item, direction) for item in converged
+            one_root_of_several(item, direction, ambiguous) for item in converged
         ),
         accuracy_states=len(accuracy),
         aard_percent=sum(errors) / len(errors) if errors else None,
@@ -295,13 +322,17 @@ def _systems(comparison: Comparison) -> list[str]:
     return list(dict.fromkeys(item.point.system_id for item in comparison.default))
 
 
-def _outcome(result: ExperimentalVLEValidationResult, direction: str) -> str:
+def _outcome(
+    result: ExperimentalVLEValidationResult,
+    direction: str,
+    ambiguous: frozenset[str] = frozenset(),
+) -> str:
     direction_result = _direction(result, direction)
     if direction_result.predicted_pressure_pa is None:
         return direction_result.status
     text = f"{direction_result.predicted_pressure_pa / 1e6:.3f} MPa"
-    if one_root_of_several(result, direction):
-        roots = len(result.dew_branch_diagnostic.roots)
+    if one_root_of_several(result, direction, ambiguous):
+        roots = max(len(result.dew_branch_diagnostic.roots), 2)
         return f"{text}, one root of {roots}"
     return f"{text} ({_number(direction_result.pressure_percent_error, 1)} %)"
 
@@ -313,6 +344,7 @@ def render_markdown(comparison: Comparison) -> str:
         reproduces = "not checked"
     else:
         reproduces = "yes" if comparison.default_matches_frozen_csv else "NO"
+    ambiguous = ambiguous_states(comparison)
     lines = [
         "# Validation with and without Newton refinement",
         "",
@@ -353,10 +385,13 @@ def render_markdown(comparison: Comparison) -> str:
         "states are counted in the converged columns, listed in the next columns, and",
         "left out of the AARD.",
         "",
-        "Since P2 the default (scanning) solver reports such states as ambiguous, so",
-        "its column of multi-root results is zero. Newton refinement is a local",
-        "solve from the Wilson estimate: it returns the root near that estimate and",
-        "does not check whether another root exists.",
+        "Since P2 and P8 the default (scanning) solver reports such states as",
+        "ambiguous, so its column of multi-root results is zero. A state counts as",
+        "multi-root when the diagnostic scan finds several roots or the default",
+        "solver reports `MULTIPLE_SATURATION_ROOTS` (the scan misses roots beside",
+        "non-converged inner evaluations). Newton refinement is a local solve from",
+        "the Wilson estimate: it returns the root near that estimate and does not",
+        "check whether another root exists.",
         "",
         "| System | Sources | Converged (default) | Converged (Newton) |"
         " One root of several (default) | One root of several (Newton) |"
@@ -364,8 +399,8 @@ def render_markdown(comparison: Comparison) -> str:
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for system_id in _systems(comparison):
-        old = _statistics(comparison.default, system_id, "dew")
-        new = _statistics(comparison.newton, system_id, "dew")
+        old = _statistics(comparison.default, system_id, "dew", ambiguous)
+        new = _statistics(comparison.newton, system_id, "dew", ambiguous)
         lines.append(
             f"| {system_id} | {old.sources} | {old.converged} | {new.converged} | "
             f"{old.one_root_of_several} | {new.one_root_of_several} | "
@@ -385,8 +420,8 @@ def render_markdown(comparison: Comparison) -> str:
         for system_id, point_id, direction in changes:
             lines.append(
                 f"| {system_id} | {point_id} | {direction} | "
-                f"{_outcome(by_point[point_id], direction)} | "
-                f"{_outcome(newton_by_point[point_id], direction)} |"
+                f"{_outcome(by_point[point_id], direction, ambiguous)} | "
+                f"{_outcome(newton_by_point[point_id], direction, ambiguous)} |"
             )
     lines += ["", "## Converged in both runs at different pressures", ""]
     differing = [
@@ -407,8 +442,8 @@ def render_markdown(comparison: Comparison) -> str:
         for system_id, point_id, direction in differing:
             lines.append(
                 f"| {system_id} | {point_id} | {direction} | "
-                f"{_outcome(by_point[point_id], direction)} | "
-                f"{_outcome(newton_by_point[point_id], direction)} |"
+                f"{_outcome(by_point[point_id], direction, ambiguous)} | "
+                f"{_outcome(newton_by_point[point_id], direction, ambiguous)} |"
             )
     lines += [
         "",

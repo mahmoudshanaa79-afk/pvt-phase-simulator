@@ -148,10 +148,15 @@ def test_part_b_bubble_pressures() -> None:
     rises = [b - a for a, b in zip(pressures, pressures[1:], strict=False)]
     assert all(0.905 <= rise < 0.955 for rise in rises[:5])  # "0.91 to 0.95"
     assert f"rises by only {rises[5]:.2f} MPa" in KEY
-    # The solver's defaults give up on the last two; Newton refinement does not.
+    # The solver's defaults reach the last two only by refining a grid interval
+    # next to a failed evaluation (P7); they agree with Newton refinement.
     for x in BUBBLE_COMPOSITIONS:
         default = _bubble(x, newton=False)
-        assert (default.pressure_pa is None) == (x >= 0.5), x
+        assert default.pressure_pa is not None, x
+        assert default.pressure_pa == pytest.approx(_bubble(x).pressure_pa, rel=1e-9), x
+        codes = {item.code for item in default.diagnostics}
+        assert ("BOUNDARY_SATURATION_ROOT" in codes) == (x >= 0.5), x
+    assert "(`BOUNDARY_SATURATION_ROOT`, added on 1 November 2026)" in KEY
 
 
 def test_part_c_pxy_table() -> None:
@@ -273,25 +278,33 @@ def test_part_d_production_record_summary() -> None:
     assert f"about {converged_above[worst_state]:.1f} % near 6.9 MPa" in KEY
 
 
-def test_part_d_not_found_states() -> None:
-    not_found = sorted(
+def test_part_d_near_critical_states() -> None:
+    near_critical = sorted(
         state
         for state in _points()
-        if _record_bubble(state, newton=False).pressure_pa is None
+        if "BOUNDARY_SATURATION_ROOT"
+        in {item.code for item in _record_bubble(state, newton=False).diagnostics}
     )
-    assert not_found == ["009", "012", "013", "015", "016", "017"]
+    assert near_critical == ["009", "012", "013", "015", "016", "017"]
+    assert "(009, 012, 013, 015, 016, 017)" in STUDENT
     assert "(009, 012, 013, 015, 016, 017)" in KEY
-    for state in not_found:
+    errors = []
+    for state in near_critical:
         point = _points()[state]
         assert point.temperature_k == pytest.approx(T, abs=0.02)
         assert point.pressure_pa > 5.0e6
-        reason = _record_bubble(state, newton=False).failure_reason or ""
-        assert "bracket" in reason
-    rescued = [s for s in not_found if _record_bubble(s, newton=True).pressure_pa]
-    assert rescued == ["009", "013", "015", "016"]
-    assert (
-        "4 of them converge (009, 013, 015, 016) and 2 still do not (012, 017)" in KEY
-    )
+        error = _error_percent(state, newton=False)
+        assert error is not None
+        errors.append(error)
+    assert f"errors from {max(errors):.2f} % to {min(errors):.2f} %" in KEY
+    others = [
+        abs(value)
+        for state, value in (
+            (state, _error_percent(state, newton=False)) for state in _points()
+        )
+        if value is not None and state not in near_critical
+    ]
+    assert max(map(abs, errors)) > max(others)
 
 
 def test_part_d_first_bubble_composition_of_state_008() -> None:

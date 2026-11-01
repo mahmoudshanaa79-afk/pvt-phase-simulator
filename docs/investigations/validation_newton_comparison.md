@@ -18,8 +18,8 @@ only sits beside them.
 
 | System | Sources | Converged (default) | Converged (Newton) | AARD (default) | AARD (Newton) |
 |---|---:|---:|---:|---:|---:|
-| ch4_c2 | 17 | 11 | 15 | 0.45 % (n=11) | 0.87 % (n=15) |
-| ch4_c3 | 23 | 20 | 23 | 1.03 % (n=20) | 1.01 % (n=23) |
+| ch4_c2 | 17 | 17 | 17 | 1.02 % (n=17) | 1.02 % (n=17) |
+| ch4_c3 | 23 | 23 | 23 | 1.01 % (n=23) | 1.01 % (n=23) |
 
 ## Dew pressure
 
@@ -29,29 +29,32 @@ state does not say which root is meant (`docs/DEW_INVESTIGATION.md`). Those
 states are counted in the converged columns, listed in the next columns, and
 left out of the AARD.
 
-Since P2 the default (scanning) solver reports such states as ambiguous, so
-its column of multi-root results is zero. Newton refinement is a local
-solve from the Wilson estimate: it returns the root near that estimate and
-does not check whether another root exists.
+Since P2 and P8 the default (scanning) solver reports such states as
+ambiguous, so its column of multi-root results is zero. A state counts as
+multi-root when the diagnostic scan finds several roots or the default
+solver reports `MULTIPLE_SATURATION_ROOTS` (the scan misses roots beside
+non-converged inner evaluations). Newton refinement is a local solve from
+the Wilson estimate: it returns the root near that estimate and does not
+check whether another root exists.
 
 | System | Sources | Converged (default) | Converged (Newton) | One root of several (default) | One root of several (Newton) | AARD, other states (default) | AARD, other states (Newton) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| ch4_c2 | 17 | 12 | 17 | 0 | 4 | 5.34 % (n=12) | 5.09 % (n=13) |
+| ch4_c2 | 17 | 8 | 17 | 0 | 9 | 2.07 % (n=8) | 2.07 % (n=8) |
 | ch4_c3 | 23 | 1 | 21 | 0 | 20 | 2.83 % (n=1) | 2.83 % (n=1) |
 
 ## States whose outcome changes
 
 | System | State | Direction | Default | Newton |
 |---|---|---|---|---|
-| ch4_c2 | may2015_ch4_c2_009 | bubble | not_found | 5.041 MPa (-1.0 %) |
-| ch4_c2 | may2015_ch4_c2_010 | dew | inconclusive | 5.509 MPa (2.1 %) |
+| ch4_c2 | may2015_ch4_c2_008 | dew | inconclusive | 4.845 MPa, one root of 2 |
+| ch4_c2 | may2015_ch4_c2_009 | dew | inconclusive | 5.187 MPa, one root of 2 |
+| ch4_c2 | may2015_ch4_c2_010 | dew | inconclusive | 5.509 MPa, one root of 2 |
 | ch4_c2 | may2015_ch4_c2_011 | dew | not_found | 5.823 MPa, one root of 2 |
 | ch4_c2 | may2015_ch4_c2_012 | dew | inconclusive | 5.437 MPa, one root of 2 |
-| ch4_c2 | may2015_ch4_c2_013 | bubble | not_found | 6.704 MPa (-2.6 %) |
-| ch4_c2 | may2015_ch4_c2_015 | bubble | not_found | 5.968 MPa (-1.8 %) |
+| ch4_c2 | may2015_ch4_c2_013 | dew | inconclusive | 5.105 MPa, one root of 2 |
 | ch4_c2 | may2015_ch4_c2_015 | dew | inconclusive | 5.573 MPa, one root of 2 |
-| ch4_c2 | may2015_ch4_c2_016 | bubble | not_found | 6.305 MPa (-2.5 %) |
 | ch4_c2 | may2015_ch4_c2_016 | dew | not_found | 6.062 MPa, one root of 2 |
+| ch4_c2 | may2015_ch4_c2_017 | dew | inconclusive | 5.386 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_001 | dew | inconclusive | 2.226 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_002 | dew | inconclusive | 2.792 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_003 | dew | inconclusive | 3.224 MPa, one root of 2 |
@@ -63,11 +66,8 @@ does not check whether another root exists.
 | ch4_c3 | may2015_ch4_c3_010 | dew | inconclusive | 3.932 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_011 | dew | inconclusive | 6.184 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_012 | dew | inconclusive | 6.434 MPa, one root of 2 |
-| ch4_c3 | may2015_ch4_c3_013 | bubble | not_found | 7.566 MPa (0.5 %) |
 | ch4_c3 | may2015_ch4_c3_013 | dew | inconclusive | 3.509 MPa, one root of 2 |
-| ch4_c3 | may2015_ch4_c3_014 | bubble | not_found | 7.998 MPa (0.7 %) |
 | ch4_c3 | may2015_ch4_c3_014 | dew | inconclusive | 2.931 MPa, one root of 2 |
-| ch4_c3 | may2015_ch4_c3_015 | bubble | not_found | 8.427 MPa (1.3 %) |
 | ch4_c3 | may2015_ch4_c3_015 | dew | inconclusive | 2.550 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_016 | dew | inconclusive | 5.802 MPa, one root of 2 |
 | ch4_c3 | may2015_ch4_c3_017 | dew | inconclusive | 3.625 MPa, one root of 2 |

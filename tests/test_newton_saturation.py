@@ -96,14 +96,11 @@ def test_disabled_path_is_exact_historical_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def forbidden(*args: object, **kwargs: object) -> object:
-        raise AssertionError("disabled path called Newton or derivative code")
+        raise AssertionError("disabled path built a Newton result")
 
-    monkeypatch.setattr(saturation_module, "_attempt_saturation_newton", forbidden)
-    monkeypatch.setattr(
-        saturation_module,
-        "calculate_fixed_root_mixture_fugacity_derivatives",
-        forbidden,
-    )
+    # Since P8 the scanning path may run a bounded Newton solve to check a grid
+    # interval for a hidden root, but a reported state is never built from it.
+    monkeypatch.setattr(saturation_module, "_build_newton_saturation_result", forbidden)
     public = calculate_saturation_pressure(BINARY, 220.0, SaturationKind.BUBBLE_POINT)
     historical = saturation_module._calculate_saturation_pressure_historical(
         BINARY, 220.0, SaturationKind.BUBBLE_POINT
