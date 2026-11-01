@@ -75,8 +75,9 @@ def title_and_summary(
         lines += [
             f"- **{LABELS[system]}: fitted kij = {_kij(optimum)}** "
             f"(sensitivity band {_kij(fit['band_low'])} to {_kij(fit['band_high'])}). "
-            f"Bubble AARD over a fixed set of {fit['common_n']} states falls from "
-            f"{fit['aard_at_zero']:.2f} % to {fit['aard_at_optimum']:.2f} %.",
+            f"Bubble AARD over a fixed set of {fit['common_n']} states: "
+            f"{fit['aard_at_zero']:.2f} % at kij = 0, "
+            f"{fit['aard_at_optimum']:.2f} % at the fitted kij.",
             f"  Out of sample, dew: unique dew results {dew_zero['converged']} at "
             f"kij = 0 and {dew_fit['converged']} at the fitted kij; ambiguous "
             f"(hidden or multiple roots) {_ambiguous(dew_zero)} and "
@@ -190,7 +191,12 @@ def system_discussion(
         f"- Each state's own best kij runs from {_kij(min(inside))} to "
         f"{_kij(max(inside))} inside the fixed set"
     )
-    if outside:
+    if len(outside) == 1:
+        spread += (
+            f", and is {_kij(outside[0])} for the one state outside it, whose "
+            "convergence depends on kij"
+        )
+    elif outside:
         spread += (
             f", and from {_kij(min(outside))} to {_kij(max(outside))} for the "
             f"{len(outside)} states outside it, whose convergence depends on kij"
@@ -205,8 +211,13 @@ def system_discussion(
         [
             "**Reading.**",
             "",
-            f"- Leaving one isotherm out moves the fitted kij between {_kij(low)} "
-            f"and {_kij(high)}. That range {stability}.",
+            (
+                f"- Leaving out any one isotherm leaves the fitted kij at {_kij(low)}"
+                f", inside the bootstrap interval."
+                if low == high and stability.startswith("stays inside")
+                else f"- Leaving one isotherm out moves the fitted kij between "
+                f"{_kij(low)} and {_kij(high)}. That range {stability}."
+            ),
             spread,
             f"- At the fitted kij the dew AARD over unique states is "
             f"{_aard(dew_fit)}, against {_aard(dew_zero)} at kij = 0. The fitted kij "

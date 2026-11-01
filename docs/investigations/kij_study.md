@@ -9,9 +9,9 @@ Peng–Robinson on the May (2015) data, and should OpenPhase use one?
 
 ## Summary
 
-- **CH4+C2: fitted kij = -0.0002** (sensitivity band -0.0010 to 0). Bubble AARD over a fixed set of 8 states falls from 0.14 % to 0.13 %.
+- **CH4+C2: fitted kij = -0.0002** (sensitivity band -0.0010 to 0). Bubble AARD over a fixed set of 8 states: 0.14 % at kij = 0, 0.13 % at the fitted kij.
   Out of sample, dew: unique dew results 12 at kij = 0 and 12 at the fitted kij; ambiguous (hidden or multiple roots) 3 and 3. Dew composition within 1 U: 15 of 15 at kij = 0, 17 of 17 at the fitted kij.
-- **CH4+C3: fitted kij = +0.0030** (sensitivity band +0.0020 to +0.0040). Bubble AARD over a fixed set of 15 states falls from 0.96 % to 0.53 %.
+- **CH4+C3: fitted kij = +0.0030** (sensitivity band +0.0020 to +0.0040). Bubble AARD over a fixed set of 15 states: 0.96 % at kij = 0, 0.53 % at the fitted kij.
   Out of sample, dew: unique dew results 1 at kij = 0 and 1 at the fitted kij; ambiguous (hidden or multiple roots) 20 and 20. Dew composition within 1 U: 22 of 23 at kij = 0, 21 of 23 at the fitted kij.
 
 A kij fitted to these data is **calibration, not validation**: it is
@@ -141,7 +141,7 @@ come from the same source and the same laboratory.
 
 **Reading.**
 
-- Leaving one isotherm out moves the fitted kij between 0 and 0. That range stays inside the bootstrap interval, so the optimum is stable across temperatures.
+- Leaving out any one isotherm leaves the fitted kij at 0, inside the bootstrap interval.
 - Each state's own best kij runs from -0.0010 to +0.0010 inside the fixed set, and from -0.0060 to +0.0460 for the 8 states outside it, whose convergence depends on kij. No kij on the grid gives a converged bubble pressure for 013.
 - At the fitted kij the dew AARD over unique states is 5.34 % (n=12), against 5.34 % (n=12) at kij = 0. The fitted kij leaves the number of ambiguous dew states unchanged (3 at kij = 0, 3 at the fitted kij).
 

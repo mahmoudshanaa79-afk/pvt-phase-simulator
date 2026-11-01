@@ -175,7 +175,11 @@ def composition_table(entries: list[dict[str, Any]]) -> str:
         "Mean dy | Above the converged isotherm |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
+    shown: list[float] = []
     for entry in entries:
+        if entry["kij"] in shown:  # the fitted kij is 0: one row says it all
+            continue
+        shown.append(entry["kij"])
         lines.append(
             f"| {kij_text(entry['kij'])} | {entry['states']} | {entry['assessed']} | "
             f"{entry['within_one_u']} | {entry['within_two_u']} | "
