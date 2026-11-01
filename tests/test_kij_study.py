@@ -93,33 +93,75 @@ def test_isotherms_group_states_within_one_kelvin() -> None:
 # --- kij = 0 is the validation record -------------------------------------------
 
 
+MODULE17_STATES = ROOT / "docs/validation/module17_vle_validation.csv"
+
+
 @pytest.mark.parametrize("system", study.PRODUCTION_SYSTEMS)
 @pytest.mark.parametrize("kind", study.DIRECTIONS)
 def test_kij_zero_reproduces_the_module17_record(system: str, kind: str) -> None:
+    """The study's kij = 0 rows are the validation record, state by state.
+
+    Every committed kij = 0 row must match the protected Module 17 row for the
+    same state (status and pressure), the aggregated counts and AARD must match
+    the protected summary, and a sample of rows is re-solved with the engine.
+    """
     record = next(
         item
         for item in json.loads(MODULE17.read_text(encoding="utf-8"))["systems"]
         if item["system_id"] == system
     )[f"production_selected_{kind}_metrics"]
-    outcomes = [study.solve(state, kind, 0.0) for state in _system_states(system)]
-    stats = study.summarize(outcomes)
+    rows = [
+        r
+        for r in _rows(study.STATES_FILE)
+        if r["system_id"] == system and r["kind"] == kind and float(r["kij"]) == 0.0
+    ]
+    protected = {
+        r["source_point_id"]: r
+        for r in csv.DictReader(MODULE17_STATES.open(encoding="utf-8", newline=""))
+        if r["system_id"] == system
+    }
+    assert {r["point_id"] for r in rows} == set(protected)
+    for row in rows:
+        reference = protected[row["point_id"]]
+        assert row["status"] == reference[f"{kind}_status"], row["point_id"]
+        assert row["failure_reason"] == reference[f"{kind}_failure_reason"]
+        recorded = reference[f"{kind}_predicted_pressure_pa"]
+        if recorded:
+            assert float(row["predicted_pressure_pa"]) == pytest.approx(
+                float(recorded), rel=1e-9
+            )
+        else:
+            assert row["predicted_pressure_pa"] == ""
 
-    assert stats["states"] == record["source_count"]
-    assert stats["converged"] == record["success_count"]
-    assert stats["states"] - stats["converged"] == record["failure_count"]
-    assert stats["aard_percent"] == pytest.approx(
+    errors = [float(r["percent_error"]) for r in rows if r["percent_error"]]
+    assert len(rows) == record["source_count"]
+    assert len(errors) == record["success_count"]
+    assert len(rows) - len(errors) == record["failure_count"]
+    assert sum(abs(e) for e in errors) / len(errors) == pytest.approx(
         record["pressure_aard_percent"], rel=1e-9
     )
-    # The committed study row at kij = 0 says the same.
-    row = next(
+    summary = next(
         r
         for r in _rows(study.SUMMARY_FILE)
         if r["system_id"] == system and float(r["kij"]) == 0.0 and r["kind"] == kind
     )
-    assert int(row["converged"]) == record["success_count"]
-    assert float(row["aard_percent"]) == pytest.approx(
+    assert int(summary["converged"]) == record["success_count"]
+    assert float(summary["aard_percent"]) == pytest.approx(
         record["pressure_aard_percent"], rel=1e-9
     )
+
+    # The committed rows are engine output: re-solve one converged and one
+    # unconverged state through the study's own path.
+    by_id = {state.point_id: state for state in _system_states(system)}
+    sample = [next(r for r in rows if r["predicted_pressure_pa"])]
+    sample += [r for r in rows if not r["predicted_pressure_pa"]][:1]
+    for row in sample:
+        outcome = study.solve(by_id[row["point_id"]], kind, 0.0)
+        assert outcome.category == row["category"], row["point_id"]
+        if row["predicted_pressure_pa"]:
+            assert outcome.predicted_pressure_pa == pytest.approx(
+                float(row["predicted_pressure_pa"]), rel=1e-9
+            )
 
 
 # --- the committed files are consistent with each other -------------------------
@@ -236,9 +278,9 @@ def test_the_optional_kij_leaves_the_published_p3_output_unchanged() -> None:
         ROOT / study.DATA_FILE, ROOT / study.MANIFEST_FILE
     )
     point = next(p for p in dataset.points if p.source_point_id == "may2015_ch4_c3_009")
-    default = asdict(analyze_dew_state(point))
-    explicit = asdict(analyze_dew_state(point, 0.0))
-    assert explicit == default
+    # The published file was written before the kij argument existed, so an
+    # explicit kij = 0 matching it shows the default path is unchanged.
+    default = asdict(analyze_dew_state(point, 0.0))
     published = next(
         row
         for row in csv.DictReader(P3_RESULTS.open(encoding="utf-8", newline=""))
