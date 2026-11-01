@@ -77,7 +77,7 @@ def title_and_summary(
             f"(sensitivity band {_kij(fit['band_low'])} to {_kij(fit['band_high'])}). "
             f"Bubble AARD over a fixed set of {fit['common_n']} states falls from "
             f"{fit['aard_at_zero']:.2f} % to {fit['aard_at_optimum']:.2f} %.",
-            f"  Out of sample, dew: {dew_zero['converged']} unique dew results at "
+            f"  Out of sample, dew: unique dew results {dew_zero['converged']} at "
             f"kij = 0 and {dew_fit['converged']} at the fitted kij; ambiguous "
             f"(hidden or multiple roots) {_ambiguous(dew_zero)} and "
             f"{_ambiguous(dew_fit)}. Dew composition within 1 U: "
@@ -174,12 +174,40 @@ def system_discussion(
         ambiguity = f"adds {change} ambiguous dew states"
     else:
         ambiguity = "leaves the number of ambiguous dew states unchanged"
+    fixed = set(fit["common_point_ids"])
+    inside = [
+        i["best_kij"] for i in fit["per_state_best_kij"] if i["point_id"] in fixed
+    ]
+    outside = [
+        i["best_kij"]
+        for i in fit["per_state_best_kij"]
+        if i["point_id"] not in fixed and i["best_kij"] is not None
+    ]
+    unsolved = [
+        i["point_id"][-3:] for i in fit["per_state_best_kij"] if i["best_kij"] is None
+    ]
+    spread = (
+        f"- Each state's own best kij runs from {_kij(min(inside))} to "
+        f"{_kij(max(inside))} inside the fixed set"
+    )
+    if outside:
+        spread += (
+            f", and from {_kij(min(outside))} to {_kij(max(outside))} for the "
+            f"{len(outside)} states outside it, whose convergence depends on kij"
+        )
+    spread += "."
+    if unsolved:
+        spread += (
+            f" No kij on the grid gives a converged bubble pressure for "
+            f"{', '.join(unsolved)}."
+        )
     return "\n".join(
         [
             "**Reading.**",
             "",
             f"- Leaving one isotherm out moves the fitted kij between {_kij(low)} "
             f"and {_kij(high)}. That range {stability}.",
+            spread,
             f"- At the fitted kij the dew AARD over unique states is "
             f"{_aard(dew_fit)}, against {_aard(dew_zero)} at kij = 0. The fitted kij "
             f"{ambiguity} ({_ambiguous(dew_zero)} at kij = 0, "

@@ -144,6 +144,26 @@ def leave_one_out_table(fit: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def per_state_table(fit: dict[str, Any]) -> str:
+    lines = [
+        "| State | T (K) | Measured P (MPa) | Error at kij = 0 | Own best kij | "
+        "Error there |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for item in fit.get("per_state_best_kij", []):
+        best = item["best_kij"]
+        zero = item["error_at_zero"]
+        zero_text = "not converged" if zero is None else percent(zero)
+        lines.append(
+            f"| {item['point_id'][-3:]} | {item['temperature_k']:.2f} | "
+            f"{item['pressure_pa'] / 1e6:.3f} | "
+            f"{zero_text} | "
+            f"{'none converges' if best is None else kij_text(best)} | "
+            f"{percent(item['error_at_best'])} |"
+        )
+    return "\n".join(lines)
+
+
 def loo_spread(fit: dict[str, Any]) -> tuple[float, float]:
     values = [item["train_kij"] for item in fit.get("leave_one_isotherm_out", [])]
     return min(values), max(values)
@@ -208,6 +228,9 @@ def render(root: Path) -> str:
             "### Leave one isotherm out\n",
             leave_one_out_table(system_fit),
             "",
+            "### Each state's own best kij\n",
+            per_state_table(system_fit),
+            "",
             "### Dew composition at the measured pressure (P3 metric)\n",
             composition_table(fit["dew_composition"][system]),
             "",
@@ -231,4 +254,4 @@ def render(root: Path) -> str:
         text.limits(),
         text.proposal(rows, fits),
     ]
-    return "\n".join(part.rstrip("\n") + "\n" for part in parts)
+    return "\n\n".join(part.strip("\n") for part in parts if part.strip()) + "\n"

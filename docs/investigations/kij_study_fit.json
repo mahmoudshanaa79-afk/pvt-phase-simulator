@@ -1,0 +1,2469 @@
+{
+  "coarse_grid": [
+    -0.02,
+    -0.015,
+    -0.01,
+    -0.005,
+    0.0,
+    0.005,
+    0.01,
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.035,
+    0.04,
+    0.045,
+    0.05,
+    0.055,
+    0.06
+  ],
+  "fine_grid_step": 0.001,
+  "aard_band_percentage_points": 0.1,
+  "bootstrap_resamples": 1000,
+  "bootstrap_seed": 20261101,
+  "fits": {
+    "ch4_c2": {
+      "common_n": 8,
+      "common_point_ids": [
+        "may2015_ch4_c2_001",
+        "may2015_ch4_c2_002",
+        "may2015_ch4_c2_003",
+        "may2015_ch4_c2_004",
+        "may2015_ch4_c2_005",
+        "may2015_ch4_c2_006",
+        "may2015_ch4_c2_007",
+        "may2015_ch4_c2_014"
+      ],
+      "per_state_best_kij": [
+        {
+          "point_id": "may2015_ch4_c2_001",
+          "temperature_k": 203.22,
+          "pressure_pa": 2124000.0,
+          "best_kij": 0.0,
+          "error_at_best": 0.002789012450096066,
+          "error_at_zero": 0.002789012450096066
+        },
+        {
+          "point_id": "may2015_ch4_c2_002",
+          "temperature_k": 213.39,
+          "pressure_pa": 2517000.0,
+          "best_kij": 0.0,
+          "error_at_best": 0.04638068205070152,
+          "error_at_zero": 0.04638068205070152
+        },
+        {
+          "point_id": "may2015_ch4_c2_003",
+          "temperature_k": 223.5,
+          "pressure_pa": 2945000.0,
+          "best_kij": -0.001,
+          "error_at_best": -0.004935111516631242,
+          "error_at_zero": 0.26916023557333685
+        },
+        {
+          "point_id": "may2015_ch4_c2_004",
+          "temperature_k": 233.56,
+          "pressure_pa": 3417000.0,
+          "best_kij": -0.001,
+          "error_at_best": -0.06235269991068275,
+          "error_at_zero": 0.18288953212305972
+        },
+        {
+          "point_id": "may2015_ch4_c2_005",
+          "temperature_k": 243.58,
+          "pressure_pa": 3949000.0,
+          "best_kij": 0.0,
+          "error_at_best": -0.0070984894261198065,
+          "error_at_zero": -0.0070984894261198065
+        },
+        {
+          "point_id": "may2015_ch4_c2_006",
+          "temperature_k": 243.6,
+          "pressure_pa": 3675000.0,
+          "best_kij": 0.0,
+          "error_at_best": 0.09903287075492902,
+          "error_at_zero": 0.09903287075492902
+        },
+        {
+          "point_id": "may2015_ch4_c2_007",
+          "temperature_k": 243.6,
+          "pressure_pa": 3942000.0,
+          "best_kij": 0.001,
+          "error_at_best": 0.00906767776677265,
+          "error_at_zero": -0.20598517730259178
+        },
+        {
+          "point_id": "may2015_ch4_c2_008",
+          "temperature_k": 243.6,
+          "pressure_pa": 4831000.0,
+          "best_kij": 0.006,
+          "error_at_best": -0.007702226621370444,
+          "error_at_zero": -1.1379820278351245
+        },
+        {
+          "point_id": "may2015_ch4_c2_009",
+          "temperature_k": 243.6,
+          "pressure_pa": 5094000.0,
+          "best_kij": 0.008,
+          "error_at_best": 0.38022591547841594,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c2_010",
+          "temperature_k": 243.6,
+          "pressure_pa": 5395000.0,
+          "best_kij": 0.009,
+          "error_at_best": 0.061652347282666206,
+          "error_at_zero": -1.4302143942512937
+        },
+        {
+          "point_id": "may2015_ch4_c2_011",
+          "temperature_k": 243.6,
+          "pressure_pa": 5564000.0,
+          "best_kij": 0.008,
+          "error_at_best": -0.054827398892577754,
+          "error_at_zero": -1.3158861618744622
+        },
+        {
+          "point_id": "may2015_ch4_c2_012",
+          "temperature_k": 243.6,
+          "pressure_pa": 6487000.0,
+          "best_kij": 0.017,
+          "error_at_best": -0.0211180857609695,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c2_013",
+          "temperature_k": 243.6,
+          "pressure_pa": 6885000.0,
+          "best_kij": null,
+          "error_at_best": null,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c2_014",
+          "temperature_k": 243.61,
+          "pressure_pa": 3718000.0,
+          "best_kij": -0.001,
+          "error_at_best": 0.08437579120187447,
+          "error_at_zero": 0.30417441865921496
+        },
+        {
+          "point_id": "may2015_ch4_c2_015",
+          "temperature_k": 243.61,
+          "pressure_pa": 6080000.0,
+          "best_kij": 0.046,
+          "error_at_best": 4.376018094417798,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c2_016",
+          "temperature_k": 243.61,
+          "pressure_pa": 6469000.0,
+          "best_kij": 0.023,
+          "error_at_best": -0.007469682944102093,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c2_017",
+          "temperature_k": 243.61,
+          "pressure_pa": 6691000.0,
+          "best_kij": -0.006,
+          "error_at_best": -3.036446674139242,
+          "error_at_zero": null
+        }
+      ],
+      "status_changes_with_kij": [
+        "may2015_ch4_c2_008",
+        "may2015_ch4_c2_009",
+        "may2015_ch4_c2_010",
+        "may2015_ch4_c2_011",
+        "may2015_ch4_c2_012",
+        "may2015_ch4_c2_015",
+        "may2015_ch4_c2_016",
+        "may2015_ch4_c2_017"
+      ],
+      "grid_optimum": 0.0,
+      "aard_at_zero": 0.13968880229250621,
+      "aard_at_grid_optimum": 0.13968880229250621,
+      "band_low": -0.001,
+      "band_high": 0.0,
+      "bootstrap_low": -0.001,
+      "bootstrap_high": 0.0,
+      "leave_one_isotherm_out": [
+        {
+          "temperature_k_min": 203.22,
+          "temperature_k_max": 203.22,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 7,
+          "train_kij": 0.0,
+          "held_out_aard_at_zero": 0.002789012450096066,
+          "held_out_aard_at_train_kij": 0.002789012450096066
+        },
+        {
+          "temperature_k_min": 213.39,
+          "temperature_k_max": 213.39,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 7,
+          "train_kij": 0.0,
+          "held_out_aard_at_zero": 0.04638068205070152,
+          "held_out_aard_at_train_kij": 0.04638068205070152
+        },
+        {
+          "temperature_k_min": 223.5,
+          "temperature_k_max": 223.5,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 7,
+          "train_kij": 0.0,
+          "held_out_aard_at_zero": 0.26916023557333685,
+          "held_out_aard_at_train_kij": 0.26916023557333685
+        },
+        {
+          "temperature_k_min": 233.56,
+          "temperature_k_max": 233.56,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 7,
+          "train_kij": 0.0,
+          "held_out_aard_at_zero": 0.18288953212305972,
+          "held_out_aard_at_train_kij": 0.18288953212305972
+        },
+        {
+          "temperature_k_min": 243.58,
+          "temperature_k_max": 243.61,
+          "held_out_states": 13,
+          "held_out_in_fixed_set": 4,
+          "held_out_scored": 7,
+          "train_n": 4,
+          "train_kij": 0.0,
+          "held_out_aard_at_zero": 0.6429105057291051,
+          "held_out_aard_at_train_kij": 0.6429105057291051
+        }
+      ],
+      "fine_curve": [
+        [
+          -0.02,
+          4.787616058071739
+        ],
+        [
+          -0.019,
+          4.5513758157386075
+        ],
+        [
+          -0.018,
+          4.314374054431307
+        ],
+        [
+          -0.017,
+          4.076606941146117
+        ],
+        [
+          -0.016,
+          3.838070609084994
+        ],
+        [
+          -0.015,
+          3.598761157178957
+        ],
+        [
+          -0.014,
+          3.3586746496591076
+        ],
+        [
+          -0.013,
+          3.1178071156151956
+        ],
+        [
+          -0.012,
+          2.8761545485159075
+        ],
+        [
+          -0.011,
+          2.6337129057834368
+        ],
+        [
+          -0.01,
+          2.3904781083010653
+        ],
+        [
+          -0.009,
+          2.1464460399390015
+        ],
+        [
+          -0.008,
+          1.9016125470686036
+        ],
+        [
+          -0.007,
+          1.6559734380751037
+        ],
+        [
+          -0.006,
+          1.4095244828502138
+        ],
+        [
+          -0.005,
+          1.1622614122841195
+        ],
+        [
+          -0.004,
+          0.9141799177546287
+        ],
+        [
+          -0.003,
+          0.6652756505730879
+        ],
+        [
+          -0.002,
+          0.4155442214913614
+        ],
+        [
+          -0.001,
+          0.18607514791898186
+        ],
+        [
+          0.0,
+          0.13968880229250621
+        ],
+        [
+          0.001,
+          0.33865755000821607
+        ],
+        [
+          0.002,
+          0.5917423502128812
+        ],
+        [
+          0.003,
+          0.8456768867404676
+        ],
+        [
+          0.004,
+          1.1004658041342728
+        ],
+        [
+          0.005,
+          1.3561137915075085
+        ],
+        [
+          0.006,
+          1.6126255832137872
+        ],
+        [
+          0.007,
+          1.8700059594217466
+        ],
+        [
+          0.008,
+          2.1282597467799405
+        ],
+        [
+          0.009,
+          2.3873918190490944
+        ],
+        [
+          0.01,
+          2.647407097787325
+        ],
+        [
+          0.011,
+          2.9083105529852364
+        ],
+        [
+          0.012,
+          3.1701072037492133
+        ],
+        [
+          0.013,
+          3.432802119029558
+        ],
+        [
+          0.014,
+          3.6964004182978134
+        ],
+        [
+          0.015,
+          3.960907272272395
+        ],
+        [
+          0.016,
+          4.226327903651177
+        ],
+        [
+          0.017,
+          4.492667587856124
+        ],
+        [
+          0.018,
+          4.759931653792954
+        ],
+        [
+          0.019,
+          5.028125484630167
+        ],
+        [
+          0.02,
+          5.297254518559639
+        ],
+        [
+          0.021,
+          5.5673242496427795
+        ],
+        [
+          0.022,
+          5.838340228574203
+        ],
+        [
+          0.023,
+          6.110308063558742
+        ],
+        [
+          0.024,
+          6.38323342113312
+        ],
+        [
+          0.025,
+          6.657122027033802
+        ],
+        [
+          0.026,
+          6.931979667076836
+        ],
+        [
+          0.027,
+          7.207812188053319
+        ],
+        [
+          0.028,
+          7.484625498636894
+        ],
+        [
+          0.029,
+          7.762425570325328
+        ],
+        [
+          0.03,
+          8.041218438374148
+        ],
+        [
+          0.031,
+          8.321010202777051
+        ],
+        [
+          0.032,
+          8.601807029226878
+        ],
+        [
+          0.033,
+          8.88361515015145
+        ],
+        [
+          0.034,
+          9.166440865710843
+        ],
+        [
+          0.035,
+          9.450290544848327
+        ],
+        [
+          0.036,
+          9.735170626365859
+        ],
+        [
+          0.037,
+          10.021087619974715
+        ],
+        [
+          0.038,
+          10.308048107449954
+        ],
+        [
+          0.039,
+          10.596058743728836
+        ],
+        [
+          0.04,
+          10.885126258043904
+        ],
+        [
+          0.041,
+          11.175257455144209
+        ],
+        [
+          0.042,
+          11.466459216464466
+        ],
+        [
+          0.043,
+          11.758738501331791
+        ],
+        [
+          0.044,
+          12.05210234826755
+        ],
+        [
+          0.045,
+          12.346557876181027
+        ],
+        [
+          0.046,
+          12.642112285737149
+        ],
+        [
+          0.047,
+          12.93877286064953
+        ],
+        [
+          0.048,
+          13.236546969039276
+        ],
+        [
+          0.049,
+          13.535442064826922
+        ],
+        [
+          0.05,
+          13.835465689110382
+        ],
+        [
+          0.051,
+          14.136625471649486
+        ],
+        [
+          0.052,
+          14.438929132306406
+        ],
+        [
+          0.053,
+          14.742384482562713
+        ],
+        [
+          0.054,
+          15.046999427041976
+        ],
+        [
+          0.055,
+          15.352781965086546
+        ],
+        [
+          0.056,
+          15.659740192357406
+        ],
+        [
+          0.057,
+          15.967882302467462
+        ],
+        [
+          0.058,
+          16.277216588657506
+        ],
+        [
+          0.059,
+          16.58775144550403
+        ],
+        [
+          0.06,
+          16.899495370665367
+        ]
+      ],
+      "optimum": -0.0002,
+      "aard_at_optimum": 0.12971135180583618
+    },
+    "ch4_c3": {
+      "common_n": 15,
+      "common_point_ids": [
+        "may2015_ch4_c3_001",
+        "may2015_ch4_c3_002",
+        "may2015_ch4_c3_003",
+        "may2015_ch4_c3_004",
+        "may2015_ch4_c3_005",
+        "may2015_ch4_c3_006",
+        "may2015_ch4_c3_007",
+        "may2015_ch4_c3_008",
+        "may2015_ch4_c3_009",
+        "may2015_ch4_c3_010",
+        "may2015_ch4_c3_011",
+        "may2015_ch4_c3_016",
+        "may2015_ch4_c3_018",
+        "may2015_ch4_c3_019",
+        "may2015_ch4_c3_021"
+      ],
+      "per_state_best_kij": [
+        {
+          "point_id": "may2015_ch4_c3_001",
+          "temperature_k": 203.4,
+          "pressure_pa": 3576000.0,
+          "best_kij": 0.001,
+          "error_at_best": -0.12804340949262258,
+          "error_at_zero": -0.39707700873974355
+        },
+        {
+          "point_id": "may2015_ch4_c3_002",
+          "temperature_k": 213.38,
+          "pressure_pa": 4108000.0,
+          "best_kij": 0.001,
+          "error_at_best": -0.08682808084672991,
+          "error_at_zero": -0.3699890275940026
+        },
+        {
+          "point_id": "may2015_ch4_c3_003",
+          "temperature_k": 223.36,
+          "pressure_pa": 4628000.0,
+          "best_kij": 0.002,
+          "error_at_best": 0.051592211113267075,
+          "error_at_zero": -0.5215215230766119
+        },
+        {
+          "point_id": "may2015_ch4_c3_004",
+          "temperature_k": 223.54,
+          "pressure_pa": 4622000.0,
+          "best_kij": 0.0,
+          "error_at_best": -0.06394522007224716,
+          "error_at_zero": -0.06394522007224716
+        },
+        {
+          "point_id": "may2015_ch4_c3_005",
+          "temperature_k": 233.61,
+          "pressure_pa": 5077000.0,
+          "best_kij": 0.002,
+          "error_at_best": 0.025942806078270386,
+          "error_at_zero": -0.5422271706206441
+        },
+        {
+          "point_id": "may2015_ch4_c3_006",
+          "temperature_k": 233.67,
+          "pressure_pa": 5119000.0,
+          "best_kij": 0.002,
+          "error_at_best": 0.1245840396804138,
+          "error_at_zero": -0.4391862184984759
+        },
+        {
+          "point_id": "may2015_ch4_c3_007",
+          "temperature_k": 243.61,
+          "pressure_pa": 5544000.0,
+          "best_kij": 0.008,
+          "error_at_best": -0.10036114119532522,
+          "error_at_zero": -2.30171373133851
+        },
+        {
+          "point_id": "may2015_ch4_c3_008",
+          "temperature_k": 243.61,
+          "pressure_pa": 5611000.0,
+          "best_kij": 0.005,
+          "error_at_best": -0.12889062825497755,
+          "error_at_zero": -1.4825554094753524
+        },
+        {
+          "point_id": "may2015_ch4_c3_009",
+          "temperature_k": 243.62,
+          "pressure_pa": 891000.0,
+          "best_kij": 0.002,
+          "error_at_best": -0.024367210044322785,
+          "error_at_zero": -0.7598433655148631
+        },
+        {
+          "point_id": "may2015_ch4_c3_010",
+          "temperature_k": 243.62,
+          "pressure_pa": 3909000.0,
+          "best_kij": 0.004,
+          "error_at_best": 0.07956893195747904,
+          "error_at_zero": -1.2621800808602552
+        },
+        {
+          "point_id": "may2015_ch4_c3_011",
+          "temperature_k": 243.62,
+          "pressure_pa": 5544000.0,
+          "best_kij": 0.003,
+          "error_at_best": -0.002829577778664271,
+          "error_at_zero": -0.8205577312272699
+        },
+        {
+          "point_id": "may2015_ch4_c3_012",
+          "temperature_k": 243.62,
+          "pressure_pa": 6402000.0,
+          "best_kij": 0.002,
+          "error_at_best": 0.10793030595327462,
+          "error_at_zero": -0.35735362862429987
+        },
+        {
+          "point_id": "may2015_ch4_c3_013",
+          "temperature_k": 243.62,
+          "pressure_pa": 7530000.0,
+          "best_kij": -0.006,
+          "error_at_best": -0.5281546356161415,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c3_014",
+          "temperature_k": 243.62,
+          "pressure_pa": 7943000.0,
+          "best_kij": 0.042,
+          "error_at_best": 7.40858006569311,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c3_015",
+          "temperature_k": 243.62,
+          "pressure_pa": 8320000.0,
+          "best_kij": 0.019,
+          "error_at_best": 3.537411007122092,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_c3_016",
+          "temperature_k": 243.63,
+          "pressure_pa": 5500000.0,
+          "best_kij": 0.004,
+          "error_at_best": 0.12639851598714225,
+          "error_at_zero": -0.9737598818261346
+        },
+        {
+          "point_id": "may2015_ch4_c3_017",
+          "temperature_k": 243.63,
+          "pressure_pa": 6989000.0,
+          "best_kij": -0.001,
+          "error_at_best": -0.09122203829658154,
+          "error_at_zero": 0.10947450027540048
+        },
+        {
+          "point_id": "may2015_ch4_c3_018",
+          "temperature_k": 243.64,
+          "pressure_pa": 5635000.0,
+          "best_kij": 0.003,
+          "error_at_best": 0.0036143534973812454,
+          "error_at_zero": -0.8023520805350874
+        },
+        {
+          "point_id": "may2015_ch4_c3_019",
+          "temperature_k": 253.59,
+          "pressure_pa": 6100000.0,
+          "best_kij": 0.007,
+          "error_at_best": -0.12088123220880134,
+          "error_at_zero": -1.9008162468008576
+        },
+        {
+          "point_id": "may2015_ch4_c3_020",
+          "temperature_k": 263.51,
+          "pressure_pa": 6597000.0,
+          "best_kij": 0.008,
+          "error_at_best": -0.08214401902438365,
+          "error_at_zero": -1.9544538362099517
+        },
+        {
+          "point_id": "may2015_ch4_c3_021",
+          "temperature_k": 263.56,
+          "pressure_pa": 6560000.0,
+          "best_kij": 0.008,
+          "error_at_best": 0.05569527174868598,
+          "error_at_zero": -1.825553328587458
+        },
+        {
+          "point_id": "may2015_ch4_c3_022",
+          "temperature_k": 273.48,
+          "pressure_pa": 7102000.0,
+          "best_kij": 0.008,
+          "error_at_best": -0.0608963799577519,
+          "error_at_zero": -1.7500060416184475
+        },
+        {
+          "point_id": "may2015_ch4_c3_023",
+          "temperature_k": 283.38,
+          "pressure_pa": 7630000.0,
+          "best_kij": 0.001,
+          "error_at_best": -1.8575991566122056,
+          "error_at_zero": -2.0415321953925347
+        }
+      ],
+      "status_changes_with_kij": [
+        "may2015_ch4_c3_012",
+        "may2015_ch4_c3_013",
+        "may2015_ch4_c3_014",
+        "may2015_ch4_c3_015",
+        "may2015_ch4_c3_017",
+        "may2015_ch4_c3_020",
+        "may2015_ch4_c3_022",
+        "may2015_ch4_c3_023"
+      ],
+      "grid_optimum": 0.003,
+      "aard_at_zero": 0.9642185349845008,
+      "aard_at_grid_optimum": 0.5300775408546573,
+      "band_low": 0.002,
+      "band_high": 0.004,
+      "bootstrap_low": 0.002,
+      "bootstrap_high": 0.004,
+      "leave_one_isotherm_out": [
+        {
+          "temperature_k_min": 203.4,
+          "temperature_k_max": 203.4,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.003,
+          "held_out_aard_at_zero": 0.39707700873974355,
+          "held_out_aard_at_train_kij": 0.4136206865148547
+        },
+        {
+          "temperature_k_min": 213.38,
+          "temperature_k_max": 213.38,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.003,
+          "held_out_aard_at_zero": 0.3699890275940026,
+          "held_out_aard_at_train_kij": 0.4835697373704252
+        },
+        {
+          "temperature_k_min": 223.36,
+          "temperature_k_max": 223.54,
+          "held_out_states": 2,
+          "held_out_in_fixed_set": 2,
+          "held_out_scored": 2,
+          "train_n": 13,
+          "train_kij": 0.003,
+          "held_out_aard_at_zero": 0.2927333715744295,
+          "held_out_aard_at_train_kij": 0.570299858959048
+        },
+        {
+          "temperature_k_min": 233.61,
+          "temperature_k_max": 233.67,
+          "held_out_states": 2,
+          "held_out_in_fixed_set": 2,
+          "held_out_scored": 2,
+          "train_n": 13,
+          "train_kij": 0.003,
+          "held_out_aard_at_zero": 0.49070669455955995,
+          "held_out_aard_at_train_kij": 0.3602872591645624
+        },
+        {
+          "temperature_k_min": 243.61,
+          "temperature_k_max": 243.64,
+          "held_out_states": 12,
+          "held_out_in_fixed_set": 7,
+          "held_out_scored": 9,
+          "train_n": 8,
+          "train_kij": 0.002,
+          "held_out_aard_at_zero": 0.985532267741908,
+          "held_out_aard_at_train_kij": 0.5459158248714276
+        },
+        {
+          "temperature_k_min": 253.59,
+          "temperature_k_max": 253.59,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.002,
+          "held_out_aard_at_zero": 1.9008162468008576,
+          "held_out_aard_at_train_kij": 1.3977580237396703
+        },
+        {
+          "temperature_k_min": 263.51,
+          "temperature_k_max": 263.56,
+          "held_out_states": 2,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 2,
+          "train_n": 14,
+          "train_kij": 0.002,
+          "held_out_aard_at_zero": 1.890003582398705,
+          "held_out_aard_at_train_kij": 1.4264615919692396
+        },
+        {
+          "temperature_k_min": 273.48,
+          "temperature_k_max": 273.48,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 0,
+          "held_out_scored": 1,
+          "train_n": 15,
+          "train_kij": 0.003,
+          "held_out_aard_at_zero": 1.7500060416184475,
+          "held_out_aard_at_train_kij": 1.1224558065983725
+        },
+        {
+          "temperature_k_min": 283.38,
+          "temperature_k_max": 283.38,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 0,
+          "held_out_scored": 0,
+          "train_n": 15,
+          "train_kij": 0.003,
+          "held_out_aard_at_zero": null,
+          "held_out_aard_at_train_kij": null
+        }
+      ],
+      "fine_curve": [
+        [
+          -0.02,
+          6.338568326896945
+        ],
+        [
+          -0.019,
+          6.0808187663838815
+        ],
+        [
+          -0.018,
+          5.82197083703872
+        ],
+        [
+          -0.017,
+          5.562015722555568
+        ],
+        [
+          -0.016,
+          5.300944486994187
+        ],
+        [
+          -0.015,
+          5.038748072468157
+        ],
+        [
+          -0.014,
+          4.775417296767626
+        ],
+        [
+          -0.013,
+          4.510942850938745
+        ],
+        [
+          -0.012,
+          4.245315296778658
+        ],
+        [
+          -0.011,
+          3.97852506427847
+        ],
+        [
+          -0.01,
+          3.710562448997125
+        ],
+        [
+          -0.009,
+          3.4414176093633215
+        ],
+        [
+          -0.008,
+          3.171080563935639
+        ],
+        [
+          -0.007,
+          2.899541188527765
+        ],
+        [
+          -0.006,
+          2.626789213320799
+        ],
+        [
+          -0.005,
+          2.3528142198552215
+        ],
+        [
+          -0.004,
+          2.077605637990004
+        ],
+        [
+          -0.003,
+          1.8011527427228569
+        ],
+        [
+          -0.002,
+          1.5234446509563482
+        ],
+        [
+          -0.001,
+          1.2444703181633012
+        ],
+        [
+          0.0,
+          0.9642185349845008
+        ],
+        [
+          0.001,
+          0.7123781005943541
+        ],
+        [
+          0.002,
+          0.5402149918606106
+        ],
+        [
+          0.003,
+          0.5300775408546573
+        ],
+        [
+          0.004,
+          0.622624213684282
+        ],
+        [
+          0.005,
+          0.7707724223236341
+        ],
+        [
+          0.006,
+          0.939066434254503
+        ],
+        [
+          0.007,
+          1.1254542840703337
+        ],
+        [
+          0.008,
+          1.3385678287650953
+        ],
+        [
+          0.009,
+          1.6174686212926137
+        ],
+        [
+          0.01,
+          1.9111503344726055
+        ],
+        [
+          0.011,
+          2.2062447608717335
+        ],
+        [
+          0.012,
+          2.5027653929066926
+        ],
+        [
+          0.013,
+          2.800725942268768
+        ],
+        [
+          0.014,
+          3.1001403450745366
+        ],
+        [
+          0.015,
+          3.4010227670955677
+        ],
+        [
+          0.016,
+          3.70338760920773
+        ],
+        [
+          0.017,
+          4.007249512966021
+        ],
+        [
+          0.018,
+          4.312623366400637
+        ],
+        [
+          0.019,
+          4.6195243099421806
+        ],
+        [
+          0.02,
+          4.9279677425757
+        ],
+        [
+          0.021,
+          5.237969328196461
+        ],
+        [
+          0.022,
+          5.549545002119223
+        ],
+        [
+          0.023,
+          5.86271097787718
+        ],
+        [
+          0.024,
+          6.177483754158
+        ],
+        [
+          0.025,
+          6.493880122054492
+        ],
+        [
+          0.026,
+          6.8119171724968375
+        ],
+        [
+          0.027,
+          7.131612303955761
+        ],
+        [
+          0.028,
+          7.452983230417741
+        ],
+        [
+          0.029,
+          7.776047989611016
+        ],
+        [
+          0.03,
+          8.100824951545297
+        ],
+        [
+          0.031,
+          8.427332827313002
+        ],
+        [
+          0.032,
+          8.755590678231892
+        ],
+        [
+          0.033,
+          9.085617925298806
+        ],
+        [
+          0.034,
+          9.41743435897971
+        ],
+        [
+          0.035,
+          9.751060149356196
+        ],
+        [
+          0.036,
+          10.08651585664879
+        ],
+        [
+          0.037,
+          10.42382244211128
+        ],
+        [
+          0.038,
+          10.763001279349846
+        ],
+        [
+          0.039,
+          11.10407416605787
+        ],
+        [
+          0.04,
+          11.447063336178042
+        ],
+        [
+          0.041,
+          11.791991472560843
+        ],
+        [
+          0.042,
+          12.13888172010196
+        ],
+        [
+          0.043,
+          12.48775769936619
+        ],
+        [
+          0.044,
+          12.838643520778527
+        ],
+        [
+          0.045,
+          13.191563799388973
+        ],
+        [
+          0.046,
+          13.546543670184223
+        ],
+        [
+          0.047,
+          13.903608804061498
+        ],
+        [
+          0.048,
+          14.262785424459539
+        ],
+        [
+          0.049,
+          14.624100324643766
+        ],
+        [
+          0.05,
+          14.987580885761567
+        ],
+        [
+          0.051,
+          15.353255095637355
+        ],
+        [
+          0.052,
+          15.721151568370663
+        ],
+        [
+          0.053,
+          16.091299564817913
+        ],
+        [
+          0.054,
+          16.463729013930664
+        ],
+        [
+          0.055,
+          16.83847053507088
+        ],
+        [
+          0.056,
+          17.215555461318733
+        ],
+        [
+          0.057,
+          17.595015863845877
+        ],
+        [
+          0.058,
+          17.976884577408157
+        ],
+        [
+          0.059,
+          18.361195227043936
+        ],
+        [
+          0.06,
+          18.74798225599004
+        ]
+      ],
+      "optimum": 0.003,
+      "aard_at_optimum": 0.5300775408546573
+    },
+    "ch4_ic4": {
+      "common_n": 10,
+      "common_point_ids": [
+        "may2015_ch4_ic4_002",
+        "may2015_ch4_ic4_003",
+        "may2015_ch4_ic4_004",
+        "may2015_ch4_ic4_005",
+        "may2015_ch4_ic4_007",
+        "may2015_ch4_ic4_008",
+        "may2015_ch4_ic4_009",
+        "may2015_ch4_ic4_010",
+        "may2015_ch4_ic4_014",
+        "may2015_ch4_ic4_015"
+      ],
+      "per_state_best_kij": [
+        {
+          "point_id": "may2015_ch4_ic4_001",
+          "temperature_k": 203.25,
+          "pressure_pa": 4503000.0,
+          "best_kij": 0.007,
+          "error_at_best": 0.06339462678327283,
+          "error_at_zero": -1.5390242120495523
+        },
+        {
+          "point_id": "may2015_ch4_ic4_002",
+          "temperature_k": 213.39,
+          "pressure_pa": 5118000.0,
+          "best_kij": 0.008,
+          "error_at_best": 0.050310739020272166,
+          "error_at_zero": -2.1825487506407377
+        },
+        {
+          "point_id": "may2015_ch4_ic4_003",
+          "temperature_k": 223.49,
+          "pressure_pa": 5714000.0,
+          "best_kij": 0.009,
+          "error_at_best": -0.02295478062583919,
+          "error_at_zero": -2.7192991258927757
+        },
+        {
+          "point_id": "may2015_ch4_ic4_004",
+          "temperature_k": 233.57,
+          "pressure_pa": 6251000.0,
+          "best_kij": 0.01,
+          "error_at_best": 0.01437733677095045,
+          "error_at_zero": -3.02683523274038
+        },
+        {
+          "point_id": "may2015_ch4_ic4_005",
+          "temperature_k": 243.58,
+          "pressure_pa": 6824000.0,
+          "best_kij": 0.011,
+          "error_at_best": -0.0016989806059372347,
+          "error_at_zero": -3.2529952940936275
+        },
+        {
+          "point_id": "may2015_ch4_ic4_006",
+          "temperature_k": 243.59,
+          "pressure_pa": 7847000.0,
+          "best_kij": 0.008,
+          "error_at_best": 0.07474778104861655,
+          "error_at_zero": -1.9529676322085607
+        },
+        {
+          "point_id": "may2015_ch4_ic4_007",
+          "temperature_k": 243.6,
+          "pressure_pa": 2642000.0,
+          "best_kij": 0.019,
+          "error_at_best": 0.0019495506209365736,
+          "error_at_zero": -7.615827878656758
+        },
+        {
+          "point_id": "may2015_ch4_ic4_008",
+          "temperature_k": 243.6,
+          "pressure_pa": 4418000.0,
+          "best_kij": 0.017,
+          "error_at_best": -0.14859805844918958,
+          "error_at_zero": -6.3741670271615405
+        },
+        {
+          "point_id": "may2015_ch4_ic4_009",
+          "temperature_k": 243.6,
+          "pressure_pa": 6041000.0,
+          "best_kij": 0.016,
+          "error_at_best": 0.1313640097292759,
+          "error_at_zero": -5.052998067026499
+        },
+        {
+          "point_id": "may2015_ch4_ic4_010",
+          "temperature_k": 243.6,
+          "pressure_pa": 6735000.0,
+          "best_kij": 0.012,
+          "error_at_best": -0.08347959579471236,
+          "error_at_zero": -3.675303297977253
+        },
+        {
+          "point_id": "may2015_ch4_ic4_011",
+          "temperature_k": 243.6,
+          "pressure_pa": 7854000.0,
+          "best_kij": 0.011,
+          "error_at_best": 0.054390195766055964,
+          "error_at_zero": -2.764628971196182
+        },
+        {
+          "point_id": "may2015_ch4_ic4_012",
+          "temperature_k": 243.6,
+          "pressure_pa": 8280000.0,
+          "best_kij": 0.004,
+          "error_at_best": 0.014460292577401595,
+          "error_at_zero": -0.9048267913337545
+        },
+        {
+          "point_id": "may2015_ch4_ic4_013",
+          "temperature_k": 243.6,
+          "pressure_pa": 8684000.0,
+          "best_kij": 0.002,
+          "error_at_best": -0.39404187481509345,
+          "error_at_zero": -0.8108709615079548
+        },
+        {
+          "point_id": "may2015_ch4_ic4_014",
+          "temperature_k": 243.61,
+          "pressure_pa": 6785000.0,
+          "best_kij": 0.012,
+          "error_at_best": -0.028514628043479245,
+          "error_at_zero": -3.6002887349150248
+        },
+        {
+          "point_id": "may2015_ch4_ic4_015",
+          "temperature_k": 253.6,
+          "pressure_pa": 7306000.0,
+          "best_kij": 0.014,
+          "error_at_best": -0.10788232740634314,
+          "error_at_zero": -4.092421785311808
+        },
+        {
+          "point_id": "may2015_ch4_ic4_016",
+          "temperature_k": 263.56,
+          "pressure_pa": 7819000.0,
+          "best_kij": 0.017,
+          "error_at_best": 0.09797412226098555,
+          "error_at_zero": -4.466584730661705
+        },
+        {
+          "point_id": "may2015_ch4_ic4_017",
+          "temperature_k": 273.47,
+          "pressure_pa": 8329000.0,
+          "best_kij": 0.018,
+          "error_at_best": -0.11711030063980953,
+          "error_at_zero": -4.596190829809217
+        }
+      ],
+      "status_changes_with_kij": [
+        "may2015_ch4_ic4_001",
+        "may2015_ch4_ic4_006",
+        "may2015_ch4_ic4_011",
+        "may2015_ch4_ic4_012",
+        "may2015_ch4_ic4_013",
+        "may2015_ch4_ic4_016",
+        "may2015_ch4_ic4_017"
+      ],
+      "grid_optimum": 0.012,
+      "aard_at_zero": 4.159268519441641,
+      "aard_at_grid_optimum": 1.0020780712626969,
+      "band_low": 0.011,
+      "band_high": 0.014,
+      "bootstrap_low": 0.01,
+      "bootstrap_high": 0.017,
+      "leave_one_isotherm_out": [
+        {
+          "temperature_k_min": 203.25,
+          "temperature_k_max": 203.25,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 0,
+          "held_out_scored": 1,
+          "train_n": 10,
+          "train_kij": 0.012,
+          "held_out_aard_at_zero": 1.5390242120495523,
+          "held_out_aard_at_train_kij": 1.24509738882573
+        },
+        {
+          "temperature_k_min": 213.39,
+          "temperature_k_max": 213.39,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 9,
+          "train_kij": 0.013,
+          "held_out_aard_at_zero": 2.1825487506407377,
+          "held_out_aard_at_train_kij": 1.5042054341635773
+        },
+        {
+          "temperature_k_min": 223.49,
+          "temperature_k_max": 223.49,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 9,
+          "train_kij": 0.013,
+          "held_out_aard_at_zero": 2.7192991258927757,
+          "held_out_aard_at_train_kij": 1.2271071464429477
+        },
+        {
+          "temperature_k_min": 233.57,
+          "temperature_k_max": 233.57,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 9,
+          "train_kij": 0.013,
+          "held_out_aard_at_zero": 3.02683523274038,
+          "held_out_aard_at_train_kij": 0.9650064787175014
+        },
+        {
+          "temperature_k_min": 243.58,
+          "temperature_k_max": 243.61,
+          "held_out_states": 10,
+          "held_out_in_fixed_set": 6,
+          "held_out_scored": 9,
+          "train_n": 4,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.910444854952133,
+          "held_out_aard_at_train_kij": 1.3605439915605781
+        },
+        {
+          "temperature_k_min": 253.6,
+          "temperature_k_max": 253.6,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 9,
+          "train_kij": 0.012,
+          "held_out_aard_at_zero": 4.092421785311808,
+          "held_out_aard_at_train_kij": 0.6966086994300683
+        },
+        {
+          "temperature_k_min": 263.56,
+          "temperature_k_max": 263.56,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 0,
+          "held_out_scored": 1,
+          "train_n": 10,
+          "train_kij": 0.012,
+          "held_out_aard_at_zero": 4.466584730661705,
+          "held_out_aard_at_train_kij": 1.287471238535716
+        },
+        {
+          "temperature_k_min": 273.47,
+          "temperature_k_max": 273.47,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 0,
+          "held_out_scored": 1,
+          "train_n": 10,
+          "train_kij": 0.012,
+          "held_out_aard_at_zero": 4.596190829809217,
+          "held_out_aard_at_train_kij": 1.6545570172272535
+        }
+      ],
+      "fine_curve": [
+        [
+          -0.02,
+          9.913547955655206
+        ],
+        [
+          -0.019,
+          9.639943662269996
+        ],
+        [
+          -0.018,
+          9.364943459140504
+        ],
+        [
+          -0.017,
+          9.088533513374049
+        ],
+        [
+          -0.016,
+          8.810699762994235
+        ],
+        [
+          -0.015,
+          8.53142791149087
+        ],
+        [
+          -0.014,
+          8.250703422236601
+        ],
+        [
+          -0.013,
+          7.968511512703472
+        ],
+        [
+          -0.012,
+          7.684837148535012
+        ],
+        [
+          -0.011,
+          7.399665037369095
+        ],
+        [
+          -0.01,
+          7.112979622513619
+        ],
+        [
+          -0.009,
+          6.824765076411552
+        ],
+        [
+          -0.008,
+          6.535005293850984
+        ],
+        [
+          -0.007,
+          6.243683884996256
+        ],
+        [
+          -0.006,
+          5.950784168173841
+        ],
+        [
+          -0.005,
+          5.656289162394035
+        ],
+        [
+          -0.004,
+          5.36018157967373
+        ],
+        [
+          -0.003,
+          5.0624438170165345
+        ],
+        [
+          -0.002,
+          4.7630579481972415
+        ],
+        [
+          -0.001,
+          4.462005715210138
+        ],
+        [
+          0.0,
+          4.159268519441641
+        ],
+        [
+          0.001,
+          3.8548274125203483
+        ],
+        [
+          0.002,
+          3.548663086831887
+        ],
+        [
+          0.003,
+          3.2407558657309488
+        ],
+        [
+          0.004,
+          2.931085693343562
+        ],
+        [
+          0.005,
+          2.619632124030006
+        ],
+        [
+          0.006,
+          2.306374311472855
+        ],
+        [
+          0.007,
+          1.9912909973006916
+        ],
+        [
+          0.008,
+          1.6844226471532484
+        ],
+        [
+          0.009,
+          1.4230270877752313
+        ],
+        [
+          0.01,
+          1.2202709251027293
+        ],
+        [
+          0.011,
+          1.0810670393762918
+        ],
+        [
+          0.012,
+          1.0020780712626969
+        ],
+        [
+          0.013,
+          1.0248145698889448
+        ],
+        [
+          0.014,
+          1.0703719641783032
+        ],
+        [
+          0.015,
+          1.1541736846299908
+        ],
+        [
+          0.016,
+          1.2866161252289456
+        ],
+        [
+          0.017,
+          1.4616863695320546
+        ],
+        [
+          0.018,
+          1.68517238196048
+        ],
+        [
+          0.019,
+          1.940453645988302
+        ],
+        [
+          0.02,
+          2.281414040630115
+        ],
+        [
+          0.021,
+          2.6245483320061993
+        ],
+        [
+          0.022,
+          2.969885668672272
+        ],
+        [
+          0.023,
+          3.317455868367083
+        ],
+        [
+          0.024,
+          3.6672894405046477
+        ],
+        [
+          0.025,
+          4.0194176096802545
+        ],
+        [
+          0.026,
+          4.3738723402731
+        ],
+        [
+          0.027,
+          4.730686362198101
+        ],
+        [
+          0.028,
+          5.089893197829047
+        ],
+        [
+          0.029,
+          5.451527190278139
+        ],
+        [
+          0.03,
+          5.8156235330136
+        ],
+        [
+          0.031,
+          6.182218300922445
+        ],
+        [
+          0.032,
+          6.551348482940675
+        ],
+        [
+          0.033,
+          6.923052016337342
+        ],
+        [
+          0.034,
+          7.2973678227237215
+        ],
+        [
+          0.035,
+          7.674335846008736
+        ],
+        [
+          0.036,
+          8.053997092270546
+        ],
+        [
+          0.037,
+          8.436393671851583
+        ],
+        [
+          0.038,
+          8.821568843707663
+        ],
+        [
+          0.039,
+          9.209567062192928
+        ],
+        [
+          0.04,
+          9.600434026565926
+        ],
+        [
+          0.041,
+          9.994216733222547
+        ],
+        [
+          0.042,
+          10.390963531055565
+        ],
+        [
+          0.043,
+          10.79072418008076
+        ],
+        [
+          0.044,
+          11.193549913567555
+        ],
+        [
+          0.045,
+          11.599493504036975
+        ],
+        [
+          0.046,
+          12.00860933335885
+        ],
+        [
+          0.047,
+          12.420953467371914
+        ],
+        [
+          0.048,
+          12.836583735298698
+        ],
+        [
+          0.049,
+          13.255559814511974
+        ],
+        [
+          0.05,
+          13.677943321028255
+        ],
+        [
+          0.051,
+          14.10379790621651
+        ],
+        [
+          0.052,
+          14.53318936049576
+        ],
+        [
+          0.053,
+          14.96618572438462
+        ],
+        [
+          0.054,
+          15.40285740793075
+        ],
+        [
+          0.055,
+          15.843277319093257
+        ],
+        [
+          0.056,
+          16.28752100219022
+        ],
+        [
+          0.057,
+          16.73566678734691
+        ],
+        [
+          0.058,
+          17.18779595218891
+        ],
+        [
+          0.059,
+          17.64399289711139
+        ],
+        [
+          0.06,
+          18.104345335697793
+        ]
+      ],
+      "optimum": 0.0123,
+      "aard_at_optimum": 0.9931760775734085
+    },
+    "ch4_nc4": {
+      "common_n": 15,
+      "common_point_ids": [
+        "may2015_ch4_nc4_001",
+        "may2015_ch4_nc4_002",
+        "may2015_ch4_nc4_003",
+        "may2015_ch4_nc4_004",
+        "may2015_ch4_nc4_005",
+        "may2015_ch4_nc4_006",
+        "may2015_ch4_nc4_007",
+        "may2015_ch4_nc4_009",
+        "may2015_ch4_nc4_010",
+        "may2015_ch4_nc4_011",
+        "may2015_ch4_nc4_012",
+        "may2015_ch4_nc4_016",
+        "may2015_ch4_nc4_017",
+        "may2015_ch4_nc4_018",
+        "may2015_ch4_nc4_019"
+      ],
+      "per_state_best_kij": [
+        {
+          "point_id": "may2015_ch4_nc4_001",
+          "temperature_k": 203.25,
+          "pressure_pa": 4224000.0,
+          "best_kij": 0.008,
+          "error_at_best": -0.08300857424262424,
+          "error_at_zero": -2.9241196305785926
+        },
+        {
+          "point_id": "may2015_ch4_nc4_002",
+          "temperature_k": 213.36,
+          "pressure_pa": 4702000.0,
+          "best_kij": 0.009,
+          "error_at_best": -0.07910936227413343,
+          "error_at_zero": -3.61895845931858
+        },
+        {
+          "point_id": "may2015_ch4_nc4_003",
+          "temperature_k": 223.44,
+          "pressure_pa": 5163000.0,
+          "best_kij": 0.009,
+          "error_at_best": -0.1550547321841125,
+          "error_at_zero": -3.7564451454015555
+        },
+        {
+          "point_id": "may2015_ch4_nc4_004",
+          "temperature_k": 233.49,
+          "pressure_pa": 5604000.0,
+          "best_kij": 0.01,
+          "error_at_best": -0.08038080863414969,
+          "error_at_zero": -4.009154044539365
+        },
+        {
+          "point_id": "may2015_ch4_nc4_005",
+          "temperature_k": 233.5,
+          "pressure_pa": 5593000.0,
+          "best_kij": 0.01,
+          "error_at_best": 0.08283144233777623,
+          "error_at_zero": -3.8529347679160812
+        },
+        {
+          "point_id": "may2015_ch4_nc4_006",
+          "temperature_k": 243.52,
+          "pressure_pa": 6010000.0,
+          "best_kij": 0.01,
+          "error_at_best": 0.06005582106625119,
+          "error_at_zero": -3.717213679849048
+        },
+        {
+          "point_id": "may2015_ch4_nc4_007",
+          "temperature_k": 244.48,
+          "pressure_pa": 5058000.0,
+          "best_kij": 0.01,
+          "error_at_best": -0.03700713117112737,
+          "error_at_zero": -4.007636535935547
+        },
+        {
+          "point_id": "may2015_ch4_nc4_008",
+          "temperature_k": 244.48,
+          "pressure_pa": 10132000.0,
+          "best_kij": null,
+          "error_at_best": null,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_nc4_009",
+          "temperature_k": 244.51,
+          "pressure_pa": 8016000.0,
+          "best_kij": 0.004,
+          "error_at_best": 0.08297683794685536,
+          "error_at_zero": -1.190189944555741
+        },
+        {
+          "point_id": "may2015_ch4_nc4_010",
+          "temperature_k": 244.52,
+          "pressure_pa": 1311000.0,
+          "best_kij": 0.017,
+          "error_at_best": -0.1914672082762108,
+          "error_at_zero": -7.774001312913717
+        },
+        {
+          "point_id": "may2015_ch4_nc4_011",
+          "temperature_k": 244.52,
+          "pressure_pa": 6005000.0,
+          "best_kij": 0.009,
+          "error_at_best": -0.18996197514093288,
+          "error_at_zero": -3.5741735699493824
+        },
+        {
+          "point_id": "may2015_ch4_nc4_012",
+          "temperature_k": 244.52,
+          "pressure_pa": 6593000.0,
+          "best_kij": 0.008,
+          "error_at_best": -0.1312841541316893,
+          "error_at_zero": -3.024313831796716
+        },
+        {
+          "point_id": "may2015_ch4_nc4_013",
+          "temperature_k": 244.52,
+          "pressure_pa": 8238000.0,
+          "best_kij": 0.001,
+          "error_at_best": -0.14409291415748215,
+          "error_at_zero": -0.4517653760605165
+        },
+        {
+          "point_id": "may2015_ch4_nc4_014",
+          "temperature_k": 244.52,
+          "pressure_pa": 9161000.0,
+          "best_kij": -0.002,
+          "error_at_best": 0.7686933587816301,
+          "error_at_zero": 1.304428685221005
+        },
+        {
+          "point_id": "may2015_ch4_nc4_015",
+          "temperature_k": 244.52,
+          "pressure_pa": 9913000.0,
+          "best_kij": -0.016,
+          "error_at_best": 0.0894292024615579,
+          "error_at_zero": null
+        },
+        {
+          "point_id": "may2015_ch4_nc4_016",
+          "temperature_k": 244.53,
+          "pressure_pa": 3318000.0,
+          "best_kij": 0.012,
+          "error_at_best": -0.19861024353608844,
+          "error_at_zero": -5.321612825625306
+        },
+        {
+          "point_id": "may2015_ch4_nc4_017",
+          "temperature_k": 253.52,
+          "pressure_pa": 6431000.0,
+          "best_kij": 0.01,
+          "error_at_best": 0.06276081428450232,
+          "error_at_zero": -3.5128194719544448
+        },
+        {
+          "point_id": "may2015_ch4_nc4_018",
+          "temperature_k": 263.48,
+          "pressure_pa": 6842000.0,
+          "best_kij": 0.012,
+          "error_at_best": 0.07432839340795494,
+          "error_at_zero": -3.9566323373298897
+        },
+        {
+          "point_id": "may2015_ch4_nc4_019",
+          "temperature_k": 273.42,
+          "pressure_pa": 7249000.0,
+          "best_kij": 0.012,
+          "error_at_best": 0.04768367433381674,
+          "error_at_zero": -3.707518019178423
+        }
+      ],
+      "status_changes_with_kij": [
+        "may2015_ch4_nc4_013",
+        "may2015_ch4_nc4_014",
+        "may2015_ch4_nc4_015"
+      ],
+      "grid_optimum": 0.01,
+      "aard_at_zero": 3.8631815717894926,
+      "aard_at_grid_optimum": 0.6753723027635083,
+      "band_low": 0.01,
+      "band_high": 0.01,
+      "bootstrap_low": 0.009,
+      "bootstrap_high": 0.011,
+      "leave_one_isotherm_out": [
+        {
+          "temperature_k_min": 203.25,
+          "temperature_k_max": 203.25,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 2.9241196305785926,
+          "held_out_aard_at_train_kij": 0.6536412517709268
+        },
+        {
+          "temperature_k_min": 213.36,
+          "temperature_k_max": 213.36,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.61895845931858,
+          "held_out_aard_at_train_kij": 0.3295169386054064
+        },
+        {
+          "temperature_k_min": 223.44,
+          "temperature_k_max": 223.44,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.7564451454015555,
+          "held_out_aard_at_train_kij": 0.260247045269973
+        },
+        {
+          "temperature_k_min": 233.49,
+          "temperature_k_max": 233.5,
+          "held_out_states": 2,
+          "held_out_in_fixed_set": 2,
+          "held_out_scored": 2,
+          "train_n": 13,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.931044406227723,
+          "held_out_aard_at_train_kij": 0.08160612548596297
+        },
+        {
+          "temperature_k_min": 243.52,
+          "temperature_k_max": 244.53,
+          "held_out_states": 11,
+          "held_out_in_fixed_set": 7,
+          "held_out_scored": 9,
+          "train_n": 8,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.3739261957674422,
+          "held_out_aard_at_train_kij": 1.589620713781056
+        },
+        {
+          "temperature_k_min": 253.52,
+          "temperature_k_max": 253.52,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.5128194719544448,
+          "held_out_aard_at_train_kij": 0.06276081428450232
+        },
+        {
+          "temperature_k_min": 263.48,
+          "temperature_k_max": 263.48,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.9566323373298897,
+          "held_out_aard_at_train_kij": 0.6167237866819759
+        },
+        {
+          "temperature_k_min": 273.42,
+          "temperature_k_max": 273.42,
+          "held_out_states": 1,
+          "held_out_in_fixed_set": 1,
+          "held_out_scored": 1,
+          "train_n": 14,
+          "train_kij": 0.01,
+          "held_out_aard_at_zero": 3.707518019178423,
+          "held_out_aard_at_train_kij": 0.5947698258910986
+        }
+      ],
+      "fine_curve": [
+        [
+          -0.02,
+          10.728924233239287
+        ],
+        [
+          -0.019,
+          10.404483846410557
+        ],
+        [
+          -0.018,
+          10.078185504805663
+        ],
+        [
+          -0.017,
+          9.75000979094596
+        ],
+        [
+          -0.016,
+          9.419936948455936
+        ],
+        [
+          -0.015,
+          9.08794687349423
+        ],
+        [
+          -0.014,
+          8.754019105823954
+        ],
+        [
+          -0.013,
+          8.418132819653898
+        ],
+        [
+          -0.012,
+          8.080266814103915
+        ],
+        [
+          -0.011,
+          7.740399503362059
+        ],
+        [
+          -0.01,
+          7.398508906501811
+        ],
+        [
+          -0.009,
+          7.054572636933114
+        ],
+        [
+          -0.008,
+          6.708567891469881
+        ],
+        [
+          -0.007,
+          6.3604714390057895
+        ],
+        [
+          -0.006,
+          6.010259608780463
+        ],
+        [
+          -0.005,
+          5.657908278217041
+        ],
+        [
+          -0.004,
+          5.303392860291832
+        ],
+        [
+          -0.003,
+          4.9466882904529275
+        ],
+        [
+          -0.002,
+          4.587769013008063
+        ],
+        [
+          -0.001,
+          4.226608967060729
+        ],
+        [
+          0.0,
+          3.8631815717894926
+        ],
+        [
+          0.001,
+          3.4974597112581263
+        ],
+        [
+          0.002,
+          3.1294157185774845
+        ],
+        [
+          0.003,
+          2.7590213594138593
+        ],
+        [
+          0.004,
+          2.397311393291237
+        ],
+        [
+          0.005,
+          2.065364148562368
+        ],
+        [
+          0.006,
+          1.7313069209395677
+        ],
+        [
+          0.007,
+          1.395114381413235
+        ],
+        [
+          0.008,
+          1.0567606747578624
+        ],
+        [
+          0.009,
+          0.7862726243442015
+        ],
+        [
+          0.01,
+          0.6753723027635083
+        ],
+        [
+          0.011,
+          0.8429212568410079
+        ],
+        [
+          0.012,
+          1.0438848805515362
+        ],
+        [
+          0.013,
+          1.3523027796833758
+        ],
+        [
+          0.014,
+          1.6895909299150598
+        ],
+        [
+          0.015,
+          2.029302659475361
+        ],
+        [
+          0.016,
+          2.3714735049651106
+        ],
+        [
+          0.017,
+          2.716139875338277
+        ],
+        [
+          0.018,
+          3.100093932221732
+        ],
+        [
+          0.019,
+          3.5124727260489266
+        ],
+        [
+          0.02,
+          3.9277885068080005
+        ],
+        [
+          0.021,
+          4.346083508169378
+        ],
+        [
+          0.022,
+          4.76740102454261
+        ],
+        [
+          0.023,
+          5.191785451243348
+        ],
+        [
+          0.024,
+          5.619282326737318
+        ],
+        [
+          0.025,
+          6.049938377203111
+        ],
+        [
+          0.026,
+          6.483801563457759
+        ],
+        [
+          0.027,
+          6.920921130533118
+        ],
+        [
+          0.028,
+          7.361347660001228
+        ],
+        [
+          0.029,
+          7.805133125359049
+        ],
+        [
+          0.03,
+          8.252330950588663
+        ],
+        [
+          0.031,
+          8.702996072256267
+        ],
+        [
+          0.032,
+          9.157185005371394
+        ],
+        [
+          0.033,
+          9.614955913299953
+        ],
+        [
+          0.034,
+          10.076368682154676
+        ],
+        [
+          0.035,
+          10.541484999967016
+        ],
+        [
+          0.036,
+          11.010368441093142
+        ],
+        [
+          0.037,
+          11.48308455634584
+        ],
+        [
+          0.038,
+          11.959700969350811
+        ],
+        [
+          0.039,
+          12.440287479756343
+        ],
+        [
+          0.04,
+          12.924916173950702
+        ],
+        [
+          0.041,
+          13.413661544033532
+        ],
+        [
+          0.042,
+          13.90660061592652
+        ],
+        [
+          0.043,
+          14.40381308760555
+        ],
+        [
+          0.044,
+          14.905381478520743
+        ],
+        [
+          0.045,
+          15.41139129154176
+        ],
+        [
+          0.046,
+          15.921931188902725
+        ],
+        [
+          0.047,
+          16.437093183780384
+        ],
+        [
+          0.048,
+          16.956972849596067
+        ],
+        [
+          0.049,
+          17.481669549259397
+        ],
+        [
+          0.05,
+          18.011286687144434
+        ],
+        [
+          0.051,
+          18.545931986995114
+        ],
+        [
+          0.052,
+          19.085717799541904
+        ],
+        [
+          0.053,
+          19.6307614444883
+        ],
+        [
+          0.054,
+          20.181185592279064
+        ],
+        [
+          0.055,
+          20.737118692434887
+        ],
+        [
+          0.056,
+          21.29869545658277
+        ],
+        [
+          0.057,
+          21.86605740632813
+        ],
+        [
+          0.058,
+          22.439353498589472
+        ],
+        [
+          0.059,
+          23.018740844236294
+        ],
+        [
+          0.06,
+          23.604385540280298
+        ]
+      ],
+      "optimum": 0.0098,
+      "aard_at_optimum": 0.6645130662840754
+    }
+  },
+  "dew_composition": {
+    "ch4_c2": [
+      {
+        "kij": 0.0,
+        "states": 17,
+        "assessed": 15,
+        "above_isotherm": 2,
+        "within_one_u": 15,
+        "within_two_u": 15,
+        "mean_abs_difference": 0.0033039750775905783,
+        "mean_difference": 0.00016209252726714733
+      },
+      {
+        "kij": -0.0002,
+        "states": 17,
+        "assessed": 17,
+        "above_isotherm": 0,
+        "within_one_u": 17,
+        "within_two_u": 17,
+        "mean_abs_difference": 0.003494421834155087,
+        "mean_difference": 0.0006728683977380775
+      }
+    ],
+    "ch4_c3": [
+      {
+        "kij": 0.0,
+        "states": 23,
+        "assessed": 23,
+        "above_isotherm": 0,
+        "within_one_u": 22,
+        "within_two_u": 23,
+        "mean_abs_difference": 0.0023384273350610663,
+        "mean_difference": 0.000168540885516621
+      },
+      {
+        "kij": 0.003,
+        "states": 23,
+        "assessed": 23,
+        "above_isotherm": 0,
+        "within_one_u": 21,
+        "within_two_u": 23,
+        "mean_abs_difference": 0.0022946265219516947,
+        "mean_difference": 0.0004243176613588736
+      }
+    ]
+  }
+}

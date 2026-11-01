@@ -363,9 +363,34 @@ def fit_from_grid(states: Sequence[State], bubble: BubbleGrid) -> dict[str, Any]
             }
         )
 
+    # Each state's own best kij on the fine grid (smallest |error| among the kij
+    # values at which it converges): shows whether one constant kij can serve
+    # every state, which the isotherm-based check cannot see within an isotherm.
+    per_state = []
+    for state in sorted(states, key=lambda s: (s.temperature_k, s.pressure_pa)):
+        solved = [
+            (kij, bubble[(state.point_id, kij)][1])
+            for kij in FINE_GRID
+            if bubble[(state.point_id, kij)][1] is not None
+        ]
+        best = (
+            min(solved, key=lambda item: abs(float(item[1] or 0.0))) if solved else None
+        )
+        per_state.append(
+            {
+                "point_id": state.point_id,
+                "temperature_k": state.temperature_k,
+                "pressure_pa": state.pressure_pa,
+                "best_kij": None if best is None else best[0],
+                "error_at_best": None if best is None else best[1],
+                "error_at_zero": bubble[(state.point_id, 0.0)][1],
+            }
+        )
+
     return {
         "common_n": len(common),
         "common_point_ids": [state.point_id for state in common],
+        "per_state_best_kij": per_state,
         "status_changes_with_kij": changing,
         "grid_optimum": best_grid,
         "aard_at_zero": curve[0.0],
