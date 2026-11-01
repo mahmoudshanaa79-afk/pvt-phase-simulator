@@ -288,50 +288,38 @@ def _aard(errors: Iterable[float]) -> float:
     return sum(values) / len(values)
 
 
-def fit_system(
-    states: Sequence[State], bubble: dict[tuple[str, float], Outcome]
-) -> dict[str, Any]:
-    """Fit kij to the bubble AARD over the states converged at every fine kij."""
+#: Fine-grid bubble results for one binary: (point id, kij) -> (category, error %).
+BubbleGrid = dict[tuple[str, float], tuple[str, float | None]]
+
+
+def fit_from_grid(states: Sequence[State], bubble: BubbleGrid) -> dict[str, Any]:
+    """Everything about the fit that follows from the fine grid alone.
+
+    The objective is the bubble AARD over the states converged at every fine
+    kij, so a state that fails somewhere cannot move the optimum.
+    """
 
     common = [
         state
         for state in states
-        if all(
-            bubble[(state.point_id, kij)].percent_error is not None for kij in FINE_GRID
-        )
+        if all(bubble[(state.point_id, kij)][1] is not None for kij in FINE_GRID)
     ]
     changing = sorted(
         {
             state.point_id
             for state in states
-            if len({bubble[(state.point_id, kij)].category for kij in FINE_GRID}) > 1
+            if len({bubble[(state.point_id, kij)][0] for kij in FINE_GRID}) > 1
         }
     )
     if not common:
         return {"common_n": 0, "status_changes_with_kij": changing}
 
     def errors_at(kij: float, chosen: Sequence[State]) -> list[float]:
-        return [float(bubble[(s.point_id, kij)].percent_error or 0.0) for s in chosen]
+        return [float(bubble[(s.point_id, kij)][1] or 0.0) for s in chosen]
 
     curve = {kij: _aard(errors_at(kij, common)) for kij in FINE_GRID}
     best_grid = min(curve, key=curve.__getitem__)
-
-    def objective(kij: float) -> float:
-        outcomes = [solve(state, "bubble", float(kij)) for state in common]
-        if any(item.percent_error is None for item in outcomes):
-            return float("inf")
-        return _aard(float(item.percent_error or 0.0) for item in outcomes)
-
-    low = max(FINE_GRID[0], best_grid - 0.001)
-    high = min(FINE_GRID[-1], best_grid + 0.001)
-    refined = minimize_scalar(
-        objective, bounds=(low, high), method="bounded", options={"xatol": 1e-5}
-    )
-    optimum = round(float(refined.x), 4)
-    if objective(optimum) > curve[best_grid]:
-        optimum = best_grid
-
-    minimum = min(curve.values())
+    minimum = curve[best_grid]
     band = [
         kij
         for kij, value in curve.items()
@@ -356,8 +344,8 @@ def fit_system(
         held = [
             state
             for state in group
-            if bubble[(state.point_id, 0.0)].percent_error is not None
-            and bubble[(state.point_id, train_best)].percent_error is not None
+            if bubble[(state.point_id, 0.0)][1] is not None
+            and bubble[(state.point_id, train_best)][1] is not None
         ]
         leave_one_out.append(
             {
@@ -380,10 +368,8 @@ def fit_system(
         "common_point_ids": [state.point_id for state in common],
         "status_changes_with_kij": changing,
         "grid_optimum": best_grid,
-        "optimum": optimum,
         "aard_at_zero": curve[0.0],
-        "aard_at_grid_optimum": curve[best_grid],
-        "aard_at_optimum": objective(optimum),
+        "aard_at_grid_optimum": minimum,
         "band_low": min(band),
         "band_high": max(band),
         "bootstrap_low": resampled[int(0.025 * BOOTSTRAP_RESAMPLES)],
@@ -391,6 +377,38 @@ def fit_system(
         "leave_one_isotherm_out": leave_one_out,
         "fine_curve": [[kij, curve[kij]] for kij in FINE_GRID],
     }
+
+
+def fixed_set_aard(states: Sequence[State], kij: float) -> float:
+    """Bubble AARD over the given states at one kij, solved afresh."""
+
+    outcomes = [solve(state, "bubble", float(kij)) for state in states]
+    if any(item.percent_error is None for item in outcomes):
+        return float("inf")
+    return _aard(float(item.percent_error or 0.0) for item in outcomes)
+
+
+def fit_system(states: Sequence[State], bubble: BubbleGrid) -> dict[str, Any]:
+    """Fit from the grid, then refine the minimum with a bounded scalar search."""
+
+    fit = fit_from_grid(states, bubble)
+    if not fit["common_n"]:
+        return fit
+    common = [state for state in states if state.point_id in fit["common_point_ids"]]
+    best_grid = fit["grid_optimum"]
+    low = max(FINE_GRID[0], best_grid - 0.001)
+    high = min(FINE_GRID[-1], best_grid + 0.001)
+    refined = minimize_scalar(
+        lambda kij: fixed_set_aard(common, kij),
+        bounds=(low, high),
+        method="bounded",
+        options={"xatol": 1e-5},
+    )
+    optimum = round(float(refined.x), 4)
+    value = fixed_set_aard(common, optimum)
+    if value > fit["aard_at_grid_optimum"]:
+        optimum, value = best_grid, fit["aard_at_grid_optimum"]
+    return {**fit, "optimum": optimum, "aard_at_optimum": value}
 
 
 def _analyze_task(task: tuple[Any, float]) -> dict[str, Any]:
@@ -490,11 +508,14 @@ def compute(root: Path, include_butanes: bool, workers: int) -> None:
     fits: dict[str, Any] = {}
     for system in systems:
         system_states = [state for state in states if state.system_id == system]
-        bubble = {
-            (state.point_id, kij): by_key[(system, state.point_id, "bubble", kij)]
-            for state in system_states
-            for kij in FINE_GRID
-        }
+        bubble: BubbleGrid = {}
+        for state in system_states:
+            for kij in FINE_GRID:
+                outcome = by_key[(system, state.point_id, "bubble", kij)]
+                bubble[(state.point_id, kij)] = (
+                    outcome.category,
+                    outcome.percent_error,
+                )
         fits[system] = fit_system(system_states, bubble)
 
     # A fitted kij off the coarse grid needs its own solves in both directions.
