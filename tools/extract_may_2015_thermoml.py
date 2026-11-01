@@ -39,6 +39,17 @@ SELECTED_SYSTEMS = (
     ("ch4_c2", "ethane", 1, 2, 1, 2, 17),
     ("ch4_c3", "propane", 1, 3, 3, 4, 23),
 )
+#: The same ThermoML record also holds the two butane binaries. They are not
+#: part of the production dataset; tools/run_butane_preview.py reads them.
+BUTANE_COMPOUNDS = {
+    1: ("methane", "VNWKTOKETHGBQD-UHFFFAOYSA-N"),
+    4: ("2-methylpropane", "NNPPMTNAJDCUHE-UHFFFAOYSA-N"),
+    5: ("butane", "IJDNQMDRQITEOD-UHFFFAOYSA-N"),
+}
+BUTANE_SYSTEMS = (
+    ("ch4_ic4", "isobutane", 1, 4, 5, 6, 18),
+    ("ch4_nc4", "n_butane", 1, 5, 7, 8, 20),
+)
 
 
 def _property_descriptor(dataset: dict[str, Any]) -> tuple[str, str, str, int | None]:
@@ -71,7 +82,10 @@ def _variable_descriptors(dataset: dict[str, Any]) -> tuple[tuple[object, ...], 
     return tuple(descriptors)
 
 
-def _validate_source(document: dict[str, Any]) -> dict[int, dict[str, Any]]:
+def _validate_source(
+    document: dict[str, Any],
+    expected_compounds: dict[int, tuple[str, str]] | None = None,
+) -> dict[int, dict[str, Any]]:
     citation = document["Citation"]
     if citation["sDOI"] != EXPECTED_DOI or citation["sTitle"] != EXPECTED_TITLE:
         raise ValueError("ThermoML citation identity does not match May et al. (2015).")
@@ -81,7 +95,7 @@ def _validate_source(document: dict[str, Any]) -> dict[int, dict[str, Any]]:
         int(compound["RegNum"]["nOrgNum"]): compound
         for compound in document["Compound"]
     }
-    for number, (name, inchikey) in EXPECTED_COMPOUNDS.items():
+    for number, (name, inchikey) in (expected_compounds or EXPECTED_COMPOUNDS).items():
         compound = compounds.get(number)
         if (
             compound is None
@@ -96,7 +110,10 @@ def _validate_source(document: dict[str, Any]) -> dict[int, dict[str, Any]]:
 
 
 def _dataset_values(
-    dataset: dict[str, Any], *, expected_count: int
+    dataset: dict[str, Any],
+    *,
+    expected_count: int,
+    skip_identical_duplicates: bool = False,
 ) -> dict[tuple[float, float], tuple[int, float, float]]:
     rows: dict[tuple[float, float], tuple[int, float, float]] = {}
     values = dataset["NumValues"]
@@ -108,14 +125,22 @@ def _dataset_values(
             for value in row["VariableValue"]
         }
         key = (variables[1], variables[2])
-        if key in rows:
-            raise ValueError("duplicate ThermoML independent-variable pairing key.")
         property_value = row["PropertyValue"][0]
         uncertainty = property_value.get("CombinedUncertainty", {}).get(
             "nCombExpandUncertValue"
         )
         if uncertainty is None:
             raise ValueError("selected ThermoML property uncertainty is missing.")
+        if key in rows:
+            # A row repeated with every value identical is one measurement
+            # listed twice; it is skipped only when the caller opts in.
+            identical = rows[key][1:] == (
+                float(property_value["nPropValue"]),
+                float(uncertainty),
+            )
+            if skip_identical_duplicates and identical:
+                continue
+            raise ValueError("duplicate ThermoML independent-variable pairing key.")
         rows[key] = (
             row_number,
             float(property_value["nPropValue"]),
@@ -124,10 +149,16 @@ def _dataset_values(
     return rows
 
 
-def extract_normalized_rows(document: dict[str, Any]) -> tuple[dict[str, str], ...]:
+def extract_normalized_rows(
+    document: dict[str, Any],
+    systems: tuple[tuple[str, str, int, int, int, int, int], ...] | None = None,
+    compounds: dict[int, tuple[str, str]] | None = None,
+    *,
+    skip_identical_duplicates: bool = False,
+) -> tuple[dict[str, str], ...]:
     """Pair pressure and vapor observations by ``(T, x_CH4)``, never by index."""
 
-    datasets = _validate_source(document)
+    datasets = _validate_source(document, compounds)
     normalized: list[dict[str, str]] = []
     for (
         system_id,
@@ -137,7 +168,7 @@ def extract_normalized_rows(document: dict[str, Any]) -> tuple[dict[str, str], .
         pressure_number,
         vapor_number,
         expected_count,
-    ) in SELECTED_SYSTEMS:
+    ) in systems or SELECTED_SYSTEMS:
         pressure_dataset = datasets[pressure_number]
         vapor_dataset = datasets[vapor_number]
         expected_components = {methane_number, heavy_number}
@@ -169,9 +200,15 @@ def extract_normalized_rows(document: dict[str, Any]) -> tuple[dict[str, str], .
         ):
             raise ValueError("ThermoML vapor-composition property is unexpected.")
         pressure_values = _dataset_values(
-            pressure_dataset, expected_count=expected_count
+            pressure_dataset,
+            expected_count=expected_count,
+            skip_identical_duplicates=skip_identical_duplicates,
         )
-        vapor_values = _dataset_values(vapor_dataset, expected_count=expected_count)
+        vapor_values = _dataset_values(
+            vapor_dataset,
+            expected_count=expected_count,
+            skip_identical_duplicates=skip_identical_duplicates,
+        )
         if pressure_values.keys() != vapor_values.keys():
             missing_vapor = sorted(pressure_values.keys() - vapor_values.keys())
             missing_pressure = sorted(vapor_values.keys() - pressure_values.keys())
