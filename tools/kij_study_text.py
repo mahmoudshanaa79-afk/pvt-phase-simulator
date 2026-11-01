@@ -259,32 +259,63 @@ def limits() -> str:
 
 
 def proposal(rows: list[dict[str, str]], fits: dict[str, Any]) -> str:
-    fitted = ", ".join(
-        f"{LABELS[system]} {_kij(fits[system]['optimum'])}"
-        for system in _production(rows)
-        if "optimum" in fits[system]
+    systems = [system for system in _production(rows) if "optimum" in fits[system]]
+    fitted = ", ".join(f"{LABELS[s]} {_kij(fits[s]['optimum'])}" for s in systems)
+    bias = ", ".join(
+        f"{LABELS[s]} {float(_row(rows, s, 0.0, 'bubble')['bias_percent']):+.2f} % "
+        f"(n={_row(rows, s, 0.0, 'bubble')['aard_n']})"
+        for s in systems
+    )
+    signs = {float(_row(rows, s, 0.0, "bubble")["bias_percent"]) < 0 for s in systems}
+    direction = (
+        "PR under-predicts slightly"
+        if signs == {True}
+        else "PR over-predicts slightly"
+        if signs == {False}
+        else "the sign differs between the binaries"
+    )
+    spreads = []
+    for system in systems:
+        values = [
+            item["best_kij"]
+            for item in fits[system]["per_state_best_kij"]
+            if item["best_kij"] is not None
+        ]
+        spreads.append(f"{LABELS[system]} {_kij(min(values))} to {_kij(max(values))}")
+    ambiguity = ", ".join(
+        f"{LABELS[s]} {_ambiguous(_row(rows, s, 0.0, 'dew'))} at kij = 0 and "
+        f"{_ambiguous(_row(rows, s, fits[s]['optimum'], 'dew'))} at the fitted kij"
+        for s in systems
     )
     return f"""## Proposal for the owner
 
 Nothing below is implemented. Fitted values from this study: {fitted}.
 
+**What the evidence says.**
+- At kij = 0 the mean signed bubble-pressure error is {bias}: {direction}.
+- Each state's own best kij spans {"; ".join(spreads)}. One constant kij is a
+  compromise between the low-pressure states and the states near the critical
+  region, not a fix for both.
+- Ambiguous dew states (hidden or multiple roots): {ambiguity}. A small kij does
+  not make the dew question better posed.
+
 **Option 1: keep kij = 0 everywhere (today's behaviour).**
 - For: no fitted parameter; the validation record stays a pure prediction; no
   change for users, tests or teaching material.
-- Against: the systematic bubble-pressure bias shown above stays.
+- Against: the small systematic bubble-pressure bias above stays.
 
 **Option 2: keep kij = 0 as the default, and offer kij as an optional,
 clearly labelled input in the app.**
-- For: users and students can see what kij does (Lab 4 does this by hand); the
-  validation record and every default result stay unchanged.
+- For: users and students can see what kij does; the validation record and
+  every default result stay unchanged.
 - Against: more inputs and states to test; a user can enter a kij with no basis,
   so the page must say that a non-zero kij is a fitted, non-predictive choice.
 
 **Option 3: adopt the fitted values as defaults.**
 - For: better bubble pressures on these data.
 - Against: the improvement is calibration on the same data, from one source;
-  it changes every default result and the validation record, and the dew
-  results above show what it does where the data are ill-conditioned.
+  it changes every default result and the validation record, and it does not
+  reduce the dew ambiguity.
 
 **Recommendation: Option 2.** Keep kij = 0 as the default and as the validation
 reference, and let the owner decide whether an optional kij input is worth its

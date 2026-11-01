@@ -360,23 +360,31 @@ access should read the kij values in these sources and add them here.
 
 Nothing below is implemented. Fitted values from this study: CH4+C2 -0.0002, CH4+C3 +0.0030.
 
+**What the evidence says.**
+- At kij = 0 the mean signed bubble-pressure error is CH4+C2 -0.29 % (n=11), CH4+C3 -1.02 % (n=20): PR under-predicts slightly.
+- Each state's own best kij spans CH4+C2 -0.0060 to +0.0460; CH4+C3 -0.0060 to +0.0420. One constant kij is a
+  compromise between the low-pressure states and the states near the critical
+  region, not a fix for both.
+- Ambiguous dew states (hidden or multiple roots): CH4+C2 3 at kij = 0 and 3 at the fitted kij, CH4+C3 20 at kij = 0 and 20 at the fitted kij. A small kij does
+  not make the dew question better posed.
+
 **Option 1: keep kij = 0 everywhere (today's behaviour).**
 - For: no fitted parameter; the validation record stays a pure prediction; no
   change for users, tests or teaching material.
-- Against: the systematic bubble-pressure bias shown above stays.
+- Against: the small systematic bubble-pressure bias above stays.
 
 **Option 2: keep kij = 0 as the default, and offer kij as an optional,
 clearly labelled input in the app.**
-- For: users and students can see what kij does (Lab 4 does this by hand); the
-  validation record and every default result stay unchanged.
+- For: users and students can see what kij does; the validation record and
+  every default result stay unchanged.
 - Against: more inputs and states to test; a user can enter a kij with no basis,
   so the page must say that a non-zero kij is a fitted, non-predictive choice.
 
 **Option 3: adopt the fitted values as defaults.**
 - For: better bubble pressures on these data.
 - Against: the improvement is calibration on the same data, from one source;
-  it changes every default result and the validation record, and the dew
-  results above show what it does where the data are ill-conditioned.
+  it changes every default result and the validation record, and it does not
+  reduce the dew ambiguity.
 
 **Recommendation: Option 2.** Keep kij = 0 as the default and as the validation
 reference, and let the owner decide whether an optional kij input is worth its

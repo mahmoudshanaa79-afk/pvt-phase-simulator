@@ -90,12 +90,18 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
-- **2026-11-01, web (kij study, in progress):**
-  - Doing: the kij study (P6) on branch `kij-study`: what a non-zero kij does
-    for Peng–Robinson on the May (2015) data, without changing the engine.
-  - Open: waits for the desktop's `engine-p7-p8` PR, which changes the kij = 0
-    reference numbers; the study is rerun on top of it.
-  - Next: finish the study, then Lab 4 (kij).
+- **2026-11-01, web (kij study, waiting for engine-p7-p8):**
+  - Done: `tools/run_kij_study.py`, the rendered `docs/investigations/kij_study.md`
+    and `tests/test_kij_study.py`, in draft PR #28. No engine change. Interim
+    fits on the current engine: CH4+C2 about 0, CH4+C3 +0.003; provisional
+    butanes about +0.012 (iC4) and +0.010 (nC4). A constant kij does not reduce
+    the ambiguous dew states.
+  - Open: PR #28 waits for the desktop's `engine-p7-p8` PR. After it merges,
+    merge master, rerun the study (about an hour) and take the kij = 0 reference
+    from the regenerated Module 17 summary. Published PR kij values could not
+    be verified from the web session (full texts blocked); someone with access
+    should check them.
+  - Next: rerun after engine-p7-p8, merge PR #28, then Lab 4 (kij).
 
 - **2026-11-01, desktop (new components proposal):**
   - Done: `docs/NEW_COMPONENTS_PROPOSAL.md`. The May (2015) ThermoML record
