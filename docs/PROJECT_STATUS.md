@@ -92,6 +92,14 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-02, web (butanes admission plan, docs only):**
+  - Done: `docs/BUTANES_ADMISSION_PLAN.md`, a step-by-step plan for admitting
+    isobutane and n-butane once the owner supplies the six Yang & Richter
+    (2025) Table 5 values and approves the frozen-path edits. Nothing applied;
+    `data/` and the engine are untouched.
+  - Waiting for the owner: the six values and the approval; the choice of a
+    second CSV versus extending the existing one; app option (a) or (b).
+
 - **2026-11-02, web (Lab 4: what kij does):**
   - Done: `docs/teaching/LAB_04_BINARY_INTERACTION.md` (CH4+C3 at 243.62 K):
     bubble pressures at kij = 0 and the fitted +0.0021 against four measured

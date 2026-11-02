@@ -2,7 +2,8 @@
 
 Status: P7 and P8 **applied** on 1 November 2026 (owner-approved, see
 `docs/ENGINE_CHANGE_PROPOSALS.md`). The butanes still **await the owner's
-decision**. The evidence below describes the record as it was before P7 and P8: the files
+decision**; the step-by-step admission plan is
+`docs/BUTANES_ADMISSION_PLAN.md`. The evidence below describes the record as it was before P7 and P8: the files
 `docs/investigations/butane_preview.csv`, `butane_preview_points.csv`,
 `empty_scan_whatif.csv` and `dew_uniqueness_audit.csv` were produced by the
 pre-P7/P8 solver and are kept unchanged as evidence; they are not regenerated.
