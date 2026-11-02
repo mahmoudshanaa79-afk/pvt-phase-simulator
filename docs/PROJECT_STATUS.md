@@ -92,6 +92,16 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-02, web (Lab 4: what kij does):**
+  - Done: `docs/teaching/LAB_04_BINARY_INTERACTION.md` (CH4+C3 at 243.62 K):
+    bubble pressures at kij = 0 and the fitted +0.0021 against four measured
+    states, a P-x-y table at both kij, and the state 013 dew solve, which
+    stays ambiguous at both kij (20 of 23 CH4+C3 dew states ambiguous either
+    way). No dew pressure is quoted at an ambiguous state.
+    `tests/test_teaching_lab_04.py` recomputes every number through the app's
+    input boundary and the engine.
+  - Next: the v1.6.0 release PR (owner approval needed), the butanes plan.
+
 - **2026-11-02, web (optional kij input, Option 2):**
   - Done: the owner approved Option 2 of P6. The sidebar form has a collapsed
     *Advanced: binary interaction (kij)* expander (one field per pair in the
