@@ -169,7 +169,7 @@ def _kij_inputs(values: tuple[float, ...]) -> tuple[float, float, float]:
                     min_value=KIJ_MINIMUM,
                     max_value=KIJ_MAXIMUM,
                     step=KIJ_STEP,
-                    format="%.3f",
+                    format="%.4f",
                     key=KIJ_KEYS[index],
                     help=KIJ_HELP,
                     disabled=not present[index],

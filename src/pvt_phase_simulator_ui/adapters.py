@@ -98,7 +98,7 @@ def binary_interaction_assumption(
         return "kij = 0"
     present = pairs_present(fractions)
     text = ", ".join(
-        f"{label} = {value:+.3f}"
+        f"{label} = {value:+g}"
         for label, value, here in zip(KIJ_PAIR_LABELS, used, present, strict=True)
         if here
     )
