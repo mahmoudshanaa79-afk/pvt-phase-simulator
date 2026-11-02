@@ -430,6 +430,7 @@ def _envelope_branch(
         ("Termination message", _available(message)),
         ("Accepted points", _available(accepted, "points")),
         ("Rejected attempts", _available(rejected, "attempts")),
+        *_code_rows(branch),
     ]
     body = f"<h3>{escape(label)} branch</h3>" + _table(rows)
     if _termination_failed(termination):
@@ -495,6 +496,54 @@ def _envelope_branch(
         + "</tbody></table></div>"
     )
     return body
+
+
+def _code_rows(record: Mapping[str, object]) -> list[tuple[str, str]]:
+    """The engine's codes verbatim, then one row per plain-language reading."""
+
+    codes = [str(code) for code in _sequence(record.get("diagnostic_codes"))]
+    if not codes:
+        return []
+    rows = [("Solver diagnostic codes", _available(", ".join(codes)))]
+    for raw in _sequence(record.get("diagnostic_explanations")):
+        item = _mapping(raw)
+        rows.append((str(item.get("codes")), _available(item.get("text"))))
+    return rows
+
+
+def _saturation_section(document: Mapping[str, object]) -> str:
+    results = _mapping(document.get("results"))
+    saturation = _mapping(results.get("saturation_at_operating_temperature"))
+    title = "Saturation at the operating temperature"
+    if saturation.get("calculation_status") != "calculated":
+        reason = "The bubble- and dew-pressure solves have not been run."
+        body = _status("UNAVAILABLE", reason, "unavailable")
+        body += _result_unavailable_rows(("Bubble pressure", "Dew pressure"), reason)
+        return _section(title, body, section_id="saturation")
+    body = ""
+    for key, label in (("bubble_point", "Bubble"), ("dew_point", "Dew")):
+        direction = _mapping(saturation.get(key))
+        pressure = _mapping(direction.get("pressure"))
+        status = str(direction.get("solver_status") or "unavailable")
+        if pressure.get("status") == "available":
+            value = _available(
+                pressure.get("value"), str(direction.get("pressure_unit") or "")
+            )
+        else:
+            value = _failed(
+                f"No pressure reported; solver status {_enum_text(status)}."
+            )
+        rows = [
+            ("Solver status", _available(_enum_text(status))),
+            (f"{label} pressure", value),
+            (
+                "Failure reason",
+                _available(direction.get("failure_reason") or "None reported"),
+            ),
+            *_code_rows(direction),
+        ]
+        body += f"<h3>{escape(label)} pressure</h3>" + _table(rows)
+    return _section(title, body, section_id="saturation")
 
 
 def _envelope_section(document: Mapping[str, object]) -> str:
@@ -854,6 +903,7 @@ def export_engineering_report_html(
             _case_section(document),
             _flash_section(document),
             _envelope_section(document),
+            _saturation_section(document),
             _critical_section(document),
             _sweep_section(sweep_document),
             _scope_section(scope),

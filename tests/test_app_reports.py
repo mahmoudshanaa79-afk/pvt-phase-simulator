@@ -288,7 +288,7 @@ def test_report_generation_leaves_existing_csv_and_json_exports_unchanged() -> N
     assert export_csv_bytes(document) == csv_before
     assert export_json_bytes(document) == json_before
     assert csv_before.startswith(b"\xef\xbb\xbf")
-    assert b'"version": "1.1.0"' in json_before
+    assert b'"version": "1.2.0"' in json_before
 
 
 def _envelope_document(termination_status: str, message: str, points: list[dict]):

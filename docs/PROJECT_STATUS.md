@@ -92,6 +92,16 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-02, web (plain-language solver codes):**
+  - Done: `src/pvt_phase_simulator_ui/solver_codes.py` gives one sentence each
+    for `BOUNDARY_SATURATION_ROOT`, `HIDDEN_SATURATION_ROOT` +
+    `MULTIPLE_SATURATION_ROOTS` and `SATURATION_ROOT_UNBRACKETED`, always next
+    to the code. The Phase Envelope action also solves bubble and dew pressure
+    at the operating temperature; codes are explained there, on Diagnostics,
+    in a Validation-page table of record states, in the export (schema 1.2.0)
+    and in the HTML report. AppTests cover one real state per code.
+  - Next: the owner-approved optional kij input (Option 2), then Lab 4.
+
 - **2026-11-02, web (P7/P8 follow-ups):**
   - Done: reran the envelope survey (14 of 16 closed; P7 also fixed the 330 K
     warm start) and extended `tools/run_hidden_dew_root_check.py` to confirm

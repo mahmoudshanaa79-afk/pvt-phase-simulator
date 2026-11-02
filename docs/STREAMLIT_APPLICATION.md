@@ -133,7 +133,9 @@ temperature uses the standard 273.15 and 459.67 offsets.
   a downloadable printable engineering case report.
 - **Phase Envelope:** independent bubble and dew traces using Module 21,
   status-aware unavailable points, terminations, critical overlay, and phase
-  compositions when available.
+  compositions when available. The same action also solves the bubble and dew
+  pressure at the operating temperature (production defaults) and shows each
+  result with its status, reason and diagnostic codes.
 - **Critical Point:** Module 20 certification evidence and optional Module 19
   maps, including Tc, Pc, lambda_min, C, direction, convergence, and conditioning.
 - **Engineering Sweeps:** bounded pressure or temperature sweeps at the other
@@ -199,7 +201,19 @@ counts without filling failed point values. CSV and JSON exports are independent
 and retain their existing schemas and serialization.
 
 Structured statuses such as `LINE_SEARCH_FAILED`, `JACOBIAN_FAILED`,
-`NOT_FOUND`, and `BRANCH_LOST` remain failures or information. Only
+`NOT_FOUND`, and `BRANCH_LOST` remain failures or information.
+
+The saturation codes added by proposals P2, P7 and P8 get one plain-language
+sentence each (`src/pvt_phase_simulator_ui/solver_codes.py`), always next to the
+engine's own code: `BOUNDARY_SATURATION_ROOT` (a converged, bracketed root found
+next to a failed grid point), `HIDDEN_SATURATION_ROOT` with
+`MULTIPLE_SATURATION_ROOTS` (two possible answers, so no pressure) and
+`SATURATION_ROOT_UNBRACKETED` (a root that could not be bracketed, so no
+number). They appear on the Phase Envelope and Diagnostics pages, in the
+Validation page's table of record states that carry them, in the JSON/CSV
+export (`diagnostic_codes`, `diagnostic_explanations`; export schema 1.2.0) and
+in the HTML report. Overview, Critical Point and Engineering Sweeps show no
+saturation result, so they have nothing to explain. Only
 `CriticalPointStatus.CONVERGED` is a certified critical point. `lambda_min=0`
 alone is a spinodal condition, and turning points are continuation geometry.
 Neither is labelled a critical point.

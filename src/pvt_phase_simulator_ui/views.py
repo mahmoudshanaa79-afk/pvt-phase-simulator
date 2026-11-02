@@ -25,6 +25,12 @@ from pvt_phase_simulator.eos.phase_envelope import (
     PhaseEnvelopeResult,
     calculate_phase_envelope,
 )
+from pvt_phase_simulator.eos.saturation_pressure import (
+    SaturationKind,
+    SaturationPressureResult,
+    SaturationStatus,
+    calculate_saturation_pressure,
+)
 from pvt_phase_simulator.plotting import (
     CompositionDisplay,
     plot_critical_solver_conditioning,
@@ -73,6 +79,12 @@ from pvt_phase_simulator_ui.exports import (
 from pvt_phase_simulator_ui.learn import render_learn_panel
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
 from pvt_phase_simulator_ui.reports import export_engineering_report_html
+from pvt_phase_simulator_ui.solver_codes import (
+    EXPLAINED_CODES,
+    explain_codes,
+    explanation_text,
+    record_solver_outcomes,
+)
 from pvt_phase_simulator_ui.state import (
     SWEEP_END_WIDGET_KEY,
     SWEEP_KIND_WIDGET_KEY,
@@ -118,6 +130,10 @@ ENVELOPE_ACTION_FAILURE: Final = (
 EXTENSION_ACTION_FAILURE: Final = (
     "The extended envelope branches stopped unexpectedly and were not drawn. The "
     "standard envelope shown here is unaffected."
+)
+SATURATION_ACTION_FAILURE: Final = (
+    "The bubble- and dew-pressure solves at the operating temperature stopped "
+    "unexpectedly and returned no result. The envelope shown here is unaffected."
 )
 CRITICAL_ACTION_FAILURE: Final = (
     "The critical-point calculation stopped unexpectedly and did not return a "
@@ -651,6 +667,12 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         )
         if result_is_stale(session(), "critical", inputs):
             critical_export = None
+        saturation_export = cast(
+            tuple[SaturationPressureResult, SaturationPressureResult] | None,
+            get_result(session(), "saturation"),
+        )
+        if result_is_stale(session(), "saturation", inputs):
+            saturation_export = None
         sweep_export = cast(SweepResult | None, get_result(session(), "sweep"))
         if result_is_stale(session(), "sweep", inputs):
             sweep_export = None
@@ -659,6 +681,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             flash_result=None if flash_stale else result,
             envelope_result=envelope_export,
             critical_result=critical_export,
+            saturation_results=saturation_export,
             units=units,
         )
         sweep_document = (
@@ -728,6 +751,74 @@ def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
+def _calculate_operating_saturation(
+    inputs: ScientificInputs,
+) -> tuple[SaturationPressureResult, SaturationPressureResult]:
+    """Bubble and dew pressure at the operating temperature, production defaults."""
+
+    mixture = inputs.mixture()
+    return (
+        calculate_saturation_pressure(
+            mixture, inputs.temperature_k, SaturationKind.BUBBLE_POINT
+        ),
+        calculate_saturation_pressure(
+            mixture, inputs.temperature_k, SaturationKind.DEW_POINT
+        ),
+    )
+
+
+def _codes(diagnostics: Any) -> tuple[str, ...]:
+    return tuple(item.code for item in diagnostics)
+
+
+def _render_code_explanations(codes: tuple[str, ...]) -> None:
+    """Plain-language lines for the explained codes, with each code shown verbatim."""
+
+    for item in explain_codes(codes):
+        st.markdown(
+            f"`{item.label}` — {item.text}",
+            help="The engine's own diagnostic code, with a plain-language reading.",
+        )
+
+
+def _saturation_value(result: SaturationPressureResult, units: UnitPreferences) -> str:
+    if result.status is SaturationStatus.CONVERGED and result.pressure_pa is not None:
+        return (
+            f"{_display_pressure(result.pressure_pa, units):.6g} {units.pressure.value}"
+        )
+    return f"No pressure reported ({status_text(result.status)})"
+
+
+def _render_operating_saturation(
+    results: tuple[SaturationPressureResult, SaturationPressureResult],
+    units: UnitPreferences,
+) -> None:
+    st.subheader("Bubble and dew pressure at the operating temperature")
+    st.caption(
+        "One saturation solve per direction with the production defaults "
+        "(scanning solver, Newton refinement off, kij = 0). The engine's status, "
+        "reason and diagnostic codes are shown as reported."
+    )
+    _status_rows(
+        [
+            (
+                f"{label} pressure",
+                _saturation_value(result, units),
+                f"{status_text(result.status)} · "
+                f"{result.failure_reason or 'No failure reason reported'} · "
+                f"Codes: {', '.join(_codes(result.diagnostics)) or 'none'}",
+            )
+            for label, result in zip(("Bubble", "Dew"), results, strict=True)
+        ]
+    )
+    for label, result in zip(("Bubble", "Dew"), results, strict=True):
+        codes = _codes(result.diagnostics)
+        if EXPLAINED_CODES & set(codes):
+            st.markdown(f"**{label} pressure:**")
+            _render_code_explanations(codes)
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
 def _calculate_extended_envelope(inputs: ScientificInputs) -> ExtendedEnvelope:
     return trace_extended_envelope(inputs.mixture(), inputs.temperature_k)
 
@@ -751,6 +842,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
         assert action_inputs is not None
         begin_result_attempt(session(), "envelope")
         begin_result_attempt(session(), "envelope_extension")
+        begin_result_attempt(session(), "saturation")
         with st.status("Tracing bubble and dew branches…", expanded=True) as status:
             status.write(
                 "Cold-starting below the operating point, then continuing both "
@@ -773,6 +865,19 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                     LOGGER.exception("Unexpected failure extending the phase envelope")
                     store_result_action_failure(
                         session(), "envelope_extension", EXTENSION_ACTION_FAILURE
+                    )
+                status.write("Solving bubble and dew pressure at the operating point…")
+                try:
+                    store_result(
+                        session(),
+                        "saturation",
+                        _calculate_operating_saturation(action_inputs),
+                        action_inputs,
+                    )
+                except Exception:  # noqa: BLE001 - the envelope stays valid
+                    LOGGER.exception("Unexpected failure in the saturation solves")
+                    store_result_action_failure(
+                        session(), "saturation", SATURATION_ACTION_FAILURE
                     )
                 status.update(label="Envelope trace complete", state="complete")
             except Exception:  # noqa: BLE001 - preserve a safe application boundary
@@ -839,6 +944,21 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             ),
         ]
     )
+    for traced in (result.bubble_branch, result.dew_branch):
+        codes = _codes(traced.diagnostics)
+        if EXPLAINED_CODES & set(codes):
+            st.markdown(
+                f"**{traced.branch_kind.value.capitalize()} branch** solver codes:"
+            )
+            _render_code_explanations(codes)
+    saturation = cast(
+        tuple[SaturationPressureResult, SaturationPressureResult] | None,
+        get_result(session(), "saturation"),
+    )
+    if saturation is not None and not result_is_stale(session(), "saturation", inputs):
+        _render_operating_saturation(saturation, units)
+    else:
+        _show_action_failure("saturation")
     if extension is None:
         _show_action_failure("envelope_extension")
     else:
@@ -1179,6 +1299,27 @@ def render_validation() -> None:
         _square_chart(composition_figure, key="validation_composition_parity")
     elif composition_error is not None:
         st.info(f"Composition parity unavailable: {composition_error}")
+    outcomes = record_solver_outcomes(ROOT, selected)
+    if outcomes:
+        st.subheader("Solver codes in the record")
+        st.caption(
+            f"{len(outcomes)} {selected} states whose engine codes need a word of "
+            "explanation, read from the committed Module 17 record."
+        )
+        st.dataframe(
+            pd.DataFrame(
+                {
+                    "State": item.source_point_id,
+                    "T (K)": item.temperature_k,
+                    "Status": item.status,
+                    "Codes": ", ".join(item.codes),
+                    "Plain language": item.explanation,
+                }
+                for item in outcomes
+            ),
+            hide_index=True,
+            width="stretch",
+        )
     st.subheader("Retrospective nearest-root diagnostics")
     st.error(
         "NOT PRODUCTION PREDICTIONS — retrospective nearest-root diagnostics only.",
@@ -1296,6 +1437,30 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
             ]
         )
         st.caption("Turning indicators are continuation geometry, not critical points.")
+        for branch in (envelope.bubble_branch, envelope.dew_branch):
+            _render_code_explanations(_codes(branch.diagnostics))
+    saturation_raw = get_result(session(), "saturation")
+    if saturation_raw is not None:
+        saturation = cast(
+            tuple[SaturationPressureResult, SaturationPressureResult], saturation_raw
+        )
+        _stale("saturation", inputs)
+        st.subheader("Saturation at the operating temperature")
+        st.dataframe(
+            pd.DataFrame(
+                {
+                    "Direction": label,
+                    "Status": _value(result.status),
+                    "Pressure (Pa)": _optional(result.pressure_pa),
+                    "Failure reason": result.failure_reason or "None reported",
+                    "Codes": ", ".join(_codes(result.diagnostics)),
+                    "Plain language": explanation_text(_codes(result.diagnostics)),
+                }
+                for label, result in zip(("bubble", "dew"), saturation, strict=True)
+            ),
+            hide_index=True,
+            width="stretch",
+        )
     if critical_raw is not None:
         critical = cast(MixtureCriticalPointResult, critical_raw)
         _stale("critical", inputs)
@@ -1318,7 +1483,12 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
                 ("Function evaluations", str(critical.function_evaluations), "Count"),
             ]
         )
-    if flash_raw is None and envelope_raw is None and critical_raw is None:
+    if (
+        flash_raw is None
+        and envelope_raw is None
+        and critical_raw is None
+        and saturation_raw is None
+    ):
         st.info("Run a calculation to populate diagnostics.")
     if st.toggle("Show advanced raw public objects", key="diagnostics_raw"):
         if flash_raw is not None:
