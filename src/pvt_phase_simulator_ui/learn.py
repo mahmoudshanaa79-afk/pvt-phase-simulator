@@ -180,7 +180,15 @@ TOPICS: Final[dict[PageName, LearnTopic]] = {
             "stopped.\n\n"
             "A trustworthy result is one whose residuals are small *and* whose "
             "stopping reason is understood. A plausible-looking number with an "
-            "unexplained stop is not a result."
+            "unexplained stop is not a result.\n\n"
+            "Saturation results carry the engine's diagnostic codes, and the app "
+            "explains the ones that change how a number should be read. "
+            "`BOUNDARY_SATURATION_ROOT`: the root was found next to a failed grid "
+            "point, but it is still a converged, bracketed root. "
+            "`HIDDEN_SATURATION_ROOT` with `MULTIPLE_SATURATION_ROOTS`: there are "
+            "two possible answers, so no pressure is reported. "
+            "`SATURATION_ROOT_UNBRACKETED`: a root was found but could not be "
+            "bracketed, so no number is reported."
         ),
         exercises=(
             "Run the default flash and open this page. The flash converges in "

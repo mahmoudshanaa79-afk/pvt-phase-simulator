@@ -15,12 +15,14 @@ from pvt_phase_simulator.eos.phase_envelope import (
     PhaseEnvelopePoint,
     PhaseEnvelopeResult,
 )
+from pvt_phase_simulator.eos.saturation_pressure import SaturationPressureResult
 from pvt_phase_simulator_ui.adapters import (
     COMPONENT_NAMES,
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
 )
+from pvt_phase_simulator_ui.solver_codes import explain_codes
 from pvt_phase_simulator_ui.sweeps import SweepPoint, SweepResult
 from pvt_phase_simulator_ui.units import (
     DEFAULT_UNITS,
@@ -30,7 +32,7 @@ from pvt_phase_simulator_ui.units import (
 )
 
 EXPORT_SCHEMA_NAME = "pvt-phase-simulator-current-case"
-EXPORT_SCHEMA_VERSION = "1.1.0"
+EXPORT_SCHEMA_VERSION = "1.2.0"
 
 
 def _enum_value(value: object) -> str:
@@ -134,6 +136,51 @@ def _display_state(
     }
 
 
+def _diagnostic_fields(codes: Sequence[str]) -> dict[str, object]:
+    """The engine's codes verbatim, and plain-language text for explained ones."""
+
+    return {
+        "diagnostic_codes": list(codes),
+        "diagnostic_explanations": [
+            {"codes": item.label, "text": item.text} for item in explain_codes(codes)
+        ],
+    }
+
+
+def _saturation_direction_export(
+    result: SaturationPressureResult, units: UnitPreferences
+) -> dict[str, object]:
+    reason = "The production solver reported no unique saturation pressure."
+    pressure = result.pressure_pa if result.status.value == "converged" else None
+    return {
+        "solver_status": _enum_value(result.status),
+        "failure_reason": result.failure_reason,
+        "pressure_pa": _optional_result_value(
+            pressure, not_applicable=False, reason=reason
+        ),
+        "pressure": _optional_result_value(
+            None if pressure is None else pressure_from_pa(pressure, units.pressure),
+            not_applicable=False,
+            reason=reason,
+        ),
+        "pressure_unit": units.pressure.value,
+        **_diagnostic_fields(tuple(item.code for item in result.diagnostics)),
+    }
+
+
+def _saturation_export(
+    results: tuple[SaturationPressureResult, SaturationPressureResult],
+    units: UnitPreferences,
+) -> dict[str, object]:
+    bubble, dew = results
+    return {
+        "calculation_status": "calculated",
+        "temperature_k": bubble.temperature_k,
+        "bubble_point": _saturation_direction_export(bubble, units),
+        "dew_point": _saturation_direction_export(dew, units),
+    }
+
+
 def _envelope_point_export(
     point: PhaseEnvelopePoint, units: UnitPreferences
 ) -> dict[str, object]:
@@ -162,6 +209,7 @@ def _envelope_branch_export(
         "termination_message": branch.termination_message,
         "accepted_point_count": len(branch.points),
         "rejected_attempt_count": len(branch.rejected_attempts),
+        **_diagnostic_fields(tuple(item.code for item in branch.diagnostics)),
         "points": [_envelope_point_export(point, units) for point in branch.points],
     }
 
@@ -232,6 +280,9 @@ def build_export_document(
     flash_result: TwoPhaseFlashResult | None = None,
     envelope_result: PhaseEnvelopeResult | None = None,
     critical_result: MixtureCriticalPointResult | None = None,
+    saturation_results: (
+        tuple[SaturationPressureResult, SaturationPressureResult] | None
+    ) = None,
     units: UnitPreferences = DEFAULT_UNITS,
 ) -> dict[str, object]:
     """Build an export solely from submitted inputs and already-held results."""
@@ -291,6 +342,11 @@ def build_export_document(
                 {"calculation_status": "not_calculated"}
                 if critical_result is None
                 else _critical_export(critical_result, units)
+            ),
+            "saturation_at_operating_temperature": (
+                {"calculation_status": "not_calculated"}
+                if saturation_results is None
+                else _saturation_export(saturation_results, units)
             ),
         },
     }

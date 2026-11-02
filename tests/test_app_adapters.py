@@ -298,7 +298,7 @@ def test_current_case_json_preserves_precision_and_unavailable_semantics() -> No
     flash = decoded["results"]["flash"]
 
     assert encoded == export_json_bytes(document)
-    assert decoded["schema"]["version"] == "1.1.0"
+    assert decoded["schema"]["version"] == "1.2.0"
     assert decoded["case"]["pressure_pa"] == 20_000_000.0
     assert flash["selected_single_phase_z"]["value"] == result.single_phase_root
     assert flash["selected_single_phase_z"]["value"] == pytest.approx(
@@ -310,6 +310,9 @@ def test_current_case_json_preserves_precision_and_unavailable_semantics() -> No
         "calculation_status": "not_calculated"
     }
     assert decoded["results"]["critical_point"] == {
+        "calculation_status": "not_calculated"
+    }
+    assert decoded["results"]["saturation_at_operating_temperature"] == {
         "calculation_status": "not_calculated"
     }
 
@@ -336,6 +339,7 @@ def test_export_without_calculated_results_does_not_fabricate_fields() -> None:
         "flash": {"calculation_status": "not_calculated"},
         "phase_envelope": {"calculation_status": "not_calculated"},
         "critical_point": {"calculation_status": "not_calculated"},
+        "saturation_at_operating_temperature": {"calculation_status": "not_calculated"},
     }
 
 
@@ -363,6 +367,7 @@ def test_envelope_export_preserves_branch_points_and_termination_evidence() -> N
             termination_message="Bubble target reached.",
             points=(point,),
             rejected_attempts=(object(),),
+            diagnostics=(SimpleNamespace(code="BOUNDARY_SATURATION_ROOT"),),
         ),
         dew_branch=SimpleNamespace(
             branch_kind="dew",
@@ -370,6 +375,7 @@ def test_envelope_export_preserves_branch_points_and_termination_evidence() -> N
             termination_message="Dew corrector stopped safely.",
             points=(),
             rejected_attempts=(),
+            diagnostics=(),
         ),
     )
     exported = build_export_document(  # type: ignore[arg-type]
@@ -383,12 +389,18 @@ def test_envelope_export_preserves_branch_points_and_termination_evidence() -> N
         1.2345678901234567e-10
     )
     assert exported["bubble_branch"]["rejected_attempt_count"] == 1
+    assert exported["bubble_branch"]["diagnostic_codes"] == ["BOUNDARY_SATURATION_ROOT"]
+    assert [
+        item["codes"] for item in exported["bubble_branch"]["diagnostic_explanations"]
+    ] == ["BOUNDARY_SATURATION_ROOT"]
     assert exported["dew_branch"] == {
         "branch_kind": "dew",
         "termination_status": "corrector_failed",
         "termination_message": "Dew corrector stopped safely.",
         "accepted_point_count": 0,
         "rejected_attempt_count": 0,
+        "diagnostic_codes": [],
+        "diagnostic_explanations": [],
         "points": [],
     }
 
