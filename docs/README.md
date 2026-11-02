@@ -18,6 +18,7 @@
 - [Module 9 phase-envelope continuation design](PHASE_ENVELOPE_DESIGN.md)
 - [Streamlit application, Learn mode and envelope overlay](STREAMLIT_APPLICATION.md)
 - [Dew-branch investigation](DEW_INVESTIGATION.md)
+- [Butanes admission plan (waiting for the owner)](BUTANES_ADMISSION_PLAN.md)
 - [Teaching lab 1: methane-propane phase behaviour](teaching/LAB_01_METHANE_PROPANE.md)
 - [Teaching lab 2: methane-ethane bubble pressures and the P-x-y diagram](teaching/LAB_02_METHANE_ETHANE.md)
 - [Teaching lab 3: how composition moves the phase envelope](teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
