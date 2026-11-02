@@ -54,8 +54,14 @@ def _signed(value: float) -> str:
     return f"{value:+.2f}".replace("-", "−")
 
 
+def _kij(value: float) -> str:
+    return f"{value:+.3f}".replace("-", "−")
+
+
 @cache
-def _solve(methane: float, kij: float, kind: SaturationKind) -> SaturationPressureResult:
+def _solve(
+    methane: float, kij: float, kind: SaturationKind
+) -> SaturationPressureResult:
     inputs = validate_scientific_inputs(
         (methane, 0.0, 100.0 - methane), TEMPERATURE_K, 5.0, kij=(0.0, kij, 0.0)
     )
@@ -122,12 +128,17 @@ def test_part_a_bubble_pressures_and_errors() -> None:
     assert "helps at 009, 010 and 012" in KEY and "hurts at 014" in KEY
 
 
-def test_part_a_own_best_kij_drifts_with_pressure() -> None:
+def test_part_a_own_best_kij_is_not_constant() -> None:
     best = {
         item["point_id"][-3:]: item["best_kij"] for item in FIT["per_state_best_kij"]
     }
-    assert best["009"] < best["014"]
-    assert "drifting with pressure along this isotherm" in KEY
+    low = [best[state] for state in ("009", "010", "011", "012")]
+    assert (min(low), max(low)) == (0.002, 0.004)
+    assert best["014"] == -0.005
+    assert (
+        f"between {_kij(min(low))} and {_kij(max(low))} at 009 to 012 but "
+        f"{_kij(best['014'])} at 014, near the critical region" in KEY
+    )
 
 
 def test_part_b_pxy_table_and_statements() -> None:

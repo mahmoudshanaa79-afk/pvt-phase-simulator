@@ -111,9 +111,9 @@ the app makes. `tests/test_teaching_lab_04.py` recomputes every number below.
 - The fitted kij raises every bubble pressure. That helps at 009, 010 and 012,
   where kij = 0 under-predicts, and hurts at 014, close to the critical
   region, where kij = 0 already over-predicts.
-- One constant kij is a compromise. The study shows each state's own best kij
-  drifting with pressure along this isotherm, so the average fit cannot be best
-  everywhere.
+- One constant kij is a compromise. In the study, each state's own best kij
+  is between +0.002 and +0.004 at 009 to 012 but −0.005 at 014, near the
+  critical region, so the average fit cannot be best everywhere.
 
 **Part B.**
 
