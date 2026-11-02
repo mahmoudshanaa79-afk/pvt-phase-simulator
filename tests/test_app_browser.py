@@ -320,6 +320,22 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     _assert_healthy_ui(page)
     _screenshot(page, evidence_directory, "07-diagnostics")
 
+    # Optional kij (Option 2 of P6): set one pair, submit, and see the badge.
+    page.get_by_text("Advanced: binary interaction (kij)", exact=True).click()
+    kij_field = page.get_by_role("spinbutton", name="kij C1–C3", exact=False)
+    expect(kij_field).to_be_enabled()
+    kij_field.fill("0.002")
+    kij_field.press("Tab")
+    _click_button(page, "RUN FLASH")
+    expect(
+        page.get_by_text("user-supplied kij: C1–C3 = +0.002", exact=False).first
+    ).to_be_visible(timeout=180_000)
+    expect(page.locator("span.stMarkdownBadge").first).to_contain_text(
+        "user-supplied kij"
+    )
+    _assert_healthy_ui(page)
+    _screenshot(page, evidence_directory, "08-user-supplied-kij")
+
     blocking_console_errors = [
         message
         for message in console_errors

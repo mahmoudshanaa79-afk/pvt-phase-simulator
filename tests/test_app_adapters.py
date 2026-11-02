@@ -616,8 +616,9 @@ def test_ui_envelope_trace_is_centered_on_operating_temperature(
     captured: dict[str, object] = {}
     sentinel = object()
 
-    def fake_calculate(*args: object) -> object:
+    def fake_calculate(*args: object, **kwargs: object) -> object:
         captured["args"] = args
+        captured["kwargs"] = kwargs
         return sentinel
 
     views._calculate_envelope.clear()

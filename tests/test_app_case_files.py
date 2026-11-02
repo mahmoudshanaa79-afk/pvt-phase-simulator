@@ -13,6 +13,7 @@ from pvt_phase_simulator_ui import app as ui_app
 from pvt_phase_simulator_ui.case_files import (
     CASE_SCHEMA,
     CASE_SCHEMA_VERSION,
+    CASE_SCHEMA_VERSION_WITH_KIJ,
     CaseFileError,
     apply_case_to_state,
     case_from_state,
@@ -352,7 +353,8 @@ def test_unknown_and_future_schema_versions_are_refused(version: str) -> None:
         load_case(_json_bytes(document))
     assert str(caught.value) == (
         f"Unsupported case schema version {version!r}; "
-        f"supported version is {CASE_SCHEMA_VERSION!r}."
+        f"supported versions are {CASE_SCHEMA_VERSION}, "
+        f"{CASE_SCHEMA_VERSION_WITH_KIJ}."
     )
 
 

@@ -224,7 +224,26 @@ single-phase root.
 
 Module 17 data is consumed from its protected artifact through the Module 21
 adapter. Validation remains `kij=0` with no fitted binary interaction
-parameters. Signed pressure error remains `100*(P_pred-P_exp)/P_exp`.
+parameters.
+
+**Optional kij (Option 2 of proposal P6, approved by the owner on 2 November
+2026).** The sidebar form has a collapsed *Advanced: binary interaction (kij)*
+expander with one field per pair (C1–C2, C1–C3, C2–C3): default 0.000, range
+−0.10 to +0.20, step 0.001. A pair whose component is absent from the mixture
+is disabled and never reaches the engine. The help text quotes the fitted
+values of `docs/investigations/kij_study.md` and says they are fits to one
+source. The submitted kij is passed as `binary_interactions` to every engine
+call the app makes: flash, the operating-temperature saturation solves, the
+phase envelope and its extended overlay, the critical point, the criticality
+map and the sweeps. With every kij = 0 no `binary_interactions` is passed, so
+results, exports and reports are byte-identical to the app without the input.
+When a kij is non-zero the header shows a *user-supplied kij* badge and names
+the values, each result page says the result used them, exports carry
+`binary_interaction_assumption` and `binary_interaction_parameters`, and the
+HTML report states them. Case files round-trip kij (schema 1.1.0, written only
+when a kij is non-zero); a file without kij loads as kij = 0. The Validation
+page always shows the kij = 0 record and notes when the submitted kij differs.
+Learn mode and the teaching labs stay at kij = 0. Signed pressure error remains `100*(P_pred-P_exp)/P_exp`.
 Retrospective nearest-root diagnostics are separate and explicitly labelled
 **not production prediction**.
 
