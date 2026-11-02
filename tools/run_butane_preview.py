@@ -22,6 +22,13 @@ change to ``data/``: how does the unchanged engine do on those two binaries?
 
 Output goes to ``docs/investigations``; nothing under ``data/`` or
 ``docs/validation`` is written.
+
+The committed output,
+``docs/investigations/butane_preview.csv`` and
+``docs/investigations/butane_preview_points.csv``,
+records the solver *before* proposals P7 and P8 (applied 1 November 2026) and
+is kept unchanged as the evidence for them (PR #27). Rerunning this tool on the
+current engine gives different results; do not overwrite that output.
 """
 
 from __future__ import annotations

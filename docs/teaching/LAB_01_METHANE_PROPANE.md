@@ -68,9 +68,10 @@ By the end of the lab you should be able to:
 1. The model uses kij = 0 and no volume translation. Which of your Part A
    numbers would you trust least, and why?
 2. Open **Validation**. The CH4+C3 bubble pressures agree with experiment
-   within about 1 %, but the dew pressures look far worse. Using
-   `docs/DEW_INVESTIGATION.md`, explain why a large dew-pressure error here is
-   not mainly a model error.
+   within about 1 %, but in the dew direction the solver reports a unique dew
+   pressure at only 1 of the 23 states. Using `docs/DEW_INVESTIGATION.md`,
+   explain why the dew question is so much harder here, and why that is not
+   mainly a model error.
 
 ---
 
@@ -127,6 +128,7 @@ model.
   small composition bias.
 - The measured vapour compositions sit at the maximum of PR's *y*(P) isotherm,
   where dew pressure is extremely sensitive to *y*. The stated composition
-  uncertainty alone allows megapascals of dew pressure. Compared at the measured
-  pressure, the model's vapour composition agrees within the stated uncertainty
-  at 22 of 23 states.
+  uncertainty alone allows megapascals of dew pressure, and at 20 of the 23
+  states PR has two dew pressures for the measured vapour, so the solver
+  reports neither. Compared at the measured pressure, the model's vapour
+  composition agrees within the stated uncertainty at 22 of 23 states.

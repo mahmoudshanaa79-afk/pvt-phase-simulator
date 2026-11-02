@@ -14,6 +14,12 @@ the isotherm's vapour CH4 fraction crosses the measured ``y``. Each crossing is 
 PR dew point of that vapour; two crossings mean the dew problem has two roots.
 A crossing hidden inside a gap of failed bubble solves would be missed, so a
 count of one is evidence, not proof. No engine path changes.
+
+The committed output,
+``docs/investigations/dew_uniqueness_audit.csv``,
+records the solver *before* proposals P7 and P8 (applied 1 November 2026) and
+is kept unchanged as the evidence for them (PR #27). Rerunning this tool on the
+current engine gives different results; do not overwrite that output.
 """
 
 from __future__ import annotations

@@ -83,9 +83,10 @@ jobs:
 
       - name: Full test suite
         # Includes the scientific regression suite, the golden master, and the
-        # application release-QA tests.
+        # application release-QA tests. Runs on all runner cores (pytest-xdist),
+        # one test file per worker, so every test still runs exactly once.
         timeout-minutes: 20
-        run: uv run pytest -q --ignore=tests/test_app_browser.py
+        run: uv run pytest -q -n auto --dist loadfile --ignore=tests/test_app_browser.py
 
       - name: Streamlit localhost health smoke
         # Loopback only, headless, bounded, and self-terminating. A cold runner

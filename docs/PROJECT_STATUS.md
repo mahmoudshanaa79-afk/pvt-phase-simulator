@@ -42,9 +42,9 @@ key whose numbers are recomputed from the engine by the tests.
 - About 1,000 test functions (about 1,500 test cases with parameters). CI runs
   lint, types, the full suite, a real-browser smoke test and a health check on
   every push.
-- Experimental bubble pressures:
-  - CH4+C2: 0.45 % AARD;
-  - CH4+C3: 1.03 % AARD.
+- Experimental bubble pressures (record regenerated after P7 and P8):
+  - CH4+C2: 1.02 % AARD, 17 of 17 states;
+  - CH4+C3: 1.01 % AARD, 23 of 23 states.
 - Certified critical point of 50/50 methane/propane: 321.58 K, 8.534 MPa.
 - [Dew investigation](DEW_INVESTIGATION.md): the large CH4+C3 dew-pressure
   error comes mostly from an ill-posed question and from hidden second roots,
@@ -54,7 +54,7 @@ key whose numbers are recomputed from the engine by the tests.
 
 | Item | Outcome |
 |---|---|
-| P1: root-count-tolerant continuation | Done, PR #15. The extended-envelope survey now closes 13 of 16 cases (9 before). The 3 that still stop early have other causes. |
+| P1: root-count-tolerant continuation | Done, PR #15. The extended-envelope survey now closes 14 of 16 cases (10 with the pre-P1 rule, both on the P7 solver; 13 and 9 before P7). The 2 that still stop early are trivial-state bubble stops. |
 | P5: neutral dew stop marker label | Done, PR #16, in the app layer. The engine's own label is unchanged. |
 | P2: refine grid boundaries in the saturation scan | Done, owner-approved. Nine dew results that looked unique are now reported as ambiguous (`HIDDEN_SATURATION_ROOT`); each second root is confirmed. The Module 17 artifacts were regenerated: CH4+C3 dew 7 → 1 unique results, CH4+C2 dew 15 → 12. Bubble results unchanged. |
 | Pure-component reference data (V2-01-E) | Accepted, PR #10 (`docs/PURE_COMPONENT_SATURATION.md`). |
@@ -113,6 +113,38 @@ work and added in that task's PR. Sessions read only the latest few entries.
     in a Validation-page table of record states, in the export (schema 1.2.0)
     and in the HTML report. AppTests cover one real state per code.
   - Next: the owner-approved optional kij input (Option 2), then Lab 4.
+
+- **2026-11-02, web (P7/P8 follow-ups):**
+  - Done: reran the envelope survey (14 of 16 closed; P7 also fixed the 330 K
+    warm start) and extended `tools/run_hidden_dew_root_check.py` to confirm
+    every `HIDDEN_SATURATION_ROOT` state without the production verdict, by
+    bracketing, PR's bubble isotherm or the traced dew branch, recorded per
+    state in `docs/investigations/hidden_dew_root_check.csv` (13 of 13
+    confirmed; CH4+C2 008 only by the dew branch). Stale numbers fixed in Lab 1,
+    Learn mode, `PROJECT_STATUS.md`, `VALIDATION_FRAMEWORK.md`,
+    `DEW_INVESTIGATION.md` and `STREAMLIT_APPLICATION.md`, with a test that
+    recomputes each from the record. PR #27's evidence files are labelled
+    pre-P7/P8 and left unchanged.
+  - Next: plain-language solver codes in the app, then the kij input.
+
+- **2026-11-02, web (kij study, P6):**
+  - Done: `tools/run_kij_study.py`, the rendered `docs/investigations/kij_study.md`
+    and `tests/test_kij_study.py` (PR #28), rerun on the P7/P8 engine; kij = 0
+    reproduces the regenerated Module 17 record state by state. No engine
+    change. Fits to bubble pressure: CH4+C2 0, CH4+C3 +0.0021 (AARD 0.99 % to
+    0.68 % on a fixed set of 22); provisional butanes +0.0121 (iC4) and +0.0098
+    (nC4). A constant kij does not reduce the ambiguous dew states. Published
+    PR kij values could not be verified from the web session.
+  - Next: P7/P8 follow-ups (stale numbers, survey rerun), plain-language
+    solver codes, the owner-approved optional kij input (Option 2), Lab 4.
+
+- **2026-11-02, web (CI: run the full suite in parallel):**
+  - Done: the "Full test suite" step runs `pytest -n auto --dist loadfile`
+    (pytest-xdist added to the dev group, `uv.lock` updated). After P7/P8 the
+    serial suite took about 15.5 min of its 20-min step on master, and the kij
+    study PR timed out at 84 %. Same tests, same gates, same timeout.
+  - Open: PRs #28, #30, #31 and #32 merge master in after this.
+  - Next: finish the kij study PR, then the chain.
 
 - **2026-11-01, desktop (engine P7 + P8, owner-approved):**
   - Done: `saturation_pressure.py` runs the boundary walk when the grid finds

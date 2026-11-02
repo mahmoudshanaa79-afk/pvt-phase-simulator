@@ -267,7 +267,8 @@ APIs remain unchanged.
 Ubuntu runner with Python 3.12 installed from the locked dependency graph:
 `uv lock --check`, Ruff, Ruff formatting, mypy over `src` and `app`,
 `compileall`, the application import smoke, a Playwright Chromium smoke, the
-full test suite, and the localhost Streamlit health smoke. The real-browser
+full test suite (in parallel over the runner's cores with pytest-xdist), and
+the localhost Streamlit health smoke. The real-browser
 gate exercises every primary page with the shipped examples, including case
 save/load, the default flash, phase envelope, critical solver and map,
 engineering sweep, validation figures, and diagnostics. It fails on raw
@@ -351,10 +352,12 @@ the engine's reason and the envelope is not shown as closed. For the default 50/
 methane/propane case both branches end within about 2 K and 0.1 MPa of the certified
 critical point (321.58 K, 8.534 MPa). A 16-case survey (the three shipped
 examples plus binaries and ternaries, listed in `tools/run_envelope_survey.py`)
-now closes both branches in 13 cases and stops early in 3, all of them binaries:
-a bubble initialization failure from a warm start, and two trivial-state stops.
-Before root-count-tolerant continuity (proposal P1) the same list closed 9 and
-stopped early in 7. The older wording (10 closed, 6 early) came from a case list
+now closes both branches in 14 cases and stops early in 2, both binaries with a
+trivial-state bubble stop. Before root-count-tolerant continuity (proposal P1)
+the same list closed 10 and stopped early in 6. Both counts are on the current
+saturation solver: before proposal P7 (1 November 2026) the warm-start
+methane/propane case at 330 K also stopped, with a bubble initialization
+failure, and the counts were 13 and 9. The older wording (10 closed, 6 early) came from a case list
 that was not kept, so it is not directly comparable. "Closed" means the engine's
 near-critical guard stopped both branches, not a certified critical point; the
 per-case results are in `docs/investigations/envelope_survey.md`.
