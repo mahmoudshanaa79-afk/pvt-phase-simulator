@@ -210,9 +210,10 @@ values remain diagnostics and never enter metrics.
 
 Tests read `docs/validation/module17_vle_validation_summary.json` at test time and
 compare every targeted production metric with exact equality. Expected values are
-not regenerated from the framework. Coverage is ch4_c2 bubble 11/17 with 6 not_found;
-ch4_c2 dew 15/17 with 2 not_found; ch4_c3 bubble 20/23 with 3 not_found; ch4_c3 dew 7/23
-with 2 not_found and 14 inconclusive. No qualitative model verdict is encoded.
+not regenerated from the framework. Coverage in the record regenerated after P7 and
+P8 (1 November 2026) is ch4_c2 bubble 17/17; ch4_c2 dew 8/17 with 2 not_found and 7
+inconclusive; ch4_c3 bubble 23/23; ch4_c3 dew 1/23 with 2 not_found and 20
+inconclusive. No qualitative model verdict is encoded.
 
 `module17_legacy.py` records the approved distinctions as `LegacyDiscrepancy` values:
 

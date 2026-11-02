@@ -1,0 +1,14 @@
+source_point_id,system_id,temperature_k,vapor_ch4,dew_status,module17_root_pressures_mpa,bracketed_roots_mpa,isotherm_crossings_mpa,dew_branch_crossings_mpa,dew_branch_stop,confirmed_by
+may2015_ch4_c2_008,ch4_c2,243.6,0.7046,inconclusive,4.8451,4.8451,4.8459,4.8488|6.8662,near_critical,dew branch
+may2015_ch4_c2_009,ch4_c2,243.6,0.7143999999999999,inconclusive,5.1869,5.1869,5.1874|6.7562,5.2001|6.7056,near_critical,bubble isotherm
+may2015_ch4_c2_010,ch4_c2,243.6,0.7212000000000001,inconclusive,5.5085,5.5085|6.6076,5.5098|6.6056,5.5153|6.5471,near_critical,bracketed
+may2015_ch4_c2_012,ch4_c2,243.6,0.7199,inconclusive,5.4375|6.6468,5.4375|6.6468,5.4382|6.6449,5.4495|6.6136,near_critical,bracketed
+may2015_ch4_c2_013,ch4_c2,243.6,0.7122999999999999,inconclusive,5.1052,5.1052,5.1059|6.7924,5.1150|6.7431,near_critical,bubble isotherm
+may2015_ch4_c2_015,ch4_c2,243.61,0.7222,inconclusive,5.5730|6.5699,5.5730|6.5699,5.5743|6.5684,5.5755|6.5022,near_critical,bracketed
+may2015_ch4_c2_017,ch4_c2,243.61,0.7188,inconclusive,5.3857,5.3857,5.3866|6.6721,5.3998|6.6715,near_critical,bubble isotherm
+may2015_ch4_c3_001,ch4_c3,203.4,0.9838,inconclusive,2.2264|5.3188,2.2264|5.3188,2.2266|5.3186,2.2267|5.3106,near_critical,bracketed
+may2015_ch4_c3_003,ch4_c3,223.36,0.9634,inconclusive,3.2237|5.7611,3.2237|5.7611,3.2242|5.7603,3.2285|5.7414,near_critical,bracketed
+may2015_ch4_c3_004,ch4_c3,223.54,0.9632000000000001,inconclusive,3.2425|5.7566,3.2425|5.7566,3.2433|5.7554,3.2486|5.7354,near_critical,bracketed
+may2015_ch4_c3_014,ch4_c3,243.62,0.9145,inconclusive,2.9307|7.7733,2.9307|7.7733,2.9316|7.7719,2.9336|7.7555,near_critical,bracketed
+may2015_ch4_c3_015,ch4_c3,243.62,0.907,inconclusive,2.5502|8.1586,2.5502|8.1586,2.5511|8.1580,2.5504|8.1445,near_critical,bracketed
+may2015_ch4_c3_023,ch4_c3,283.38,0.7955,inconclusive,5.8401|7.7018,5.8401|7.7018,5.8404|7.6988,5.8640|7.6631,trivial_state,bracketed

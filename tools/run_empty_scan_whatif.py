@@ -14,6 +14,12 @@ converged/non-converged boundary, solves any sign change it finds with
 solve using the engine's Newton option. Only the evaluation function and a
 provenance helper are called; no engine file or production path changes. This
 is evidence for a design decision, not a production path.
+
+The committed output,
+``docs/investigations/empty_scan_whatif.csv``,
+records the solver *before* proposals P7 and P8 (applied 1 November 2026) and
+is kept unchanged as the evidence for them (PR #27). Rerunning this tool on the
+current engine gives different results; do not overwrite that output.
 """
 
 from __future__ import annotations
