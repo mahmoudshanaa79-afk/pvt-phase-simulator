@@ -16,6 +16,7 @@ from typing import Final, Literal
 
 from pvt_phase_simulator.eos.flash import TwoPhaseFlashResult, calculate_two_phase_flash
 from pvt_phase_simulator_ui.adapters import (
+    ZERO_KIJ,
     FlashCallable,
     InputValidationError,
     ScientificInputs,
@@ -73,6 +74,7 @@ class SweepRequest:
     points: int
     temperature_unit: TemperatureUnit = TemperatureUnit.KELVIN
     pressure_unit: PressureUnit = PressureUnit.MPA
+    kij: tuple[float, float, float] = ZERO_KIJ
 
     @property
     def axis_label(self) -> str:
@@ -171,6 +173,7 @@ def validate_sweep_request(
     points: int,
     temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
     pressure_unit: PressureUnit | str = PressureUnit.MPA,
+    kij: Sequence[float] = ZERO_KIJ,
 ) -> SweepRequest:
     """Validate a sweep before any production call is attempted.
 
@@ -209,6 +212,7 @@ def validate_sweep_request(
                 pressure,
                 temperature_unit=selected_temperature_unit,
                 pressure_unit=selected_pressure_unit,
+                kij=kij,
             )
             for temperature, pressure in states
         )
@@ -226,6 +230,7 @@ def validate_sweep_request(
         points=count,
         temperature_unit=selected_temperature_unit,
         pressure_unit=selected_pressure_unit,
+        kij=validated.kij,
     )
 
 
@@ -307,10 +312,20 @@ def run_sweep(
             pressure,
             temperature_unit=request.temperature_unit,
             pressure_unit=request.pressure_unit,
+            kij=request.kij,
         )
         try:
-            api = calculate_two_phase_flash if flash_api is None else flash_api
-            result = api(inputs.mixture(), inputs.temperature_k, inputs.pressure_pa)
+            if flash_api is None:
+                result = calculate_two_phase_flash(
+                    inputs.mixture(),
+                    inputs.temperature_k,
+                    inputs.pressure_pa,
+                    binary_interactions=inputs.binary_interactions(),
+                )
+            else:
+                result = flash_api(
+                    inputs.mixture(), inputs.temperature_k, inputs.pressure_pa
+                )
         except Exception as error:  # noqa: BLE001 - a failed point stays failed
             points.append(
                 _failed_point(

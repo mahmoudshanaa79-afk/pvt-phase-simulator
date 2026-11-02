@@ -11,6 +11,12 @@ import streamlit as st
 
 from pvt_phase_simulator.eos.flash import calculate_two_phase_flash
 from pvt_phase_simulator_ui.adapters import (
+    KIJ_HELP,
+    KIJ_KEYS,
+    KIJ_MAXIMUM,
+    KIJ_MINIMUM,
+    KIJ_PAIR_LABELS,
+    KIJ_STEP,
     InputValidationError,
     ScientificInputs,
     composition_total,
@@ -63,6 +69,7 @@ CASE_LOAD_FAILURE = (
     "Case load unavailable because the file could not be processed safely. "
     "No inputs were changed and no calculation was run."
 )
+USER_KIJ_BADGE = "user-supplied kij"
 CASE_SAVE_FAILURE = (
     "Case save unavailable because the current inputs could not be serialized "
     "safely. Review the inputs and try again."
@@ -77,6 +84,7 @@ def _cached_flash(inputs: ScientificInputs) -> object:
         inputs.mixture(),
         inputs.temperature_k,
         inputs.pressure_pa,
+        binary_interactions=inputs.binary_interactions(),
     )
 
 
@@ -139,6 +147,37 @@ def _case_controls() -> None:
                 width="content",
                 icon=":material/download:",
             )
+
+
+def _kij_inputs(values: tuple[float, ...]) -> tuple[float, float, float]:
+    """The optional, collapsed kij inputs; pairs absent from the mixture are off."""
+
+    present = (
+        values[0] > 0.0 and values[1] > 0.0,
+        values[0] > 0.0 and values[2] > 0.0,
+        values[1] > 0.0 and values[2] > 0.0,
+    )
+    with st.expander("Advanced: binary interaction (kij)", expanded=False):
+        st.caption(
+            "kij = 0 unless you change it. Only pairs present in the mixture "
+            "can be set."
+        )
+        entered = [
+            float(
+                st.number_input(
+                    f"kij {label}" + ("" if present[index] else " (not in mixture)"),
+                    min_value=KIJ_MINIMUM,
+                    max_value=KIJ_MAXIMUM,
+                    step=KIJ_STEP,
+                    format="%.4f",
+                    key=KIJ_KEYS[index],
+                    help=KIJ_HELP,
+                    disabled=not present[index],
+                )
+            )
+            for index, label in enumerate(KIJ_PAIR_LABELS)
+        ]
+    return (entered[0], entered[1], entered[2])
 
 
 def _input_form() -> tuple[ScientificInputs | None, bool]:
@@ -221,6 +260,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                 )
                 temperature = float(session()["temperature_value"])
                 pressure = float(session()["pressure_value"])
+            kij = _kij_inputs(values)
             try:
                 # Validate the displayed fields, but construct scientific identity
                 # from the authoritative SI state maintained by the unit callback.
@@ -230,6 +270,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     pressure,
                     temperature_unit=temperature_unit,
                     pressure_unit=pressure_unit,
+                    kij=kij,
                 )
                 validated = validate_scientific_inputs(
                     values,
@@ -237,6 +278,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     float(session()["pressure_pa"]),
                     temperature_unit=TemperatureUnit.KELVIN,
                     pressure_unit=PressureUnit.PA,
+                    kij=kij,
                 )
                 validation_error = None
             except InputValidationError as error:
@@ -272,7 +314,15 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
 def _header() -> None:
     st.caption("OPENPHASE")
     st.title("Hydrocarbon Phase Behavior")
-    st.caption("Peng-Robinson EOS - 3 verified components - kij = 0")
+    submitted = session().get("submitted_inputs")
+    if isinstance(submitted, ScientificInputs) and submitted.uses_kij:
+        st.badge(USER_KIJ_BADGE, icon=":material/tune:", color="orange")
+        st.caption(
+            "Peng-Robinson EOS - 3 verified components - "
+            f"{submitted.binary_interaction_assumption}"
+        )
+    else:
+        st.caption("Peng-Robinson EOS - 3 verified components - kij = 0")
 
 
 def run_app() -> None:

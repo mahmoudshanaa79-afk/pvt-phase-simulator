@@ -53,6 +53,7 @@ from pvt_phase_simulator_ui.adapters import (
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
+    binary_interaction_assumption,
     flash_presentation_kind,
     load_module17_records,
     location_relative_to_envelope,
@@ -631,7 +632,11 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         f"{_display_pressure(view.pressure_pa, units):.6g} {units.pressure.value}",
     )
     state_columns[2].metric("Model", "Peng-Robinson")
-    state_columns[3].metric("Interactions", "kij = 0")
+    state_columns[3].metric(
+        "Interactions",
+        "kij = 0" if _result_assumption("flash") == "kij = 0" else "user-supplied kij",
+    )
+    _kij_result_note("flash")
     phase_columns = st.columns(4, vertical_alignment="center")
     phase_columns[0].metric("Vapor fraction", _optional(view.vapor_fraction))
     phase_columns[1].metric("Liquid fraction", _optional(view.liquid_fraction))
@@ -746,7 +751,12 @@ def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
         maximum_points=15,
     )
     return calculate_phase_envelope(
-        inputs.mixture(), settings, settings, start_temperature_k, start_temperature_k
+        inputs.mixture(),
+        settings,
+        settings,
+        start_temperature_k,
+        start_temperature_k,
+        binary_interactions=inputs.binary_interactions(),
     )
 
 
@@ -757,14 +767,49 @@ def _calculate_operating_saturation(
     """Bubble and dew pressure at the operating temperature, production defaults."""
 
     mixture = inputs.mixture()
+    interactions = inputs.binary_interactions()
     return (
         calculate_saturation_pressure(
-            mixture, inputs.temperature_k, SaturationKind.BUBBLE_POINT
+            mixture,
+            inputs.temperature_k,
+            SaturationKind.BUBBLE_POINT,
+            binary_interactions=interactions,
         ),
         calculate_saturation_pressure(
-            mixture, inputs.temperature_k, SaturationKind.DEW_POINT
+            mixture,
+            inputs.temperature_k,
+            SaturationKind.DEW_POINT,
+            binary_interactions=interactions,
         ),
     )
+
+
+def _result_assumption(name: str) -> str:
+    """The kij a stored result was calculated with, from its input signature."""
+
+    signature = cast(dict[str, Any], session().get("result_signatures", {})).get(name)
+    if not signature or len(signature) < 4:
+        return "kij = 0"
+    return binary_interaction_assumption(signature[0], signature[3])
+
+
+def _result_metadata(name: str) -> str:
+    assumption = _result_assumption(name)
+    if assumption == "kij = 0":
+        return "Peng-Robinson EOS; kij=0"
+    return f"Peng-Robinson EOS; {assumption}"
+
+
+def _kij_result_note(name: str) -> None:
+    """Say so beside any result calculated with a user-supplied kij."""
+
+    assumption = _result_assumption(name)
+    if assumption != "kij = 0":
+        st.warning(
+            f"Calculated with {assumption}. A non-zero kij is a fitted, "
+            "non-predictive choice; kij = 0 is the validated default.",
+            icon=":material/tune:",
+        )
 
 
 def _codes(diagnostics: Any) -> tuple[str, ...]:
@@ -789,14 +834,35 @@ def _saturation_value(result: SaturationPressureResult, units: UnitPreferences) 
     return f"No pressure reported ({status_text(result.status)})"
 
 
+def _incipient_text(result: SaturationPressureResult) -> str:
+    """The incipient phase of a converged root, in mol %, for P–x–y reading."""
+
+    if result.status is not SaturationStatus.CONVERGED:
+        return ""
+    phase = (
+        "vapour"
+        if result.saturation_kind is SaturationKind.BUBBLE_POINT
+        else ("liquid")
+    )
+    composition = " / ".join(
+        f"{name} {100.0 * value:.4g}"
+        for name, value in zip(
+            COMPONENT_NAMES, result.incipient_composition, strict=True
+        )
+    )
+    return f"Incipient {phase}: {composition} mol % · "
+
+
 def _render_operating_saturation(
     results: tuple[SaturationPressureResult, SaturationPressureResult],
     units: UnitPreferences,
+    assumption: str = "kij = 0",
 ) -> None:
     st.subheader("Bubble and dew pressure at the operating temperature")
     st.caption(
         "One saturation solve per direction with the production defaults "
-        "(scanning solver, Newton refinement off, kij = 0). The engine's status, "
+        f"(scanning solver, Newton refinement off, {assumption}). The engine's "
+        "status, "
         "reason and diagnostic codes are shown as reported."
     )
     _status_rows(
@@ -806,6 +872,7 @@ def _render_operating_saturation(
                 _saturation_value(result, units),
                 f"{status_text(result.status)} · "
                 f"{result.failure_reason or 'No failure reason reported'} · "
+                f"{_incipient_text(result)}"
                 f"Codes: {', '.join(_codes(result.diagnostics)) or 'none'}",
             )
             for label, result in zip(("Bubble", "Dew"), results, strict=True)
@@ -820,7 +887,11 @@ def _render_operating_saturation(
 
 @st.cache_data(show_spinner=False, max_entries=8)
 def _calculate_extended_envelope(inputs: ScientificInputs) -> ExtendedEnvelope:
-    return trace_extended_envelope(inputs.mixture(), inputs.temperature_k)
+    return trace_extended_envelope(
+        inputs.mixture(),
+        inputs.temperature_k,
+        binary_interactions=inputs.binary_interactions(),
+    )
 
 
 def render_phase_envelope(inputs: ScientificInputs | None) -> None:
@@ -894,6 +965,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
         return
     result = cast(PhaseEnvelopeResult, raw)
     _stale("envelope", inputs)
+    _kij_result_note("envelope")
     critical = cast(
         MixtureCriticalPointResult | None, get_result(session(), "critical")
     )
@@ -909,7 +981,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             result,
             pressure_unit=PlotPressureUnit.PA,
             critical_point=critical,
-            metadata={"model": "Peng-Robinson EOS; kij=0"},
+            metadata={"model": _result_metadata("envelope")},
         )
     )
     if extension is not None:
@@ -956,7 +1028,9 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
         get_result(session(), "saturation"),
     )
     if saturation is not None and not result_is_stale(session(), "saturation", inputs):
-        _render_operating_saturation(saturation, units)
+        _render_operating_saturation(
+            saturation, units, _result_assumption("saturation")
+        )
     else:
         _show_action_failure("saturation")
     if extension is None:
@@ -1022,6 +1096,7 @@ def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
         inputs.mixture(),
         inputs.temperature_k,
         inputs.pressure_pa,
+        binary_interactions=inputs.binary_interactions(),
         initialization_source="streamlit_user_conditions",
     )
 
@@ -1038,6 +1113,7 @@ def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
             temperature_points=7,
             pressure_points=7,
         ),
+        binary_interactions=inputs.binary_interactions(),
     )
 
 
@@ -1106,6 +1182,7 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
             st.info("No production critical-point solve has been requested.")
     else:
         result = cast(MixtureCriticalPointResult, raw)
+        _kij_result_note("critical")
         view = adapt_critical_result(result)
         _stale("critical", inputs)
         if view.certified:
@@ -1188,6 +1265,7 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                 )
     scan_raw = get_result(session(), "critical_scan")
     if scan_raw is not None:
+        _kij_result_note("critical_scan")
         _stale("critical_scan", inputs)
         overlay = cast(MixtureCriticalPointResult | None, raw)
         if result_is_stale(session(), "critical", inputs):
@@ -1198,7 +1276,7 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     cast(CriticalPointScanResult, scan_raw),
                     pressure_unit=PlotPressureUnit.PA,
                     critical_point=overlay,
-                    metadata={"model": "Peng-Robinson EOS; kij=0"},
+                    metadata={"model": _result_metadata("critical_scan")},
                 ),
                 units,
                 x_quantity="temperature",
@@ -1225,6 +1303,14 @@ def render_validation() -> None:
         "Production predictions use kij = 0 with no fitted interaction parameters. "
         "Figures report only fields present in the protected Module 17 records."
     )
+    submitted = session().get("submitted_inputs")
+    if isinstance(submitted, ScientificInputs) and submitted.uses_kij:
+        st.warning(
+            f"Your case uses {submitted.binary_interaction_assumption}. This page "
+            "always shows the kij = 0 validation record; your kij is not applied "
+            "here.",
+            icon=":material/tune:",
+        )
     direction = cast(
         Literal["bubble", "dew"],
         st.segmented_control(
@@ -1795,6 +1881,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
                 points=points,
                 temperature_unit=units.temperature,
                 pressure_unit=units.pressure,
+                kij=action_inputs.kij,
             )
         except SweepValidationError as error:
             st.error(f"Submission unavailable: {error}")
@@ -1826,6 +1913,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
         return
     if _stale("sweep", inputs):
         return
+    _kij_result_note("sweep")
 
     failed = sweep.failed_count
     with st.container(horizontal=True):

@@ -101,6 +101,13 @@ uv run python tools/streamlit_smoke.py
 It selects a free loopback port, runs Streamlit headless, checks the health
 endpoint, and always terminates the server it started.
 
+The app uses kij = 0 unless the user opens the collapsed *Advanced: binary
+interaction (kij)* inputs and sets a value for a pair in the mixture (owner-
+approved Option 2 of proposal P6, `docs/investigations/kij_study.md`). A
+non-zero kij is shown with a *user-supplied kij* badge and stated in every
+result, export, report and saved case; the Validation page always shows the
+kij = 0 record.
+
 Input validation, explicit calculation actions, stale-result handling, failure
 semantics, supported views, and limitations are documented in
 [`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md).

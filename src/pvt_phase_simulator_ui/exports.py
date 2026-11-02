@@ -18,9 +18,13 @@ from pvt_phase_simulator.eos.phase_envelope import (
 from pvt_phase_simulator.eos.saturation_pressure import SaturationPressureResult
 from pvt_phase_simulator_ui.adapters import (
     COMPONENT_NAMES,
+    KIJ_PAIR_LABELS,
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
+    binary_interaction_assumption,
+    effective_kij,
+    pairs_present,
 )
 from pvt_phase_simulator_ui.solver_codes import explain_codes
 from pvt_phase_simulator_ui.sweeps import SweepPoint, SweepResult
@@ -133,6 +137,24 @@ def _display_state(
         "pressure_unit": units.pressure.value,
         "temperature_k": temperature_k,
         "pressure_pa": pressure_pa,
+    }
+
+
+def _kij_parameters(
+    fractions: Sequence[float], kij: Sequence[float]
+) -> dict[str, object]:
+    """The kij used per pair, only when one is non-zero (kij = 0 adds nothing)."""
+
+    used = effective_kij(fractions, kij)
+    if not any(value != 0.0 for value in used):
+        return {}
+    present = pairs_present(fractions)
+    return {
+        "binary_interaction_parameters": {
+            label: value
+            for label, value, here in zip(KIJ_PAIR_LABELS, used, present, strict=True)
+            if here
+        }
     }
 
 
@@ -313,7 +335,8 @@ def build_export_document(
                 "temperature": units.temperature.value,
                 "pressure": units.pressure.value,
             },
-            "binary_interaction_assumption": "kij = 0",
+            "binary_interaction_assumption": inputs.binary_interaction_assumption,
+            **_kij_parameters(inputs.mole_fractions, inputs.kij),
             "verified_component_scope": list(COMPONENT_NAMES),
             "export_timestamp": {
                 "status": "omitted",
@@ -324,7 +347,7 @@ def build_export_document(
             **_display_state(inputs.temperature_k, inputs.pressure_pa, units),
             "pressure_mpa": inputs.pressure_mpa,
             "model": "Peng-Robinson",
-            "binary_interaction_assumption": "kij = 0",
+            "binary_interaction_assumption": inputs.binary_interaction_assumption,
             "components": components,
         },
         "results": {
@@ -489,6 +512,7 @@ def build_sweep_export_document(
     """Build a sweep export from an already-computed sweep, calculating nothing."""
 
     request = result.request
+    fractions = tuple(value / 100.0 for value in request.composition_mol_percent)
     selected_units = units or UnitPreferences(
         temperature=request.temperature_unit, pressure=request.pressure_unit
     )
@@ -511,7 +535,10 @@ def build_sweep_export_document(
                 "temperature": selected_units.temperature.value,
                 "pressure": selected_units.pressure.value,
             },
-            "binary_interaction_assumption": "kij = 0",
+            "binary_interaction_assumption": binary_interaction_assumption(
+                fractions, request.kij
+            ),
+            **_kij_parameters(fractions, request.kij),
             "verified_component_scope": list(COMPONENT_NAMES),
             "export_timestamp": {
                 "status": "omitted",

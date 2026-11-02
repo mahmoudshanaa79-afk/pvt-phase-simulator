@@ -100,6 +100,28 @@ work and added in that task's PR. Sessions read only the latest few entries.
   - Waiting for the owner: the six values and the approval; the choice of a
     second CSV versus extending the existing one; app option (a) or (b).
 
+- **2026-11-02, web (Lab 4: what kij does):**
+  - Done: `docs/teaching/LAB_04_BINARY_INTERACTION.md` (CH4+C3 at 243.62 K):
+    bubble pressures at kij = 0 and the fitted +0.0021 against four measured
+    states, a P-x-y table at both kij, and the state 013 dew solve, which
+    stays ambiguous at both kij (20 of 23 CH4+C3 dew states ambiguous either
+    way). No dew pressure is quoted at an ambiguous state.
+    `tests/test_teaching_lab_04.py` recomputes every number through the app's
+    input boundary and the engine.
+  - Next: the v1.6.0 release PR (owner approval needed), the butanes plan.
+
+- **2026-11-02, web (optional kij input, Option 2):**
+  - Done: the owner approved Option 2 of P6. The sidebar form has a collapsed
+    *Advanced: binary interaction (kij)* expander (one field per pair in the
+    mixture, default 0, range -0.10 to +0.20). The submitted kij reaches every
+    engine call the app makes; with kij = 0 no `binary_interactions` is passed,
+    so results and exports are byte-identical. A non-zero kij shows a
+    *user-supplied kij* badge and is stated on result pages, in exports, the
+    HTML report and case files (schema 1.1.0 only when non-zero). The
+    Validation page keeps the kij = 0 record. The operating-temperature
+    readout also lists the incipient phase, for Lab 4.
+  - Next: Lab 4 (kij), then the v1.6 release PR for the owner.
+
 - **2026-11-02, web (plain-language solver codes):**
   - Done: `src/pvt_phase_simulator_ui/solver_codes.py` gives one sentence each
     for `BOUNDARY_SATURATION_ROOT`, `HIDDEN_SATURATION_ROOT` +

@@ -764,7 +764,7 @@ def _doi(source: RecordedSource) -> str:
     return f'<a href="https://doi.org/{doi}">DOI {doi}</a>'
 
 
-def _scope_section(scope: ModelScope) -> str:
+def _scope_section(scope: ModelScope, assumption: str = "kij = 0") -> str:
     property_sources = "".join(
         "<li>"
         f"<strong>{escape(source.name)}</strong>: {escape(source.citation)} "
@@ -804,9 +804,15 @@ def _scope_section(scope: ModelScope) -> str:
     body += "<h3>Model assumptions</h3>"
     body += (
         "<ul>"
-        "<li>All omitted off-diagonal binary interactions use kij = 0; no fitted "
-        "interaction parameters are used.</li>"
-        "<li>Engine result units are kelvin (K) and pascal (Pa). Presentation "
+        + (
+            "<li>All omitted off-diagonal binary interactions use kij = 0; no "
+            "fitted interaction parameters are used.</li>"
+            if assumption == "kij = 0"
+            else f"<li>This case uses a {escape(assumption)}. A non-zero kij is a "
+            "fitted, non-predictive choice; kij = 0 is the validated default and "
+            "the validation reference. Pairs not listed use kij = 0.</li>"
+        )
+        + "<li>Engine result units are kelvin (K) and pascal (Pa). Presentation "
         "conversions do not alter the stored scientific result.</li>"
         "<li>Only source-provided public result fields are rendered. Missing values "
         "remain unavailable.</li>"
@@ -906,7 +912,9 @@ def export_engineering_report_html(
             _saturation_section(document),
             _critical_section(document),
             _sweep_section(sweep_document),
-            _scope_section(scope),
+            _scope_section(
+                scope, str(metadata.get("binary_interaction_assumption", "kij = 0"))
+            ),
         )
     )
     html = f"""<!doctype html>
