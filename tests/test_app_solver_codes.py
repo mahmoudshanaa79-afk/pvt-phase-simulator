@@ -15,13 +15,18 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from pvt_phase_simulator.eos.phase_envelope import EnvelopeContinuationSettings
+from pvt_phase_simulator.eos.flash import calculate_two_phase_flash
+from pvt_phase_simulator.eos.phase_envelope import (
+    EnvelopeContinuationSettings,
+    calculate_phase_envelope,
+)
 from pvt_phase_simulator.eos.saturation_pressure import (
     SaturationKind,
     SaturationPressureResult,
     SaturationStatus,
     calculate_saturation_pressure,
 )
+from pvt_phase_simulator_ui import app as ui_app
 from pvt_phase_simulator_ui import views
 from pvt_phase_simulator_ui.adapters import validate_scientific_inputs
 from pvt_phase_simulator_ui.exports import build_export_document, export_json_bytes
@@ -93,26 +98,45 @@ def test_the_engine_reports_each_state_with_its_code(name: str) -> None:
     assert [item.codes for item in explain_codes(codes)] == [group]
 
 
-def _short_envelope(inputs: object) -> object:
+@cache
+def _small_envelope() -> object:
+    """A two-point envelope; the page tests need one to render, not its numbers."""
+
     settings = EnvelopeContinuationSettings(
-        target_temperature_k=inputs.temperature_k + 5.0,  # type: ignore[attr-defined]
-        initial_temperature_step_k=5.0,
-        maximum_points=2,
+        target_temperature_k=305.0, initial_temperature_step_k=5.0, maximum_points=2
     )
-    return views.calculate_phase_envelope(
-        inputs.mixture(),  # type: ignore[attr-defined]
-        settings,
-        settings,
-        inputs.temperature_k - 5.0,  # type: ignore[attr-defined]
-        inputs.temperature_k - 5.0,  # type: ignore[attr-defined]
-    )
+    mixture = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0).mixture()
+    return calculate_phase_envelope(mixture, settings, settings, 295.0, 295.0)
+
+
+@cache
+def _small_flash() -> object:
+    mixture = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0).mixture()
+    return calculate_two_phase_flash(mixture, 300.0, 5.0e6)
+
+
+def test_the_page_calls_the_engine_with_production_defaults() -> None:
+    """The page's saturation function returns exactly the direct engine results."""
+
+    composition, temperature, _, _, _ = STATES["hidden"]
+    inputs = validate_scientific_inputs(composition, temperature, 5.0)
+    assert views._calculate_operating_saturation.__wrapped__(inputs) == _solve("hidden")
 
 
 def _run_app(name: str, monkeypatch: pytest.MonkeyPatch) -> AppTest:
-    """Submit the state, run the envelope action; the saturation solves are real."""
+    """Submit the state and run the envelope action.
 
-    monkeypatch.setattr(views, "_calculate_envelope", _short_envelope)
+    The page's saturation results are the engine results of ``_solve`` (shown
+    to be identical above); the flash and envelope are stand-ins, because only
+    the saturation readout is under test here.
+    """
+
+    monkeypatch.setattr(ui_app, "_cached_flash", lambda _inputs: _small_flash())
+    monkeypatch.setattr(views, "_calculate_envelope", lambda _inputs: _small_envelope())
     monkeypatch.setattr(views, "_calculate_extended_envelope", lambda _inputs: None)
+    monkeypatch.setattr(
+        views, "_calculate_operating_saturation", lambda _inputs: _solve(name)
+    )
     composition, temperature, _, _, _ = STATES[name]
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=120).run()
     for index, value in enumerate(composition):
