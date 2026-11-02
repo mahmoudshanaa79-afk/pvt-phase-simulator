@@ -9,9 +9,9 @@ Peng–Robinson on the May (2015) data, and should OpenPhase use one?
 
 ## Summary
 
-- **CH4+C2: fitted kij = -0.0002** (sensitivity band -0.0010 to 0). Bubble AARD over a fixed set of 8 states: 0.14 % at kij = 0, 0.13 % at the fitted kij.
-  Out of sample, dew: unique dew results 12 at kij = 0 and 12 at the fitted kij; ambiguous (hidden or multiple roots) 3 and 3. Dew composition within 1 U: 15 of 15 at kij = 0, 17 of 17 at the fitted kij.
-- **CH4+C3: fitted kij = +0.0030** (sensitivity band +0.0020 to +0.0040). Bubble AARD over a fixed set of 15 states: 0.96 % at kij = 0, 0.53 % at the fitted kij.
+- **CH4+C2: fitted kij = 0** (sensitivity band -0.0010 to +0.0010). Bubble AARD over a fixed set of 14 states: 0.75 % at kij = 0, 0.75 % at the fitted kij.
+  Out of sample, dew: unique dew results 8 at kij = 0 and 8 at the fitted kij; ambiguous (hidden or multiple roots) 7 and 7. Dew composition within 1 U: 16 of 16 at kij = 0, 16 of 16 at the fitted kij.
+- **CH4+C3: fitted kij = +0.0021** (sensitivity band +0.0020 to +0.0040). Bubble AARD over a fixed set of 22 states: 0.99 % at kij = 0, 0.68 % at the fitted kij.
   Out of sample, dew: unique dew results 1 at kij = 0 and 1 at the fitted kij; ambiguous (hidden or multiple roots) 20 and 20. Dew composition within 1 U: 22 of 23 at kij = 0, 21 of 23 at the fitted kij.
 
 A kij fitted to these data is **calibration, not validation**: it is
@@ -62,9 +62,9 @@ come from the same source and the same laboratory.
 
 | System | Direction | Module 17 successes | Study at kij = 0 | Module 17 AARD | Study AARD |
 |---|---|---:|---:|---:|---:|
-| CH4+C2 | bubble | 17 | 11 | 1.021039 % | 0.454690 % |
-| CH4+C2 | dew | 8 | 12 | 2.073158 % | 5.338393 % |
-| CH4+C3 | bubble | 23 | 20 | 1.005678 % | 1.033805 % |
+| CH4+C2 | bubble | 17 | 17 | 1.021039 % | 1.021039 % |
+| CH4+C2 | dew | 8 | 8 | 2.073158 % | 2.073158 % |
+| CH4+C3 | bubble | 23 | 23 | 1.005678 % | 1.005678 % |
 | CH4+C3 | dew | 1 | 1 | 2.834693 % | 2.834693 % |
 
 ## CH4+C2
@@ -73,42 +73,41 @@ come from the same source and the same laboratory.
 
 | kij | Bubble converged | Bubble not found | Bubble inconclusive | Bubble AARD | Dew unique | Dew hidden root | Dew multiple roots | Dew not found | Dew AARD (unique only) |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| -0.0200 | 13 | 4 | 0 | 4.69 % (n=13) | 17 | 0 | 0 | 0 | 9.19 % (n=17) |
-| -0.0150 | 12 | 5 | 0 | 3.67 % (n=12) | 16 | 1 | 0 | 0 | 7.75 % (n=16) |
-| -0.0100 | 12 | 5 | 0 | 2.62 % (n=12) | 15 | 2 | 0 | 0 | 7.15 % (n=15) |
-| -0.0050 | 11 | 6 | 0 | 1.43 % (n=11) | 14 | 2 | 0 | 1 | 6.00 % (n=14) |
-| **-0.0002 (fit)** | 11 | 6 | 0 | 0.46 % (n=11) | 12 | 3 | 0 | 2 | 5.34 % (n=12) |
-| 0 | 11 | 6 | 0 | 0.45 % (n=11) | 12 | 3 | 0 | 2 | 5.34 % (n=12) |
-| +0.0050 | 12 | 5 | 0 | 1.12 % (n=12) | 11 | 3 | 0 | 3 | 4.23 % (n=11) |
-| +0.0100 | 14 | 3 | 0 | 1.81 % (n=14) | 11 | 1 | 0 | 5 | 4.68 % (n=11) |
-| +0.0150 | 13 | 4 | 0 | 2.82 % (n=13) | 10 | 1 | 0 | 6 | 5.03 % (n=10) |
-| +0.0200 | 11 | 6 | 0 | 4.29 % (n=11) | 9 | 2 | 0 | 6 | 3.83 % (n=9) |
-| +0.0250 | 11 | 6 | 0 | 5.43 % (n=11) | 9 | 1 | 0 | 7 | 4.54 % (n=9) |
-| +0.0300 | 10 | 7 | 0 | 7.24 % (n=10) | 9 | 0 | 0 | 8 | 5.26 % (n=9) |
-| +0.0350 | 10 | 7 | 0 | 8.67 % (n=10) | 9 | 0 | 0 | 8 | 6.01 % (n=9) |
-| +0.0400 | 10 | 7 | 0 | 10.02 % (n=10) | 8 | 1 | 0 | 8 | 6.10 % (n=8) |
-| +0.0450 | 10 | 7 | 0 | 11.39 % (n=10) | 8 | 0 | 1 | 8 | 6.94 % (n=8) |
-| +0.0500 | 11 | 6 | 0 | 12.07 % (n=11) | 8 | 0 | 0 | 9 | 7.78 % (n=8) |
-| +0.0550 | 11 | 6 | 0 | 13.43 % (n=11) | 8 | 0 | 0 | 9 | 8.62 % (n=8) |
-| +0.0600 | 11 | 6 | 0 | 14.81 % (n=11) | 8 | 0 | 0 | 9 | 9.46 % (n=8) |
+| -0.0200 | 17 | 0 | 0 | 4.60 % (n=17) | 9 | 8 | 0 | 0 | 3.84 % (n=9) |
+| -0.0150 | 17 | 0 | 0 | 3.69 % (n=17) | 9 | 8 | 0 | 0 | 3.18 % (n=9) |
+| -0.0100 | 17 | 0 | 0 | 2.78 % (n=17) | 9 | 8 | 0 | 0 | 2.53 % (n=9) |
+| -0.0050 | 17 | 0 | 0 | 1.85 % (n=17) | 8 | 8 | 0 | 1 | 2.15 % (n=8) |
+| **0 (fit)** | 17 | 0 | 0 | 1.02 % (n=17) | 8 | 7 | 0 | 2 | 2.07 % (n=8) |
+| +0.0050 | 17 | 0 | 0 | 1.24 % (n=17) | 8 | 6 | 0 | 3 | 2.10 % (n=8) |
+| +0.0100 | 16 | 0 | 1 | 1.72 % (n=16) | 8 | 4 | 0 | 5 | 2.46 % (n=8) |
+| +0.0150 | 16 | 0 | 1 | 2.47 % (n=16) | 8 | 3 | 0 | 6 | 2.99 % (n=8) |
+| +0.0200 | 16 | 0 | 1 | 3.34 % (n=16) | 8 | 3 | 0 | 6 | 3.58 % (n=8) |
+| +0.0250 | 16 | 0 | 1 | 4.29 % (n=16) | 8 | 2 | 0 | 7 | 4.18 % (n=8) |
+| +0.0300 | 15 | 0 | 2 | 5.66 % (n=15) | 8 | 1 | 0 | 8 | 4.79 % (n=8) |
+| +0.0350 | 15 | 0 | 2 | 6.78 % (n=15) | 8 | 1 | 0 | 8 | 5.39 % (n=8) |
+| +0.0400 | 15 | 0 | 2 | 7.91 % (n=15) | 8 | 1 | 0 | 8 | 6.10 % (n=8) |
+| +0.0450 | 15 | 0 | 2 | 9.06 % (n=15) | 8 | 0 | 1 | 8 | 6.94 % (n=8) |
+| +0.0500 | 15 | 0 | 2 | 10.23 % (n=15) | 8 | 0 | 0 | 9 | 7.78 % (n=8) |
+| +0.0550 | 15 | 0 | 2 | 11.42 % (n=15) | 8 | 0 | 0 | 9 | 8.62 % (n=8) |
+| +0.0600 | 14 | 0 | 3 | 13.20 % (n=14) | 8 | 0 | 0 | 9 | 9.46 % (n=8) |
 
 ### Fit to bubble pressure
 
-- **Fitted kij = -0.0002** (fine-grid minimum 0, refined).
-- Bubble AARD over the fixed set of 8 states: 0.14 % at kij = 0, 0.13 % at the fitted kij.
-- Sensitivity band (AARD within 0.1 percentage points of the minimum): -0.0010 to 0.
-- Bootstrap over states, 95 % interval of the optimum: -0.0010 to 0.
-- States whose bubble status changes somewhere on the fine grid: 008, 009, 010, 011, 012, 015, 016, 017.
+- **Fitted kij = 0** (fine-grid minimum 0, refined).
+- Bubble AARD over the fixed set of 14 states: 0.75 % at kij = 0, 0.75 % at the fitted kij.
+- Sensitivity band (AARD within 0.1 percentage points of the minimum): -0.0010 to +0.0010.
+- Bootstrap over states, 95 % interval of the optimum: -0.0010 to +0.0060.
+- States whose bubble status changes somewhere on the fine grid: 012, 013, 017.
 
 ### Leave one isotherm out
 
 | Held-out isotherm (K) | States | In fixed set | Scored | Training n | kij fitted without it | Held-out AARD at kij = 0 | at that kij |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 203.22 | 1 | 1 | 1 | 7 | 0 | 0.00 % | 0.00 % |
-| 213.39 | 1 | 1 | 1 | 7 | 0 | 0.05 % | 0.05 % |
-| 223.50 | 1 | 1 | 1 | 7 | 0 | 0.27 % | 0.27 % |
-| 233.56 | 1 | 1 | 1 | 7 | 0 | 0.18 % | 0.18 % |
-| 243.58–243.61 | 13 | 4 | 7 | 4 | 0 | 0.64 % | 0.64 % |
+| 203.22 | 1 | 1 | 1 | 13 | 0 | 0.00 % | 0.00 % |
+| 213.39 | 1 | 1 | 1 | 13 | 0 | 0.05 % | 0.05 % |
+| 223.50 | 1 | 1 | 1 | 13 | 0 | 0.27 % | 0.27 % |
+| 233.56 | 1 | 1 | 1 | 13 | 0 | 0.18 % | 0.18 % |
+| 243.58–243.61 | 13 | 10 | 13 | 4 | 0 | 1.30 % | 1.30 % |
 
 ### Each state's own best kij
 
@@ -122,28 +121,27 @@ come from the same source and the same laboratory.
 | 006 | 243.60 | 3.675 | 0.10 % | 0 | 0.10 % |
 | 007 | 243.60 | 3.942 | -0.21 % | +0.0010 | 0.01 % |
 | 008 | 243.60 | 4.831 | -1.14 % | +0.0060 | -0.01 % |
-| 009 | 243.60 | 5.094 | not converged | +0.0080 | 0.38 % |
+| 009 | 243.60 | 5.094 | -1.05 % | +0.0060 | 0.02 % |
 | 010 | 243.60 | 5.395 | -1.43 % | +0.0090 | 0.06 % |
 | 011 | 243.60 | 5.564 | -1.32 % | +0.0080 | -0.05 % |
-| 012 | 243.60 | 6.487 | not converged | +0.0170 | -0.02 % |
-| 013 | 243.60 | 6.885 | not converged | none converges | n/a |
+| 012 | 243.60 | 6.487 | -1.82 % | +0.0170 | -0.02 % |
+| 013 | 243.60 | 6.885 | -2.62 % | +0.0050 | -2.25 % |
 | 014 | 243.61 | 3.718 | 0.30 % | -0.0010 | 0.08 % |
-| 015 | 243.61 | 6.080 | not converged | +0.0460 | 4.38 % |
-| 016 | 243.61 | 6.469 | not converged | +0.0230 | -0.01 % |
-| 017 | 243.61 | 6.691 | not converged | -0.0060 | -3.04 % |
+| 015 | 243.61 | 6.080 | -1.84 % | +0.0140 | 0.01 % |
+| 016 | 243.61 | 6.469 | -2.54 % | +0.0230 | -0.01 % |
+| 017 | 243.61 | 6.691 | -2.48 % | +0.0270 | 0.01 % |
 
 ### Dew composition at the measured pressure (P3 metric)
 
 | kij | Dew states | Assessable | Within 1 U | Within 2 U | Mean abs(dy) | Mean dy | Above the converged isotherm |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 17 | 15 | 15 | 15 | 0.0033 | +0.0002 | 2 |
-| -0.0002 | 17 | 17 | 17 | 17 | 0.0035 | +0.0007 | 0 |
+| 0 | 17 | 16 | 16 | 16 | 0.0031 | +0.0002 | 1 |
 
 **Reading.**
 
 - Leaving out any one isotherm leaves the fitted kij at 0, inside the bootstrap interval.
-- Each state's own best kij runs from -0.0010 to +0.0010 inside the fixed set, and from -0.0060 to +0.0460 for the 8 states outside it, whose convergence depends on kij. No kij on the grid gives a converged bubble pressure for 013.
-- At the fitted kij the dew AARD over unique states is 5.34 % (n=12), against 5.34 % (n=12) at kij = 0. The fitted kij leaves the number of ambiguous dew states unchanged (3 at kij = 0, 3 at the fitted kij).
+- Each state's own best kij runs from -0.0010 to +0.0230 inside the fixed set, and from +0.0050 to +0.0270 for the 3 states outside it, whose convergence depends on kij.
+- At the fitted kij the dew AARD over unique states is 2.07 % (n=8), against 2.07 % (n=8) at kij = 0. The fitted kij leaves the number of ambiguous dew states unchanged (7 at kij = 0, 7 at the fitted kij).
 
 ## CH4+C3
 
@@ -151,46 +149,46 @@ come from the same source and the same laboratory.
 
 | kij | Bubble converged | Bubble not found | Bubble inconclusive | Bubble AARD | Dew unique | Dew hidden root | Dew multiple roots | Dew not found | Dew AARD (unique only) |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| -0.0200 | 21 | 2 | 0 | 5.91 % (n=21) | 1 | 6 | 14 | 2 | 2.31 % (n=1) |
-| -0.0150 | 21 | 2 | 0 | 4.71 % (n=21) | 1 | 5 | 15 | 2 | 2.45 % (n=1) |
-| -0.0100 | 21 | 2 | 0 | 3.48 % (n=21) | 1 | 4 | 16 | 2 | 2.58 % (n=1) |
-| -0.0050 | 20 | 3 | 0 | 2.33 % (n=20) | 1 | 4 | 16 | 2 | 2.71 % (n=1) |
-| 0 | 20 | 3 | 0 | 1.03 % (n=20) | 1 | 6 | 14 | 2 | 2.83 % (n=1) |
-| **+0.0030 (fit)** | 19 | 4 | 0 | 0.60 % (n=19) | 1 | 6 | 14 | 2 | 2.91 % (n=1) |
-| +0.0050 | 19 | 4 | 0 | 0.79 % (n=19) | 1 | 6 | 12 | 4 | 2.95 % (n=1) |
-| +0.0100 | 18 | 5 | 0 | 1.76 % (n=18) | 1 | 4 | 14 | 4 | 3.07 % (n=1) |
-| +0.0150 | 19 | 4 | 0 | 3.19 % (n=19) | 1 | 4 | 14 | 4 | 3.18 % (n=1) |
-| +0.0200 | 20 | 3 | 0 | 4.59 % (n=20) | 1 | 3 | 13 | 6 | 3.29 % (n=1) |
-| +0.0250 | 19 | 4 | 0 | 6.13 % (n=19) | 1 | 3 | 11 | 8 | 3.39 % (n=1) |
-| +0.0300 | 19 | 4 | 0 | 7.66 % (n=19) | 1 | 2 | 11 | 9 | 3.49 % (n=1) |
-| +0.0350 | 17 | 6 | 0 | 9.50 % (n=17) | 1 | 2 | 10 | 10 | 3.58 % (n=1) |
-| +0.0400 | 17 | 6 | 0 | 11.16 % (n=17) | 1 | 2 | 9 | 11 | 3.67 % (n=1) |
-| +0.0450 | 19 | 4 | 0 | 12.29 % (n=19) | 1 | 2 | 8 | 12 | 3.75 % (n=1) |
-| +0.0500 | 19 | 4 | 0 | 13.97 % (n=19) | 1 | 1 | 8 | 13 | 3.83 % (n=1) |
-| +0.0550 | 18 | 5 | 0 | 16.02 % (n=18) | 1 | 2 | 4 | 16 | 3.91 % (n=1) |
-| +0.0600 | 18 | 5 | 0 | 17.78 % (n=18) | 1 | 1 | 5 | 16 | 3.98 % (n=1) |
+| -0.0200 | 23 | 0 | 0 | 5.52 % (n=23) | 1 | 6 | 14 | 2 | 2.31 % (n=1) |
+| -0.0150 | 23 | 0 | 0 | 4.38 % (n=23) | 1 | 5 | 15 | 2 | 2.45 % (n=1) |
+| -0.0100 | 23 | 0 | 0 | 3.22 % (n=23) | 1 | 4 | 16 | 2 | 2.58 % (n=1) |
+| -0.0050 | 23 | 0 | 0 | 2.07 % (n=23) | 1 | 4 | 16 | 2 | 2.71 % (n=1) |
+| 0 | 23 | 0 | 0 | 1.01 % (n=23) | 1 | 6 | 14 | 2 | 2.83 % (n=1) |
+| **+0.0021 (fit)** | 23 | 0 | 0 | 0.72 % (n=23) | 1 | 6 | 14 | 2 | 2.89 % (n=1) |
+| +0.0050 | 23 | 0 | 0 | 0.90 % (n=23) | 1 | 6 | 12 | 4 | 2.95 % (n=1) |
+| +0.0100 | 23 | 0 | 0 | 1.77 % (n=23) | 1 | 4 | 14 | 4 | 3.07 % (n=1) |
+| +0.0150 | 23 | 0 | 0 | 3.06 % (n=23) | 1 | 4 | 14 | 4 | 3.18 % (n=1) |
+| +0.0200 | 23 | 0 | 0 | 4.40 % (n=23) | 1 | 3 | 13 | 6 | 3.29 % (n=1) |
+| +0.0250 | 23 | 0 | 0 | 5.78 % (n=23) | 1 | 3 | 11 | 8 | 3.39 % (n=1) |
+| +0.0300 | 22 | 0 | 1 | 7.30 % (n=22) | 1 | 2 | 11 | 9 | 3.49 % (n=1) |
+| +0.0350 | 22 | 0 | 1 | 8.78 % (n=22) | 1 | 2 | 10 | 10 | 3.58 % (n=1) |
+| +0.0400 | 22 | 0 | 1 | 10.31 % (n=22) | 1 | 2 | 9 | 11 | 3.67 % (n=1) |
+| +0.0450 | 22 | 0 | 1 | 11.88 % (n=22) | 1 | 2 | 8 | 12 | 3.75 % (n=1) |
+| +0.0500 | 22 | 0 | 1 | 13.50 % (n=22) | 1 | 1 | 8 | 13 | 3.83 % (n=1) |
+| +0.0550 | 22 | 0 | 1 | 15.16 % (n=22) | 1 | 2 | 4 | 16 | 3.91 % (n=1) |
+| +0.0600 | 22 | 0 | 1 | 16.88 % (n=22) | 1 | 1 | 5 | 16 | 3.98 % (n=1) |
 
 ### Fit to bubble pressure
 
-- **Fitted kij = +0.0030** (fine-grid minimum +0.0030, refined).
-- Bubble AARD over the fixed set of 15 states: 0.96 % at kij = 0, 0.53 % at the fitted kij.
+- **Fitted kij = +0.0021** (fine-grid minimum +0.0030, refined).
+- Bubble AARD over the fixed set of 22 states: 0.99 % at kij = 0, 0.68 % at the fitted kij.
 - Sensitivity band (AARD within 0.1 percentage points of the minimum): +0.0020 to +0.0040.
 - Bootstrap over states, 95 % interval of the optimum: +0.0020 to +0.0040.
-- States whose bubble status changes somewhere on the fine grid: 012, 013, 014, 015, 017, 020, 022, 023.
+- States whose bubble status changes somewhere on the fine grid: 015.
 
 ### Leave one isotherm out
 
 | Held-out isotherm (K) | States | In fixed set | Scored | Training n | kij fitted without it | Held-out AARD at kij = 0 | at that kij |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 203.40 | 1 | 1 | 1 | 14 | +0.0030 | 0.40 % | 0.41 % |
-| 213.38 | 1 | 1 | 1 | 14 | +0.0030 | 0.37 % | 0.48 % |
-| 223.36–223.54 | 2 | 2 | 2 | 13 | +0.0030 | 0.29 % | 0.57 % |
-| 233.61–233.67 | 2 | 2 | 2 | 13 | +0.0030 | 0.49 % | 0.36 % |
-| 243.61–243.64 | 12 | 7 | 9 | 8 | +0.0020 | 0.99 % | 0.55 % |
-| 253.59 | 1 | 1 | 1 | 14 | +0.0020 | 1.90 % | 1.40 % |
-| 263.51–263.56 | 2 | 1 | 2 | 14 | +0.0020 | 1.89 % | 1.43 % |
-| 273.48 | 1 | 0 | 1 | 15 | +0.0030 | 1.75 % | 1.12 % |
-| 283.38 | 1 | 0 | 0 | 15 | +0.0030 | n/a | n/a |
+| 203.40 | 1 | 1 | 1 | 21 | +0.0030 | 0.40 % | 0.41 % |
+| 213.38 | 1 | 1 | 1 | 21 | +0.0030 | 0.37 % | 0.48 % |
+| 223.36–223.54 | 2 | 2 | 2 | 20 | +0.0030 | 0.29 % | 0.57 % |
+| 233.61–233.67 | 2 | 2 | 2 | 20 | +0.0030 | 0.49 % | 0.36 % |
+| 243.61–243.64 | 12 | 11 | 12 | 11 | +0.0020 | 0.94 % | 0.69 % |
+| 253.59 | 1 | 1 | 1 | 21 | +0.0020 | 1.90 % | 1.40 % |
+| 263.51–263.56 | 2 | 2 | 2 | 20 | +0.0020 | 1.89 % | 1.43 % |
+| 273.48 | 1 | 1 | 1 | 21 | +0.0020 | 1.75 % | 1.33 % |
+| 283.38 | 1 | 1 | 1 | 21 | +0.0020 | 2.04 % | 1.67 % |
 
 ### Each state's own best kij
 
@@ -208,9 +206,9 @@ come from the same source and the same laboratory.
 | 010 | 243.62 | 3.909 | -1.26 % | +0.0040 | 0.08 % |
 | 011 | 243.62 | 5.544 | -0.82 % | +0.0030 | -0.00 % |
 | 012 | 243.62 | 6.402 | -0.36 % | +0.0020 | 0.11 % |
-| 013 | 243.62 | 7.530 | not converged | -0.0060 | -0.53 % |
-| 014 | 243.62 | 7.943 | not converged | +0.0420 | 7.41 % |
-| 015 | 243.62 | 8.320 | not converged | +0.0190 | 3.54 % |
+| 013 | 243.62 | 7.530 | 0.48 % | -0.0030 | -0.03 % |
+| 014 | 243.62 | 7.943 | 0.69 % | -0.0050 | -0.02 % |
+| 015 | 243.62 | 8.320 | 1.29 % | -0.0120 | -0.03 % |
 | 016 | 243.63 | 5.500 | -0.97 % | +0.0040 | 0.13 % |
 | 017 | 243.63 | 6.989 | 0.11 % | -0.0010 | -0.09 % |
 | 018 | 243.64 | 5.635 | -0.80 % | +0.0030 | 0.00 % |
@@ -218,20 +216,20 @@ come from the same source and the same laboratory.
 | 020 | 263.51 | 6.597 | -1.95 % | +0.0080 | -0.08 % |
 | 021 | 263.56 | 6.560 | -1.83 % | +0.0080 | 0.06 % |
 | 022 | 273.48 | 7.102 | -1.75 % | +0.0080 | -0.06 % |
-| 023 | 283.38 | 7.630 | -2.04 % | +0.0010 | -1.86 % |
+| 023 | 283.38 | 7.630 | -2.04 % | +0.0110 | 0.02 % |
 
 ### Dew composition at the measured pressure (P3 metric)
 
 | kij | Dew states | Assessable | Within 1 U | Within 2 U | Mean abs(dy) | Mean dy | Above the converged isotherm |
 |---:|---:|---:|---:|---:|---:|---:|---:|
 | 0 | 23 | 23 | 22 | 23 | 0.0023 | +0.0002 | 0 |
-| +0.0030 | 23 | 23 | 21 | 23 | 0.0023 | +0.0004 | 0 |
+| +0.0021 | 23 | 23 | 21 | 23 | 0.0023 | +0.0003 | 0 |
 
 **Reading.**
 
 - Leaving one isotherm out moves the fitted kij between +0.0020 and +0.0030. That range stays inside the bootstrap interval, so the optimum is stable across temperatures.
-- Each state's own best kij runs from 0 to +0.0080 inside the fixed set, and from -0.0060 to +0.0420 for the 8 states outside it, whose convergence depends on kij.
-- At the fitted kij the dew AARD over unique states is 2.91 % (n=1), against 2.83 % (n=1) at kij = 0. The fitted kij leaves the number of ambiguous dew states unchanged (20 at kij = 0, 20 at the fitted kij).
+- Each state's own best kij runs from -0.0050 to +0.0110 inside the fixed set, and is -0.0120 for the one state outside it, whose convergence depends on kij.
+- At the fitted kij the dew AARD over unique states is 2.89 % (n=1), against 2.83 % (n=1) at kij = 0. The fitted kij leaves the number of ambiguous dew states unchanged (20 at kij = 0, 20 at the fitted kij).
 
 ## Provisional butane evidence
 
@@ -247,79 +245,79 @@ the recommendation.
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | -0.0200 | 17 | 0 | 0 | 8.67 % (n=17) | 0 | 4 | 13 | 0 | n/a (n=0) |
 | -0.0150 | 17 | 0 | 0 | 7.42 % (n=17) | 0 | 5 | 12 | 0 | n/a (n=0) |
-| -0.0100 | 16 | 1 | 0 | 6.24 % (n=16) | 0 | 5 | 12 | 0 | n/a (n=0) |
-| -0.0050 | 16 | 1 | 0 | 4.86 % (n=16) | 0 | 4 | 13 | 0 | n/a (n=0) |
+| -0.0100 | 17 | 0 | 0 | 6.13 % (n=17) | 0 | 5 | 12 | 0 | n/a (n=0) |
+| -0.0050 | 17 | 0 | 0 | 4.81 % (n=17) | 0 | 4 | 13 | 0 | n/a (n=0) |
 | 0 | 17 | 0 | 0 | 3.45 % (n=17) | 0 | 4 | 13 | 0 | n/a (n=0) |
-| +0.0050 | 16 | 1 | 0 | 2.23 % (n=16) | 0 | 4 | 13 | 0 | n/a (n=0) |
-| +0.0100 | 16 | 1 | 0 | 1.20 % (n=16) | 0 | 4 | 13 | 0 | n/a (n=0) |
-| **+0.0123 (fit)** | 16 | 1 | 0 | 1.10 % (n=16) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0150 | 16 | 1 | 0 | 1.29 % (n=16) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0200 | 16 | 1 | 0 | 2.32 % (n=16) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0250 | 15 | 2 | 0 | 3.84 % (n=15) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0300 | 15 | 2 | 0 | 5.51 % (n=15) | 0 | 3 | 13 | 1 | n/a (n=0) |
-| +0.0350 | 14 | 3 | 0 | 7.44 % (n=14) | 0 | 3 | 13 | 1 | n/a (n=0) |
-| +0.0400 | 13 | 4 | 0 | 9.31 % (n=13) | 0 | 3 | 13 | 1 | n/a (n=0) |
-| +0.0450 | 12 | 5 | 0 | 11.01 % (n=12) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0500 | 12 | 5 | 0 | 13.01 % (n=12) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0550 | 14 | 3 | 0 | 15.08 % (n=14) | 0 | 4 | 12 | 1 | n/a (n=0) |
-| +0.0600 | 16 | 1 | 0 | 16.94 % (n=16) | 0 | 6 | 10 | 1 | n/a (n=0) |
+| +0.0050 | 17 | 0 | 0 | 2.11 % (n=17) | 0 | 4 | 13 | 0 | n/a (n=0) |
+| +0.0100 | 17 | 0 | 0 | 1.21 % (n=17) | 0 | 4 | 13 | 0 | n/a (n=0) |
+| **+0.0121 (fit)** | 17 | 0 | 0 | 1.14 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0150 | 17 | 0 | 0 | 1.36 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0200 | 17 | 0 | 0 | 2.40 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0250 | 17 | 0 | 0 | 3.98 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0300 | 17 | 0 | 0 | 5.61 % (n=17) | 0 | 3 | 13 | 1 | n/a (n=0) |
+| +0.0350 | 17 | 0 | 0 | 7.31 % (n=17) | 0 | 3 | 13 | 1 | n/a (n=0) |
+| +0.0400 | 17 | 0 | 0 | 9.06 % (n=17) | 0 | 3 | 13 | 1 | n/a (n=0) |
+| +0.0450 | 17 | 0 | 0 | 10.89 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0500 | 17 | 0 | 0 | 12.78 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0550 | 17 | 0 | 0 | 14.77 % (n=17) | 0 | 4 | 12 | 1 | n/a (n=0) |
+| +0.0600 | 17 | 0 | 0 | 16.84 % (n=17) | 0 | 6 | 10 | 1 | n/a (n=0) |
 
-- **Fitted kij = +0.0123** (fine-grid minimum +0.0120, refined).
-- Bubble AARD over the fixed set of 10 states: 4.16 % at kij = 0, 0.99 % at the fitted kij.
-- Sensitivity band (AARD within 0.1 percentage points of the minimum): +0.0110 to +0.0140.
-- Bootstrap over states, 95 % interval of the optimum: +0.0100 to +0.0170.
-- States whose bubble status changes somewhere on the fine grid: 001, 006, 011, 012, 013, 016, 017.
+- **Fitted kij = +0.0121** (fine-grid minimum +0.0120, refined).
+- Bubble AARD over the fixed set of 17 states: 3.45 % at kij = 0, 1.14 % at the fitted kij.
+- Sensitivity band (AARD within 0.1 percentage points of the minimum): +0.0100 to +0.0130.
+- Bootstrap over states, 95 % interval of the optimum: +0.0090 to +0.0160.
+- States whose bubble status changes somewhere on the fine grid: none.
 
 | Held-out isotherm (K) | States | In fixed set | Scored | Training n | kij fitted without it | Held-out AARD at kij = 0 | at that kij |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 203.25 | 1 | 0 | 1 | 10 | +0.0120 | 1.54 % | 1.25 % |
-| 213.39 | 1 | 1 | 1 | 9 | +0.0130 | 2.18 % | 1.50 % |
-| 223.49 | 1 | 1 | 1 | 9 | +0.0130 | 2.72 % | 1.23 % |
-| 233.57 | 1 | 1 | 1 | 9 | +0.0130 | 3.03 % | 0.97 % |
-| 243.58–243.61 | 10 | 6 | 9 | 4 | +0.0100 | 3.91 % | 1.36 % |
-| 253.60 | 1 | 1 | 1 | 9 | +0.0120 | 4.09 % | 0.70 % |
-| 263.56 | 1 | 0 | 1 | 10 | +0.0120 | 4.47 % | 1.29 % |
-| 273.47 | 1 | 0 | 1 | 10 | +0.0120 | 4.60 % | 1.65 % |
+| 203.25 | 1 | 1 | 1 | 16 | +0.0120 | 1.54 % | 1.25 % |
+| 213.39 | 1 | 1 | 1 | 16 | +0.0120 | 2.18 % | 1.21 % |
+| 223.49 | 1 | 1 | 1 | 16 | +0.0120 | 2.72 % | 0.91 % |
+| 233.57 | 1 | 1 | 1 | 16 | +0.0120 | 3.03 % | 0.65 % |
+| 243.58–243.61 | 10 | 10 | 10 | 7 | +0.0100 | 3.60 % | 1.36 % |
+| 253.60 | 1 | 1 | 1 | 16 | +0.0110 | 4.09 % | 0.99 % |
+| 263.56 | 1 | 1 | 1 | 16 | +0.0110 | 4.47 % | 1.56 % |
+| 273.47 | 1 | 1 | 1 | 16 | +0.0110 | 4.60 % | 1.91 % |
 
 ### CH4+nC4 (provisional)
 
 | kij | Bubble converged | Bubble not found | Bubble inconclusive | Bubble AARD | Dew unique | Dew hidden root | Dew multiple roots | Dew not found | Dew AARD (unique only) |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| -0.0200 | 17 | 2 | 0 | 9.87 % (n=17) | 1 | 4 | 13 | 1 | 94.39 % (n=1) |
-| -0.0150 | 17 | 2 | 0 | 8.32 % (n=17) | 1 | 4 | 12 | 2 | 94.38 % (n=1) |
-| -0.0100 | 16 | 3 | 0 | 7.15 % (n=16) | 1 | 4 | 12 | 2 | 94.38 % (n=1) |
-| -0.0050 | 16 | 3 | 0 | 5.43 % (n=16) | 1 | 4 | 12 | 2 | 94.38 % (n=1) |
-| 0 | 17 | 2 | 0 | 3.51 % (n=17) | 1 | 4 | 12 | 2 | 94.37 % (n=1) |
-| +0.0050 | 17 | 2 | 0 | 2.05 % (n=17) | 1 | 4 | 12 | 2 | 94.37 % (n=1) |
-| **+0.0098 (fit)** | 17 | 2 | 0 | 0.98 % (n=17) | 1 | 4 | 12 | 2 | 94.37 % (n=1) |
-| +0.0100 | 17 | 2 | 0 | 1.00 % (n=17) | 1 | 4 | 12 | 2 | 94.37 % (n=1) |
-| +0.0150 | 17 | 2 | 0 | 2.38 % (n=17) | 1 | 3 | 13 | 2 | 94.37 % (n=1) |
-| +0.0200 | 17 | 2 | 0 | 4.25 % (n=17) | 1 | 3 | 13 | 2 | 94.37 % (n=1) |
-| +0.0250 | 17 | 2 | 0 | 6.33 % (n=17) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0300 | 17 | 2 | 0 | 8.49 % (n=17) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0350 | 17 | 2 | 0 | 10.74 % (n=17) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0400 | 17 | 2 | 0 | 13.09 % (n=17) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0450 | 16 | 3 | 0 | 15.47 % (n=16) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0500 | 16 | 3 | 0 | 18.06 % (n=16) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0550 | 16 | 3 | 0 | 20.78 % (n=16) | 1 | 3 | 13 | 2 | 94.36 % (n=1) |
-| +0.0600 | 15 | 4 | 0 | 23.60 % (n=15) | 0 | 3 | 14 | 2 | n/a (n=0) |
+| -0.0200 | 19 | 0 | 0 | 9.06 % (n=19) | 0 | 5 | 13 | 1 | n/a (n=0) |
+| -0.0150 | 19 | 0 | 0 | 7.66 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| -0.0100 | 19 | 0 | 0 | 6.29 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| -0.0050 | 19 | 0 | 0 | 4.88 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| 0 | 19 | 0 | 0 | 3.56 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| +0.0050 | 19 | 0 | 0 | 2.36 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| **+0.0098 (fit)** | 19 | 0 | 0 | 1.53 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| +0.0100 | 19 | 0 | 0 | 1.55 % (n=19) | 0 | 5 | 12 | 2 | n/a (n=0) |
+| +0.0150 | 18 | 0 | 1 | 2.65 % (n=18) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0200 | 18 | 0 | 1 | 4.49 % (n=18) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0250 | 18 | 0 | 1 | 6.53 % (n=18) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0300 | 18 | 0 | 1 | 8.66 % (n=18) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0350 | 17 | 0 | 2 | 10.74 % (n=17) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0400 | 17 | 1 | 1 | 13.09 % (n=17) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0450 | 17 | 2 | 0 | 15.54 % (n=17) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0500 | 17 | 1 | 1 | 18.11 % (n=17) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0550 | 17 | 1 | 1 | 20.81 % (n=17) | 0 | 4 | 13 | 2 | n/a (n=0) |
+| +0.0600 | 17 | 0 | 2 | 23.65 % (n=17) | 0 | 3 | 14 | 2 | n/a (n=0) |
 
 - **Fitted kij = +0.0098** (fine-grid minimum +0.0100, refined).
-- Bubble AARD over the fixed set of 15 states: 3.86 % at kij = 0, 0.66 % at the fitted kij.
-- Sensitivity band (AARD within 0.1 percentage points of the minimum): +0.0100 to +0.0100.
-- Bootstrap over states, 95 % interval of the optimum: +0.0090 to +0.0110.
-- States whose bubble status changes somewhere on the fine grid: 013, 014, 015.
+- Bubble AARD over the fixed set of 17 states: 3.51 % at kij = 0, 0.98 % at the fitted kij.
+- Sensitivity band (AARD within 0.1 percentage points of the minimum): +0.0090 to +0.0100.
+- Bootstrap over states, 95 % interval of the optimum: +0.0090 to +0.0100.
+- States whose bubble status changes somewhere on the fine grid: 008, 015.
 
 | Held-out isotherm (K) | States | In fixed set | Scored | Training n | kij fitted without it | Held-out AARD at kij = 0 | at that kij |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 203.25 | 1 | 1 | 1 | 14 | +0.0100 | 2.92 % | 0.65 % |
-| 213.36 | 1 | 1 | 1 | 14 | +0.0100 | 3.62 % | 0.33 % |
-| 223.44 | 1 | 1 | 1 | 14 | +0.0100 | 3.76 % | 0.26 % |
-| 233.49–233.50 | 2 | 2 | 2 | 13 | +0.0100 | 3.93 % | 0.08 % |
-| 243.52–244.53 | 11 | 7 | 9 | 8 | +0.0100 | 3.37 % | 1.59 % |
-| 253.52 | 1 | 1 | 1 | 14 | +0.0100 | 3.51 % | 0.06 % |
-| 263.48 | 1 | 1 | 1 | 14 | +0.0100 | 3.96 % | 0.62 % |
-| 273.42 | 1 | 1 | 1 | 14 | +0.0100 | 3.71 % | 0.59 % |
+| 203.25 | 1 | 1 | 1 | 16 | +0.0100 | 2.92 % | 0.65 % |
+| 213.36 | 1 | 1 | 1 | 16 | +0.0100 | 3.62 % | 0.33 % |
+| 223.44 | 1 | 1 | 1 | 16 | +0.0100 | 3.76 % | 0.26 % |
+| 233.49–233.50 | 2 | 2 | 2 | 15 | +0.0100 | 3.93 % | 0.08 % |
+| 243.52–244.53 | 11 | 9 | 11 | 8 | +0.0100 | 3.48 % | 2.44 % |
+| 253.52 | 1 | 1 | 1 | 16 | +0.0100 | 3.51 % | 0.06 % |
+| 263.48 | 1 | 1 | 1 | 16 | +0.0100 | 3.96 % | 0.62 % |
+| 273.42 | 1 | 1 | 1 | 16 | +0.0100 | 3.71 % | 0.59 % |
 
 ## Literature comparison
 
@@ -358,14 +356,14 @@ access should read the kij values in these sources and add them here.
 
 ## Proposal for the owner
 
-Nothing below is implemented. Fitted values from this study: CH4+C2 -0.0002, CH4+C3 +0.0030.
+Nothing below is implemented. Fitted values from this study: CH4+C2 0, CH4+C3 +0.0021.
 
 **What the evidence says.**
-- At kij = 0 the mean signed bubble-pressure error is CH4+C2 -0.29 % (n=11), CH4+C3 -1.02 % (n=20): PR under-predicts slightly.
-- Each state's own best kij spans CH4+C2 -0.0060 to +0.0460; CH4+C3 -0.0060 to +0.0420. One constant kij is a
+- At kij = 0 the mean signed bubble-pressure error is CH4+C2 -0.91 % (n=17), CH4+C3 -0.78 % (n=23): PR under-predicts slightly.
+- Each state's own best kij spans CH4+C2 -0.0010 to +0.0270; CH4+C3 -0.0120 to +0.0110. One constant kij is a
   compromise between the low-pressure states and the states near the critical
   region, not a fix for both.
-- Ambiguous dew states (hidden or multiple roots): CH4+C2 3 at kij = 0 and 3 at the fitted kij, CH4+C3 20 at kij = 0 and 20 at the fitted kij. A small kij does
+- Ambiguous dew states (hidden or multiple roots): CH4+C2 7 at kij = 0 and 7 at the fitted kij, CH4+C3 20 at kij = 0 and 20 at the fitted kij. A small kij does
   not make the dew question better posed.
 
 **Option 1: keep kij = 0 everywhere (today's behaviour).**
