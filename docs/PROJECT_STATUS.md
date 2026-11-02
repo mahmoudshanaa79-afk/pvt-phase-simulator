@@ -92,6 +92,15 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-02, web (v1.6.0 release prepared, not merged):**
+  - Done: version 1.6.0 in `pyproject.toml` and `uv.lock`, the "(v1.6)"
+    deployment wording in the README and `STREAMLIT_APPLICATION.md`, and
+    `docs/release_notes/v1.6.0.md`. PR "Release v1.6.0 (awaiting owner
+    approval)" is open and not merged; no tag.
+  - Waiting for the owner: approval of the release PR, then the tag and the
+    Streamlit Cloud reboot; the butane Table 5 values.
+  - Next: after approval, merge, tag v1.6.0 and check the public app.
+
 - **2026-11-02, web (optional kij input, Option 2):**
   - Done: the owner approved Option 2 of P6. The sidebar form has a collapsed
     *Advanced: binary interaction (kij)* expander (one field per pair in the
