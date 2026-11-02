@@ -58,7 +58,9 @@ key whose numbers are recomputed from the engine by the tests.
 | P5: neutral dew stop marker label | Done, PR #16, in the app layer. The engine's own label is unchanged. |
 | P2: refine grid boundaries in the saturation scan | Done, owner-approved. Nine dew results that looked unique are now reported as ambiguous (`HIDDEN_SATURATION_ROOT`); each second root is confirmed. The Module 17 artifacts were regenerated: CH4+C3 dew 7 → 1 unique results, CH4+C2 dew 15 → 12. Bubble results unchanged. |
 | Pure-component reference data (V2-01-E) | Accepted, PR #10 (`docs/PURE_COMPONENT_SATURATION.md`). |
-| P3: conditioning-aware dew metric | Done for both binaries (`docs/investigations/dew_conditioning.csv`). PR's vapour composition at the measured pressure is within the stated uncertainty at 22 of 23 CH4+C3 states and 15 of 15 assessable CH4+C2 states. Shown on the Validation page. |
+| P3: conditioning-aware dew metric | Done for both binaries (`docs/investigations/dew_conditioning.csv`). PR's vapour composition at the measured pressure is within the stated uncertainty at 22 of 23 CH4+C3 states and 16 of 16 assessable CH4+C2 states (15 of 15 before P7). Shown on the Validation page. |
+| P7: refine boundaries when the scan finds no root | Done, owner-approved (1 Nov 2026). All nine `not_found` bubble states of the record now converge (CH4+C2 bubble 11 → 17, CH4+C3 20 → 23); 7 agree with the Newton option to 1e-8 and 250 K agrees with the independent envelope reference to 5e-14. |
+| P8: check past a failed walk step | Done, owner-approved (1 Nov 2026). CH4+C2 dew 008, 009, 013 and 017 have an upper root the solver missed and are now ambiguous; CH4+C2 dew 12 states at 5.34 % → 8 states at 2.07 %. Lab 2 updated. |
 | P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
 
 ## Waiting on an owner decision
@@ -89,6 +91,18 @@ key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-01, desktop (engine P7 + P8, owner-approved):**
+  - Done: `saturation_pressure.py` runs the boundary walk when the grid finds
+    no root (P7) and, where a walk stops at a failed step, checks the rest of
+    the interval with a bounded Newton solve that may only make a result
+    ambiguous, never supply its pressure (P8). Module 17 artifacts, the
+    Newton comparison and the P3 study regenerated; Lab 2 and the validation
+    write-up updated. The Newton comparison now also treats states the
+    default solver calls ambiguous as multi-root.
+  - Parallel: the web session's kij study (PR #28) must merge master and
+    rerun on the new engine.
+  - Next: release v1.6 (owner approval); then the butanes decision.
 
 - **2026-11-01, desktop (new components proposal):**
   - Done: `docs/NEW_COMPONENTS_PROPOSAL.md`. The May (2015) ThermoML record

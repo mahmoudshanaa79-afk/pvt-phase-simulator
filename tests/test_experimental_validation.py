@@ -320,8 +320,9 @@ def test_branch_artifact_reproduces_root_and_failure_accounting() -> None:
     assert (c3["zero_root_state_count"], c3["single_root_state_count"]) == (2, 1)
     assert c3["multiple_root_state_count"] == 20
     # P2 makes three more CH4+C2 and six more CH4+C3 dew states ambiguous
-    # (a second root found beside a non-converged grid node).
-    assert c2["failed_root_demonstrated_count"] == 5
+    # (a second root found beside a non-converged grid node). P8 adds CH4+C2
+    # 008, 009, 013 and 017, whose upper root lies past a failed walk step.
+    assert c2["failed_root_demonstrated_count"] == 9
     assert c2["failed_no_root_found_in_scan_count"] == 0
     assert c3["failed_root_demonstrated_count"] == 20
     assert c3["failed_no_root_found_in_scan_count"] == 2
@@ -336,7 +337,7 @@ def test_branch_artifact_reproduces_root_and_failure_accounting() -> None:
         for row in rows
         if row["system_id"] == "ch4_c2" and row["dew_status"] != "converged"
     ]
-    assert len(c2_failed) == 5
+    assert len(c2_failed) == 9
     assert {row["dew_failure_classification"] for row in c2_failed} == {
         "PR_ROOT_DEMONSTRATED_PRODUCTION_UNREACHED"
     }
@@ -417,14 +418,15 @@ def test_out_of_title_points_and_283_38_k_sensitivity_are_pinned() -> None:
     sensitivity = summary["source_anomaly_sensitivity_283_38_k"]
     bubble = sensitivity["bubble"]
     dew = sensitivity["dew"]
+    # P7 recovers CH4+C3 bubble 013, 014 and 015 (all at 243.62 K).
     assert (bubble["included_success_count"], bubble["excluded_success_count"]) == (
-        20,
-        19,
+        23,
+        22,
     )
-    assert bubble["included_aard_percent"] == pytest.approx(1.0338049113443992)
-    assert bubble["excluded_aard_percent"] == pytest.approx(0.9807666332366116)
+    assert bubble["included_aard_percent"] == pytest.approx(1.0056780240673202)
+    assert bubble["excluded_aard_percent"] == pytest.approx(0.9585937435525455)
     assert bubble["aard_shift_when_excluded_percentage_points"] == pytest.approx(
-        -0.053038278107787606
+        -0.04708428051477476
     )
     # P2: only state 009 remains a unique converged CH4+C3 dew pressure, and it
     # is not the 283.38 K point, so excluding that point changes nothing.

@@ -1,6 +1,8 @@
 # Next components: butanes first (proposal)
 
-Status: **awaiting owner decision** (1 November 2026). Nothing here changes the
+Status: P7 and P8 **applied** on 1 November 2026 (owner-approved, see
+`docs/ENGINE_CHANGE_PROPOSALS.md`). The butanes still **await the owner's
+decision**. The evidence below describes the record as it was before P7 and P8. Nothing here changes the
 engine, `data/` or the validation record. Every number below comes from a
 committed tool and its CSV, and `tests/test_butane_preview_and_solver_gaps.py`
 recomputes the key values from the engine.

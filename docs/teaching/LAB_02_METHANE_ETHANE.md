@@ -109,9 +109,10 @@ measured liquid composition and temperature, and predicts the pressure.
 | 013 | 0.6218 | 6.885 | 0.7123 |
 
 3. Is the model error random, or does it follow a trend with pressure?
-4. For some states the production record shows *not found* instead of a
-   pressure. Where are they, and why is "not found" a better answer than a
-   number the solver does not trust?
+4. The six states at 243.6 K above 5 MPa (009, 012, 013, 015, 016, 017) lie
+   close to the mixture critical point. How large are their errors compared
+   with the states below 4 MPa? Why is a saturation pressure near a critical
+   point harder for a solver to find?
 
 ## Part E: Discussion
 
@@ -160,9 +161,11 @@ validation record, which uses the solver's defaults.
 - The curve is close to a straight line up to *x*(C1) = 0.5, rising by 0.91 to
   0.95 MPa per 0.1 of methane. From 0.5 to 0.6 it rises by only 0.83 MPa: it
   bends over as the mixture approaches its critical point at this temperature.
-- With the solver's defaults, the bubble solve reports *not found* at
-  *x*(C1) = 0.50 and 0.60; Newton refinement converges there. A pressure sweep
-  is a different method and does not depend on that solver setting.
+- At *x*(C1) = 0.50 and 0.60 the solver's defaults find the bubble point only
+  by refining a grid interval next to a failed evaluation
+  (`BOUNDARY_SATURATION_ROOT`, added on 1 November 2026). They give the same
+  pressures as Newton refinement. A pressure sweep is a different method and
+  does not depend on either.
 
 **Part C.**
 
@@ -201,22 +204,27 @@ Model bubble pressures at the measured liquid composition:
 | 008 | 4.831 | 4.776 | -1.14 % | 4.776 | -1.14 % |
 | 010 | 5.395 | 5.318 | -1.43 % | 5.318 | -1.43 % |
 | 011 | 5.564 | 5.491 | -1.32 % | 5.491 | -1.32 % |
-| 015 | 6.080 | not found | | 5.968 | -1.84 % |
-| 013 | 6.885 | not found | | 6.704 | -2.62 % |
+| 015 | 6.080 | 5.968 | -1.84 % | 5.968 | -1.84 % |
+| 013 | 6.885 | 6.704 | -2.62 % | 6.704 | -2.62 % |
 
 - The production record behind the **Validation** page, for methane–ethane
-  bubble pressures: 11 of 17 states solved, average absolute deviation 0.45 %,
-  largest error 1.43 %, mean signed error -0.29 %.
+  bubble pressures: 17 of 17 states solved, average absolute deviation 1.02 %,
+  largest error 2.62 %, mean signed error -0.91 %.
 - The error is not random. All states below 4 MPa (at every temperature) are
   within 0.31 %. Above 4 MPa every error is negative and the largest are at the
   highest pressures, about -2.6 % near 6.9 MPa: the model under-predicts the
   bubble pressure as the critical region is approached.
-- All six *not found* states (009, 012, 013, 015, 016, 017) lie at 243.6 K and
-  above 5 MPa, close to the mixture critical point. The solver could not find a
-  trustworthy pressure bracket there. Reporting that keeps a doubtful number out
-  of the statistics. With Newton refinement 4 of them converge (009, 013, 015,
-  016) and 2 still do not (012, 017); see
-  `docs/investigations/validation_newton_comparison.md`.
+- The six states at 243.6 K above 5 MPa (009, 012, 013, 015, 016, 017) have
+  errors from -1.05 % to -2.62 %, the largest in the record. Below 4 MPa no
+  error exceeds 0.31 %.
+- Near a critical point the two phases become alike. Just above each of these
+  bubble pressures the solver's inner calculation collapses to the trivial
+  solution (vapour equal to liquid), so its pressure grid sees no sign change.
+  Until 1 November 2026 the record therefore showed *not found* for all six.
+  The solver now refines the grid interval next to such a failed evaluation
+  and finds exactly one root at each state (`BOUNDARY_SATURATION_ROOT`). It
+  still reports *not found* or *inconclusive*, never a guess, when that check
+  cannot settle the answer.
 - The predicted first-bubble vapour compositions are also close: for state 008
   the model gives *y*(C1) = 0.7023 against 0.7046 measured.
 

@@ -1174,17 +1174,19 @@ def test_repeated_trivial_collapse_terminates_as_near_critical() -> None:
     trivial parent phase.
     """
 
+    # Since P7 the solver reaches 257.5 K, so the collapse is met by a 5 K step
+    # from 257.5 K toward the mixture critical point near 261 K.
     result = trace_bubble_branch(
         _methane_ethane(),
         _settings(
             300.0,
-            2.5,
+            5.0,
             2,
             allow_global_fallback=False,
             maximum_local_expansions=0,
             maximum_step_retries=1,
         ),
-        255.0,
+        257.5,
     )
     assert result.termination_reason is EnvelopeTerminationReason.NEAR_CRITICAL
     assert "not an exact critical point" in result.termination_message
@@ -1267,12 +1269,12 @@ def test_seeded_continuation_path_can_succeed_without_global_fallback(
 
 
 def test_continuation_reaches_a_state_isolated_module_8_cannot_find() -> None:
-    """A real continuation-only success, with no monkeypatching.
+    """Continuation and the isolated solver agree at a near-critical state.
 
-    At 250 K the isolated Wilson-seeded Module 8 search collapses to the
-    trivial solution across its grid and reports NOT_FOUND. The continuation
-    seed keeps the inner iteration on the nontrivial branch. The expected
-    pressure comes from an independent solver that shares no code with
+    At 250 K the Wilson-seeded Module 8 grid collapses to the trivial solution
+    above the root. Before P7 that was reported NOT_FOUND and only continuation
+    reached the state; since P7 the boundary walk finds the same root. The
+    expected pressure comes from an independent solver that shares no code with
     Module 8 or Module 9 (audit/independent_phase_envelope_reference.py).
     """
 
@@ -1280,8 +1282,9 @@ def test_continuation_reaches_a_state_isolated_module_8_cannot_find() -> None:
     isolated = calculate_saturation_pressure(
         mixture, 250.0, SaturationKind.BUBBLE_POINT
     )
-    assert isolated.status is SaturationStatus.NOT_FOUND
-    assert isolated.pressure_pa is None
+    assert isolated.status is SaturationStatus.CONVERGED
+    assert isolated.pressure_pa == pytest.approx(6_174_169.157030562, rel=1e-11)
+    assert "BOUNDARY_SATURATION_ROOT" in {item.code for item in isolated.diagnostics}
 
     result = trace_bubble_branch(mixture, _settings(250.0, 5.0, 6), 240.0)
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED
@@ -1298,7 +1301,9 @@ def test_ternary_continuation_reaches_an_isolated_not_found_state() -> None:
     isolated = calculate_saturation_pressure(
         mixture, 230.0, SaturationKind.BUBBLE_POINT
     )
-    assert isolated.status is SaturationStatus.NOT_FOUND
+    # Not found before P7; the boundary walk now finds the continuation's root.
+    assert isolated.status is SaturationStatus.CONVERGED
+    assert isolated.pressure_pa == pytest.approx(5_628_458.262860893, rel=1e-11)
 
     result = trace_bubble_branch(mixture, _settings(230.0, 5.0, 6), 220.0)
     assert result.termination_reason is EnvelopeTerminationReason.TARGET_REACHED

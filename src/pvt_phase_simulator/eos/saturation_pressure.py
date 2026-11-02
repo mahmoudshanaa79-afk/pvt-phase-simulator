@@ -94,6 +94,11 @@ DEFAULT_PRESSURE_SEARCH_POINTS: Final = 81
 #: inner iteration did not converge. A sign change found on that walk is a root
 #: the coarse grid could not see; it makes an apparently unique root ambiguous.
 BOUNDARY_REFINEMENT_STEPS: Final = 40
+#: A root confirmed by Newton beyond a failed walk step must keep at least this
+#: fraction of the last converged walk state's composition distance from the
+#: feed. A root that collapses onto the trivial solution (incipient phase equal
+#: to the feed) is not a second saturation point.
+BOUNDARY_ROOT_MINIMUM_DISTINCTNESS_RATIO: Final = 0.5
 DEFAULT_MAXIMUM_OUTER_ITERATIONS: Final = 100
 DEFAULT_MAXIMUM_NEWTON_ITERATIONS: Final = 15
 DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER: Final = 1e12
@@ -1418,19 +1423,43 @@ def _newton_is_trivial(
     )
 
 
-def _boundary_hides_another_root(
+@dataclass(frozen=True, slots=True)
+class _BoundaryRoot:
+    """A root found by refining a converged/non-converged grid interval.
+
+    ``bracket`` holds two converged evaluations around a sign change (the same
+    evaluation twice for an exact hit). It is ``None`` when the root was only
+    confirmed by a local Newton solve beyond the last converged evaluation, in
+    which case ``pressure_pa`` is that Newton root.
+    """
+
+    bracket: tuple[SaturationPressureEvaluation, SaturationPressureEvaluation] | None
+    pressure_pa: float
+
+
+def _boundary_roots(
     scanned: tuple[SaturationPressureEvaluation, ...],
     evaluate_log_pressure: Callable[[float], SaturationPressureEvaluation],
-) -> bool:
-    """Return whether a converged/non-converged grid boundary hides a root.
+    confirm_beyond_failure: (
+        Callable[[SaturationPressureEvaluation, float], float | None] | None
+    ) = None,
+) -> list[_BoundaryRoot]:
+    """Return the roots hidden in converged/non-converged grid intervals.
 
     The grid scan only sees sign changes between two converged nodes. Next to a
     node whose inner iteration failed, a root can sit unseen. Walk from each
     converged node toward such a neighbour in ``BOUNDARY_REFINEMENT_STEPS``
     log-pressure steps, stopping at the first non-converged evaluation, and
-    report any sign change or exact hit found on the way.
+    record any sign change or exact hit found on the way.
+
+    Near a mixture critical point the fixed-pressure inner iteration can fail
+    just before the root, so the walk stops one step short of a sign change.
+    When the walk of an interval finds nothing, ``confirm_beyond_failure`` gets
+    the last converged evaluation and the far node's pressure, and may return a
+    root it confirmed in between (a bounded local Newton solve in production).
     """
 
+    roots: list[_BoundaryRoot] = []
     for left, right in zip(scanned[:-1], scanned[1:], strict=True):
         left_ok = left.converged and left.objective is not None
         right_ok = right.converged and right.objective is not None
@@ -1439,18 +1468,41 @@ def _boundary_hides_another_root(
         start, end = (left, right) if left_ok else (right, left)
         start_log = log(start.pressure_pa)
         step = (log(end.pressure_pa) - start_log) / BOUNDARY_REFINEMENT_STEPS
-        previous = start.objective
-        assert previous is not None
+        previous = start
+        found = False
         for index in range(1, BOUNDARY_REFINEMENT_STEPS):
             evaluation = evaluate_log_pressure(start_log + index * step)
             if not evaluation.converged or evaluation.objective is None:
                 break
             if abs(evaluation.objective) <= SATURATION_OBJECTIVE_TOLERANCE:
-                return True
-            if evaluation.objective * previous < 0.0:
-                return True
-            previous = evaluation.objective
-    return False
+                roots.append(
+                    _BoundaryRoot((evaluation, evaluation), evaluation.pressure_pa)
+                )
+                found = True
+                break
+            assert previous.objective is not None
+            if evaluation.objective * previous.objective < 0.0:
+                low, high = sorted(
+                    (previous, evaluation), key=lambda item: item.pressure_pa
+                )
+                roots.append(_BoundaryRoot((low, high), evaluation.pressure_pa))
+                found = True
+                break
+            previous = evaluation
+        if not found and confirm_beyond_failure is not None:
+            pressure = confirm_beyond_failure(previous, end.pressure_pa)
+            if pressure is not None:
+                roots.append(_BoundaryRoot(None, pressure))
+    return roots
+
+
+def _boundary_hides_another_root(
+    scanned: tuple[SaturationPressureEvaluation, ...],
+    evaluate_log_pressure: Callable[[float], SaturationPressureEvaluation],
+) -> bool:
+    """Return whether the walk alone finds a root in a grid boundary interval."""
+
+    return bool(_boundary_roots(scanned, evaluate_log_pressure))
 
 
 def _empty_result(
@@ -2296,18 +2348,102 @@ def _calculate_saturation_pressure_historical(
         if left.pressure_pa not in exact_pressures
         and right.pressure_pa not in exact_pressures
     ]
-    hidden_root = len(exact) + len(
-        distinct_brackets
-    ) == 1 and _boundary_hides_another_root(scanned, evaluate_log_pressure)
+
+    def confirm_beyond_failure(
+        last: SaturationPressureEvaluation, far_pressure_pa: float
+    ) -> float | None:
+        # A bounded local Newton solve of the full saturation system, seeded
+        # with the last converged state of the walk. Only a converged,
+        # non-trivial state strictly inside the remaining interval counts.
+        low, high = sorted((last.pressure_pa, far_pressure_pa))
+        if not last.k_values:
+            return None
+        attempt, state, _ = _attempt_saturation_newton(
+            mixture,
+            temperature_k,
+            saturation_kind,
+            low,
+            high,
+            binary_interactions,
+            binary_interaction_policy,
+            tuple(log(value) for value in last.k_values),
+            DEFAULT_MAXIMUM_NEWTON_ITERATIONS,
+            DEFAULT_MAXIMUM_NEWTON_JACOBIAN_CONDITION_NUMBER,
+            DEFAULT_NEWTON_LINE_SEARCH_REDUCTION_FACTOR,
+            DEFAULT_MINIMUM_NEWTON_LINE_SEARCH_FACTOR,
+            DEFAULT_MAXIMUM_NEWTON_BACKTRACKING_ITERATIONS,
+        )
+        if not (
+            attempt.converged and state is not None and low < state.pressure_pa < high
+        ):
+            return None
+        _, active = _active_newton_mixture(mixture)
+        feed = tuple(last.parent_composition[index] for index in active)
+        walk_gap = max(
+            abs(last.incipient_composition[index] - value)
+            for index, value in zip(active, feed, strict=True)
+        )
+        root_gap = max(
+            abs(incipient - value)
+            for incipient, value in zip(
+                state.active_incipient_composition, feed, strict=True
+            )
+        )
+        if root_gap < BOUNDARY_ROOT_MINIMUM_DISTINCTNESS_RATIO * walk_gap:
+            return None
+        return state.pressure_pa
+
+    grid_root_count = len(exact) + len(distinct_brackets)
+    boundary = (
+        _boundary_roots(scanned, evaluate_log_pressure, confirm_beyond_failure)
+        if grid_root_count <= 1
+        else []
+    )
+    hidden_root = (grid_root_count == 1 and bool(boundary)) or len(boundary) > 1
     if hidden_root:
         diagnostics.append(
             _failure_diagnostic(
                 "HIDDEN_SATURATION_ROOT",
                 "Refining a grid interval next to a non-converged node revealed "
-                "another sign change of the saturation objective.",
+                "another root of the saturation objective.",
             )
         )
-    if len(exact) + len(distinct_brackets) > 1 or hidden_root:
+    if grid_root_count == 0 and len(boundary) == 1:
+        (only,) = boundary
+        if only.bracket is None:
+            reason = (
+                "The only saturation root found lies beside a non-converged grid "
+                f"node near {only.pressure_pa:.6g} Pa; a local Newton solve "
+                "confirmed it, but it could not be bracketed."
+            )
+            diagnostics.append(
+                _failure_diagnostic("SATURATION_ROOT_UNBRACKETED", reason)
+            )
+            return _empty_result(
+                saturation_kind,
+                SaturationStatus.INCONCLUSIVE,
+                mixture,
+                temperature_k,
+                estimate,
+                (minimum_pressure_pa, maximum_pressure_pa),
+                provenance,
+                evaluations,
+                diagnostics,
+                reason,
+            )
+        diagnostics.append(
+            _failure_diagnostic(
+                "BOUNDARY_SATURATION_ROOT",
+                "The grid scan found no root; refining a grid interval next to a "
+                "non-converged node found exactly one.",
+            )
+        )
+        low, high = only.bracket
+        if low is high:
+            exact = (low,)
+        else:
+            distinct_brackets = [(low, high)]
+    if grid_root_count > 1 or hidden_root:
         reason = "Multiple apparent saturation-pressure roots were observed."
         diagnostics.append(_failure_diagnostic("MULTIPLE_SATURATION_ROOTS", reason))
         return _empty_result(

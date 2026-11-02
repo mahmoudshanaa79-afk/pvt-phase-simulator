@@ -668,11 +668,13 @@ def test_module17_all_fields_match_protected_summary_exactly(module_cases):
 
 def test_module17_coverage_and_observation_units(module_cases):
     expected = {
-        ("ch4_c2", C.BUBBLE_POINT): (17, 11, 6, 0),
+        # P7: a root beside a failed grid node is found when the scan finds none.
+        ("ch4_c2", C.BUBBLE_POINT): (17, 17, 0, 0),
         # P2: hidden second dew roots make 3 CH4+C2 and 6 CH4+C3 states
-        # ambiguous (inconclusive) instead of apparently unique.
-        ("ch4_c2", C.DEW_POINT): (17, 12, 2, 3),
-        ("ch4_c3", C.BUBBLE_POINT): (23, 20, 3, 0),
+        # ambiguous (inconclusive) instead of apparently unique; P8 adds 4 more
+        # CH4+C2 states whose upper root lies past a failed walk step.
+        ("ch4_c2", C.DEW_POINT): (17, 8, 2, 7),
+        ("ch4_c3", C.BUBBLE_POINT): (23, 23, 0, 0),
         ("ch4_c3", C.DEW_POINT): (23, 1, 2, 20),
     }
     per_component = aggregate_experimental_accuracy(module_cases)
@@ -804,10 +806,10 @@ def test_protected_artifacts_unchanged():
             "C6F6BA9AE9C2F4C7F257BBC09A75DF0D7065255868AA46BF3E8C81AC5A8B9B3A"
         ),
         "docs/validation/module17_vle_validation.csv": (
-            "BF11C4BE8462DBDBCFB25B2DF859A165475EA0BEBACB9227C7FEAFBE539B2397"
+            "EB924553F2F62692032C77016F5BD4B873C3ED97B5135EE84EB9990FC0CC5614"
         ),
         "docs/validation/module17_vle_validation_summary.json": (
-            "97178CB190814DFB9D8D1D32EB4260373F319EEA31D60EFC641D502CEDEC9AE3"
+            "033A40234745133806E827062F72D86D4EBCD6E4191116C1DB292DAE3642F465"
         ),
     }
     for path, digest in expected.items():

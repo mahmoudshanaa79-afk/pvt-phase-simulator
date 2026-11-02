@@ -184,7 +184,29 @@ usual multiple-root reason. The walk's evaluations are recorded in the history.
 On the May (2015) dataset this changes nine dew results from apparently unique
 to ambiguous. Each second root was confirmed independently
 (`tools/run_hidden_dew_root_check.py`). No bubble result and no envelope test
-changed. The optional Newton layer is a local solve from
+changed.
+
+**Empty scans and walks that stop short (P7 and P8, 1 November 2026).** The
+walk now also runs when the grid finds no root. If it finds exactly one sign
+change, that bracket is solved as usual and the result carries
+`BOUNDARY_SATURATION_ROOT`. Near a mixture critical point the inner iteration
+at a grid node just above the root collapses to the trivial solution, so this
+case was reported `NOT_FOUND` although a root exists. The walk can also stop at
+a failed evaluation one step before a sign change. When an interval's walk
+finds nothing, a bounded local Newton solve of the full saturation system
+(`_attempt_saturation_newton`, seeded with the last converged walk state and
+limited to the rest of the interval) checks for a root there. Its root counts
+only when Newton converges, the pressure lies strictly inside the interval and
+the incipient composition keeps at least
+`BOUNDARY_ROOT_MINIMUM_DISTINCTNESS_RATIO = 0.5` of the last walk state's
+distance from the feed. The last condition rejects Newton landing on the
+trivial solution, which happens at CH4+C2 012 (bubble, 4.67 MPa, incipient
+composition within 6e-5 of the feed). A Newton-confirmed root only ever makes a
+result `INCONCLUSIVE` (a second root, `HIDDEN_SATURATION_ROOT`) or, when it is
+the only root found, `INCONCLUSIVE` with `SATURATION_ROOT_UNBRACKETED`; it is
+never reported as the pressure. On May (2015) this recovers nine bubble states
+and turns four CH4+C2 dew states (008, 009, 013, 017) into ambiguous ones.
+The optional Newton layer is a local solve from
 the Wilson estimate, used for continuation. It returns the root near that
 estimate and does **not** certify uniqueness; only this scanning path does. One bracket is solved in `ln(P)`
 with bracketed `brentq`, never Newton alone. The final pressure state is
