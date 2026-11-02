@@ -92,6 +92,17 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-02, web (kij study, P6):**
+  - Done: `tools/run_kij_study.py`, the rendered `docs/investigations/kij_study.md`
+    and `tests/test_kij_study.py` (PR #28), rerun on the P7/P8 engine; kij = 0
+    reproduces the regenerated Module 17 record state by state. No engine
+    change. Fits to bubble pressure: CH4+C2 0, CH4+C3 +0.0021 (AARD 0.99 % to
+    0.68 % on a fixed set of 22); provisional butanes +0.0121 (iC4) and +0.0098
+    (nC4). A constant kij does not reduce the ambiguous dew states. Published
+    PR kij values could not be verified from the web session.
+  - Next: P7/P8 follow-ups (stale numbers, survey rerun), plain-language
+    solver codes, the owner-approved optional kij input (Option 2), Lab 4.
+
 - **2026-11-02, web (CI: run the full suite in parallel):**
   - Done: the "Full test suite" step runs `pytest -n auto --dist loadfile`
     (pytest-xdist added to the dev group, `uv.lock` updated). After P7/P8 the
