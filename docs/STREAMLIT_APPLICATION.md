@@ -234,7 +234,8 @@ APIs remain unchanged.
 Ubuntu runner with Python 3.12 installed from the locked dependency graph:
 `uv lock --check`, Ruff, Ruff formatting, mypy over `src` and `app`,
 `compileall`, the application import smoke, a Playwright Chromium smoke, the
-full test suite, and the localhost Streamlit health smoke. The real-browser
+full test suite (in parallel over the runner's cores with pytest-xdist), and
+the localhost Streamlit health smoke. The real-browser
 gate exercises every primary page with the shipped examples, including case
 save/load, the default flash, phase envelope, critical solver and map,
 engineering sweep, validation figures, and diagnostics. It fails on raw
