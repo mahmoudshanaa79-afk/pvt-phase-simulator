@@ -84,6 +84,10 @@ def test_streamlit_apptest_starts_and_exposes_explicit_form_boundary() -> None:
         "Propane (mol %)",
         "Temperature (K)",
         "Pressure (MPa)",
+        # The optional kij inputs (collapsed); only pairs in the mixture are on.
+        "kij C1–C2 (not in mixture)",
+        "kij C1–C3",
+        "kij C2–C3 (not in mixture)",
     ]
     assert [button.label for button in app.button] == ["Load case", "RUN FLASH"]
     assert app.button[0].disabled
@@ -293,6 +297,9 @@ def test_example_selection_populates_inputs_without_populating_results() -> None
         50.0,
         321.5829183194,
         8.53444323606381,
+        0.0,  # kij C1–C2
+        0.0,  # kij C1–C3
+        0.0,  # kij C2–C3
     ]
     assert app.session_state["submitted_inputs"] is None
     assert app.session_state["results"] == {}

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Any, Final, cast
 
-from pvt_phase_simulator_ui.adapters import ScientificInputs
+from pvt_phase_simulator_ui.adapters import KIJ_KEYS, ScientificInputs
 from pvt_phase_simulator_ui.units import (
     DEFAULT_UNITS,
     PressureUnit,
@@ -123,6 +123,8 @@ def initialize_session(state: MutableMapping[str, Any]) -> None:
     state.setdefault("temperature_k", _DEFAULT_INPUTS.temperature_k)
     state.setdefault("pressure_mpa", _DEFAULT_INPUTS.pressure_mpa)
     state.setdefault("pressure_pa", _DEFAULT_INPUTS.pressure_pa)
+    for key in KIJ_KEYS:
+        state.setdefault(key, 0.0)
     state.setdefault("temperature_unit", DEFAULT_UNITS.temperature.value)
     state.setdefault("pressure_unit", DEFAULT_UNITS.pressure.value)
     _repair_required_choice(
@@ -414,7 +416,7 @@ def result_is_stale(
     if inputs is None:
         return True
     signatures = cast(
-        dict[str, tuple[tuple[float, float, float], float, float]],
+        dict[str, object],
         state["result_signatures"],
     )
     return signatures.get(name) != inputs.signature

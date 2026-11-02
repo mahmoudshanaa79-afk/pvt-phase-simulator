@@ -15,6 +15,8 @@ from typing import Any, Final, cast
 
 from pvt_phase_simulator_ui.adapters import (
     COMPONENT_NAMES,
+    KIJ_KEYS,
+    ZERO_KIJ,
     InputValidationError,
     ScientificInputs,
     validate_scientific_inputs,
@@ -34,6 +36,15 @@ from pvt_phase_simulator_ui.units import (
 
 CASE_SCHEMA: Final = "openphase.case"
 CASE_SCHEMA_VERSION: Final = "1.0.0"
+#: Written only when a kij is non-zero; it adds ``inputs.binary_interactions``.
+#: A kij = 0 case is still written as 1.0.0, byte for byte as before.
+CASE_SCHEMA_VERSION_WITH_KIJ: Final = "1.1.0"
+SUPPORTED_CASE_SCHEMA_VERSIONS: Final = (
+    CASE_SCHEMA_VERSION,
+    CASE_SCHEMA_VERSION_WITH_KIJ,
+)
+#: Case-file names of the kij pairs, in ``KIJ_PAIRS`` order.
+KIJ_CASE_NAMES: Final = ("methane_ethane", "methane_propane", "ethane_propane")
 
 
 class CaseFileError(ValueError):
@@ -158,12 +169,23 @@ def _unit_preferences(
     return temperature_unit, pressure_unit
 
 
-def _case_inputs(document: dict[str, object]) -> ScientificInputs:
-    inputs = _exact_keys(
-        document["inputs"],
-        "inputs",
-        {"components", "pressure_pa", "temperature_k"},
+def _case_kij(inputs: dict[str, object], with_kij: bool) -> tuple[float, ...]:
+    if not with_kij:
+        return ZERO_KIJ
+    raw = _exact_keys(
+        inputs["binary_interactions"], "inputs.binary_interactions", set(KIJ_CASE_NAMES)
     )
+    return tuple(
+        _number(raw[name], f"inputs.binary_interactions.{name}")
+        for name in KIJ_CASE_NAMES
+    )
+
+
+def _case_inputs(document: dict[str, object], with_kij: bool) -> ScientificInputs:
+    expected = {"components", "pressure_pa", "temperature_k"}
+    if with_kij:
+        expected.add("binary_interactions")
+    inputs = _exact_keys(document["inputs"], "inputs", expected)
     raw_components = inputs["components"]
     if not isinstance(raw_components, list):
         raise _schema_error("inputs.components must be an array.")
@@ -205,6 +227,7 @@ def _case_inputs(document: dict[str, object]) -> ScientificInputs:
             pressure_pa,
             temperature_unit=TemperatureUnit.KELVIN,
             pressure_unit=PressureUnit.PA,
+            kij=_case_kij(inputs, with_kij),
         )
     except InputValidationError as error:
         # Preserve the manual-entry validation message, including the explicit
@@ -234,10 +257,10 @@ def _validated_case(document: dict[str, object]) -> OpenPhaseCase:
     if schema != CASE_SCHEMA:
         raise _schema_error(f"schema must be {CASE_SCHEMA!r}.")
     version = _string(document["schema_version"], "schema_version")
-    if version != CASE_SCHEMA_VERSION:
+    if version not in SUPPORTED_CASE_SCHEMA_VERSIONS:
         raise CaseFileError(
             f"Unsupported case schema version {version!r}; "
-            f"supported version is {CASE_SCHEMA_VERSION!r}."
+            f"supported versions are {', '.join(SUPPORTED_CASE_SCHEMA_VERSIONS)}."
         )
 
     _exact_keys(
@@ -253,7 +276,7 @@ def _validated_case(document: dict[str, object]) -> OpenPhaseCase:
     )
 
     temperature_unit, pressure_unit = _unit_preferences(document)
-    inputs = _case_inputs(document)
+    inputs = _case_inputs(document, version == CASE_SCHEMA_VERSION_WITH_KIJ)
     sweeps = _exact_keys(
         document["engineering_sweeps"],
         "engineering_sweeps",
@@ -302,12 +325,35 @@ def _validated_case(document: dict[str, object]) -> OpenPhaseCase:
     )
 
 
+def _state_kij(state: MutableMapping[str, Any]) -> tuple[float, ...]:
+    """The kij inputs held in state; a state from before the input has none."""
+
+    values = []
+    for key in KIJ_KEYS:
+        try:
+            values.append(float(state[key]))
+        except KeyError:
+            values.append(0.0)
+    return tuple(values)
+
+
+def _kij_document(kij: tuple[float, ...]) -> dict[str, object]:
+    if not any(kij):
+        return {}
+    return {"binary_interactions": dict(zip(KIJ_CASE_NAMES, kij, strict=True))}
+
+
+def _schema_version(kij: tuple[float, ...]) -> str:
+    return CASE_SCHEMA_VERSION_WITH_KIJ if any(kij) else CASE_SCHEMA_VERSION
+
+
 def case_from_state(state: MutableMapping[str, Any]) -> OpenPhaseCase:
     """Validate and capture the complete application input state."""
 
+    kij = _state_kij(state)
     document: dict[str, object] = {
         "schema": CASE_SCHEMA,
-        "schema_version": CASE_SCHEMA_VERSION,
+        "schema_version": _schema_version(kij),
         "inputs": {
             "components": [
                 {"name": name, "mole_percent": state[key]}
@@ -319,6 +365,7 @@ def case_from_state(state: MutableMapping[str, Any]) -> OpenPhaseCase:
             ],
             "temperature_k": state["temperature_k"],
             "pressure_pa": state["pressure_pa"],
+            **_kij_document(kij),
         },
         "presentation_units": {
             "temperature": state["temperature_unit"],
@@ -366,13 +413,14 @@ def _document(case: OpenPhaseCase) -> dict[str, object]:
             "components": components,
             "pressure_pa": case.inputs.pressure_pa,
             "temperature_k": case.inputs.temperature_k,
+            **_kij_document(case.inputs.kij),
         },
         "presentation_units": {
             "pressure": case.pressure_unit.value,
             "temperature": case.temperature_unit.value,
         },
         "schema": CASE_SCHEMA,
-        "schema_version": CASE_SCHEMA_VERSION,
+        "schema_version": _schema_version(case.inputs.kij),
     }
 
 
@@ -429,6 +477,7 @@ def apply_case_to_state(case: OpenPhaseCase, state: MutableMapping[str, Any]) ->
             "propane_pct": inputs.composition_mol_percent[2],
             "temperature_k": inputs.temperature_k,
             "pressure_pa": inputs.pressure_pa,
+            **dict(zip(KIJ_KEYS, inputs.kij, strict=True)),
             "pressure_mpa": pressure_from_pa(inputs.pressure_pa, PressureUnit.MPA),
             "temperature_unit": case.temperature_unit.value,
             "pressure_unit": case.pressure_unit.value,

@@ -92,6 +92,18 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-02, web (optional kij input, Option 2):**
+  - Done: the owner approved Option 2 of P6. The sidebar form has a collapsed
+    *Advanced: binary interaction (kij)* expander (one field per pair in the
+    mixture, default 0, range -0.10 to +0.20). The submitted kij reaches every
+    engine call the app makes; with kij = 0 no `binary_interactions` is passed,
+    so results and exports are byte-identical. A non-zero kij shows a
+    *user-supplied kij* badge and is stated on result pages, in exports, the
+    HTML report and case files (schema 1.1.0 only when non-zero). The
+    Validation page keeps the kij = 0 record. The operating-temperature
+    readout also lists the incipient phase, for Lab 4.
+  - Next: Lab 4 (kij), then the v1.6 release PR for the owner.
+
 - **2026-11-02, web (plain-language solver codes):**
   - Done: `src/pvt_phase_simulator_ui/solver_codes.py` gives one sentence each
     for `BOUNDARY_SATURATION_ROOT`, `HIDDEN_SATURATION_ROOT` +

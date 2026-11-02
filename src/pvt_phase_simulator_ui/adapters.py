@@ -42,6 +42,68 @@ COMPONENT_NAMES: Final = tuple(component.name for component in COMPONENTS)
 COMPOSITION_TOTAL_MOL_PERCENT: Final = 100.0
 COMPOSITION_TOLERANCE_MOL_PERCENT: Final = 1.0e-8
 
+#: Binary pairs, as component indices, in the order the kij inputs use.
+KIJ_PAIRS: Final = ((0, 1), (0, 2), (1, 2))
+KIJ_PAIR_LABELS: Final = ("C1–C2", "C1–C3", "C2–C3")
+KIJ_MINIMUM: Final = -0.10
+KIJ_MAXIMUM: Final = 0.20
+KIJ_STEP: Final = 0.001
+ZERO_KIJ: Final = (0.0, 0.0, 0.0)
+#: Session keys of the three kij inputs, in ``KIJ_PAIRS`` order.
+KIJ_KEYS: Final = ("kij_c1_c2", "kij_c1_c3", "kij_c2_c3")
+#: Fitted values quoted to users; tests/test_app_kij_input.py checks them
+#: against docs/investigations/kij_study_fit.json.
+KIJ_FITTED_C1_C2: Final = 0.0
+KIJ_FITTED_C1_C3: Final = 0.0021
+KIJ_HELP: Final = (
+    "Optional. kij = 0 is the default and the validation reference. Fits to "
+    "bubble pressures from one source, May et al. (2015), in "
+    "docs/investigations/kij_study.md: C1–C2 0 (no gain over kij = 0) and "
+    f"C1–C3 {KIJ_FITTED_C1_C3:+.4f}. A non-zero kij is a fitted, non-predictive "
+    "choice, not part of the validated model. A pair whose component is absent "
+    "from the mixture has no effect."
+)
+
+
+def pairs_present(fractions: Sequence[float]) -> tuple[bool, bool, bool]:
+    """Whether both components of each kij pair have a positive amount."""
+
+    return (
+        fractions[0] > 0.0 and fractions[1] > 0.0,
+        fractions[0] > 0.0 and fractions[2] > 0.0,
+        fractions[1] > 0.0 and fractions[2] > 0.0,
+    )
+
+
+def effective_kij(
+    fractions: Sequence[float], kij: Sequence[float]
+) -> tuple[float, float, float]:
+    """kij with every pair absent from the mixture set to 0."""
+
+    present = pairs_present(fractions)
+    return (
+        kij[0] if present[0] else 0.0,
+        kij[1] if present[1] else 0.0,
+        kij[2] if present[2] else 0.0,
+    )
+
+
+def binary_interaction_assumption(
+    fractions: Sequence[float], kij: Sequence[float]
+) -> str:
+    """``kij = 0``, or the user-supplied value of every pair in the mixture."""
+
+    used = effective_kij(fractions, kij)
+    if not any(value != 0.0 for value in used):
+        return "kij = 0"
+    present = pairs_present(fractions)
+    text = ", ".join(
+        f"{label} = {value:+g}"
+        for label, value, here in zip(KIJ_PAIR_LABELS, used, present, strict=True)
+        if here
+    )
+    return f"user-supplied kij: {text}"
+
 
 class InputValidationError(ValueError):
     """One or more scientific UI inputs are invalid."""
@@ -55,6 +117,52 @@ class ScientificInputs:
     mole_fractions: tuple[float, float, float]
     temperature_k: float
     pressure_pa: float
+    #: User-supplied kij for C1–C2, C1–C3 and C2–C3; zero is the engine default.
+    kij: tuple[float, float, float] = ZERO_KIJ
+
+    @property
+    def pairs_present(self) -> tuple[bool, bool, bool]:
+        """Whether both components of each kij pair are in the mixture."""
+
+        return pairs_present(self.mole_fractions)
+
+    @property
+    def effective_kij(self) -> tuple[float, float, float]:
+        """The kij that reach the engine: pairs absent from the mixture are 0."""
+
+        return effective_kij(self.mole_fractions, self.kij)
+
+    @property
+    def uses_kij(self) -> bool:
+        return any(value != 0.0 for value in self.effective_kij)
+
+    def binary_interactions(self) -> dict[tuple[str, str], float] | None:
+        """Symmetric engine mapping, or ``None`` (the engine default) at kij = 0."""
+
+        if not self.uses_kij:
+            return None
+        mapping: dict[tuple[str, str], float] = {}
+        for (i, j), value, present in zip(
+            KIJ_PAIRS, self.effective_kij, self.pairs_present, strict=True
+        ):
+            if present:
+                mapping[(COMPONENT_NAMES[i], COMPONENT_NAMES[j])] = value
+                mapping[(COMPONENT_NAMES[j], COMPONENT_NAMES[i])] = value
+        return mapping
+
+    @property
+    def binary_interaction_assumption(self) -> str:
+        """The kij actually used, as stated in results, exports and reports."""
+
+        return binary_interaction_assumption(self.mole_fractions, self.kij)
+
+    @property
+    def model_metadata(self) -> str:
+        """Figure metadata; unchanged (``kij=0``) when no kij is set."""
+
+        if not self.uses_kij:
+            return "Peng-Robinson EOS; kij=0"
+        return f"Peng-Robinson EOS; {self.binary_interaction_assumption}"
 
     @property
     def pressure_mpa(self) -> float:
@@ -63,8 +171,10 @@ class ScientificInputs:
         return pressure_from_pa(self.pressure_pa, PressureUnit.MPA)
 
     @property
-    def signature(self) -> tuple[tuple[float, float, float], float, float]:
-        return self.mole_fractions, self.temperature_k, self.pressure_pa
+    def signature(
+        self,
+    ) -> tuple[tuple[float, float, float], float, float, tuple[float, float, float]]:
+        return self.mole_fractions, self.temperature_k, self.pressure_pa, self.kij
 
     def mixture(self) -> FluidMixture:
         return FluidMixture(
@@ -96,6 +206,7 @@ def validate_scientific_inputs(
     *,
     temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
     pressure_unit: PressureUnit | str = PressureUnit.MPA,
+    kij: Sequence[float] = ZERO_KIJ,
 ) -> ScientificInputs:
     """Validate and convert user-facing values to the engine's K/Pa contract."""
 
@@ -124,12 +235,23 @@ def validate_scientific_inputs(
         raise InputValidationError("Temperature must be above absolute zero.")
     if pressure_pa <= 0.0:
         raise InputValidationError("Pressure must be positive.")
+    if len(kij) != len(KIJ_PAIRS):
+        raise InputValidationError("Exactly three kij values are required.")
+    interaction = tuple(float(value) for value in kij)
+    for label, value in zip(KIJ_PAIR_LABELS, interaction, strict=True):
+        if not isfinite(value) or not KIJ_MINIMUM <= value <= KIJ_MAXIMUM:
+            raise InputValidationError(
+                f"kij {label} must be between {KIJ_MINIMUM:.2f} and {KIJ_MAXIMUM:.2f}."
+            )
     fractions = tuple(value / 100.0 for value in values)
     return ScientificInputs(
         (values[0], values[1], values[2]),
         (fractions[0], fractions[1], fractions[2]),
         temperature_k,
         pressure_pa,
+        (interaction[0], interaction[1], interaction[2])
+        if any(interaction)
+        else ZERO_KIJ,
     )
 
 

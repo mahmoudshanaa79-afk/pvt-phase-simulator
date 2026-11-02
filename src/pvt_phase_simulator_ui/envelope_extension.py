@@ -26,6 +26,7 @@ from typing import Any, Final, Literal
 
 import plotly.graph_objects as go  # type: ignore[import-untyped]
 
+from pvt_phase_simulator.eos.mixing_rules import BinaryInteractionMapping
 from pvt_phase_simulator.eos.phase_envelope import EnvelopeBranchKind
 from pvt_phase_simulator.eos.pseudo_arclength import (
     PseudoArclengthBranchResult,
@@ -92,7 +93,10 @@ class ExtendedEnvelope:
 
 
 def _attempt(
-    mixture: FluidMixture, kind: EnvelopeBranchKind, start_temperature_k: float
+    mixture: FluidMixture,
+    kind: EnvelopeBranchKind,
+    start_temperature_k: float,
+    binary_interactions: BinaryInteractionMapping | None = None,
 ) -> tuple[ExtensionAttempt, tuple[ExtensionPoint, ...]]:
     settings = PseudoArclengthSettings(
         initial_temperature_step_k=INITIAL_TEMPERATURE_STEP_K,
@@ -100,7 +104,7 @@ def _attempt(
     )
     try:
         result: PseudoArclengthBranchResult = trace_pseudo_arclength_branch(
-            mixture, kind, settings, start_temperature_k
+            mixture, kind, settings, start_temperature_k, binary_interactions
         )
     except ValueError as error:
         # The engine rejects an unusable start (for example a non-positive
@@ -134,12 +138,13 @@ def _extend_branch(
     branch: BranchName,
     kind: EnvelopeBranchKind,
     starts_k: tuple[float, ...],
+    binary_interactions: BinaryInteractionMapping | None = None,
 ) -> ExtendedBranch:
     attempts: list[ExtensionAttempt] = []
     best_points: tuple[ExtensionPoint, ...] = ()
     best_attempt: ExtensionAttempt | None = None
     for start in starts_k:
-        attempt, points = _attempt(mixture, kind, start)
+        attempt, points = _attempt(mixture, kind, start, binary_interactions)
         attempts.append(attempt)
         if points and attempt.termination_reason == NEAR_CRITICAL:
             best_points, best_attempt = points, attempt
@@ -159,7 +164,9 @@ def _extend_branch(
 
 
 def trace_extended_envelope(
-    mixture: FluidMixture, operating_temperature_k: float
+    mixture: FluidMixture,
+    operating_temperature_k: float,
+    binary_interactions: BinaryInteractionMapping | None = None,
 ) -> ExtendedEnvelope:
     """Trace both branches with the engine's pseudo-arclength continuation."""
 
@@ -169,12 +176,14 @@ def trace_extended_envelope(
             "bubble",
             EnvelopeBranchKind.BUBBLE,
             (operating_temperature_k + BUBBLE_START_OFFSET_K,),
+            binary_interactions,
         ),
         dew=_extend_branch(
             mixture,
             "dew",
             EnvelopeBranchKind.DEW,
             tuple(operating_temperature_k + offset for offset in DEW_START_OFFSETS_K),
+            binary_interactions,
         ),
     )
 

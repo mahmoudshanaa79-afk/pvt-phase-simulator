@@ -214,7 +214,9 @@ plotting API, so it is listed here.
 
 ## P6. Non-zero binary interaction parameters (kij)
 
-**Status: awaiting owner decision. Study complete (PR #28).**
+**Status: Option 2 approved by the owner on 2026-11-02; app input in Task 4
+(PR #32). Study complete (PR #28).** kij = 0 stays the default and the
+validation reference; the app offers an optional, labelled kij input.
 
 **Question.** What does a non-zero kij do for Peng–Robinson on the May (2015)
 data, and should OpenPhase use one? The engine already accepts kij; the study
