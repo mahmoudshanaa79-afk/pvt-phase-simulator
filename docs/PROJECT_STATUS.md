@@ -103,6 +103,14 @@ work and added in that task's PR. Sessions read only the latest few entries.
   - Next: P7/P8 follow-ups (stale numbers, survey rerun), plain-language
     solver codes, the owner-approved optional kij input (Option 2), Lab 4.
 
+- **2026-11-02, web (CI: run the full suite in parallel):**
+  - Done: the "Full test suite" step runs `pytest -n auto --dist loadfile`
+    (pytest-xdist added to the dev group, `uv.lock` updated). After P7/P8 the
+    serial suite took about 15.5 min of its 20-min step on master, and the kij
+    study PR timed out at 84 %. Same tests, same gates, same timeout.
+  - Open: PRs #28, #30, #31 and #32 merge master in after this.
+  - Next: finish the kij study PR, then the chain.
+
 - **2026-11-01, desktop (engine P7 + P8, owner-approved):**
   - Done: `saturation_pressure.py` runs the boundary walk when the grid finds
     no root (P7) and, where a walk stops at a failed step, checks the rest of
