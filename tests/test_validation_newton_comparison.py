@@ -76,9 +76,11 @@ def test_a_changed_default_would_be_reported_as_not_reproducing(comparison) -> N
     assert not tool.reproduces_frozen_record(comparison.newton, frozen)
 
 
-def test_newton_converges_the_bubble_state_the_default_cannot_bracket(
+def test_both_runs_agree_on_the_formerly_unbracketed_bubble_state(
     comparison,
 ) -> None:
+    """Before P7 the default could not bracket CH4+C3 013 bubble; now it can."""
+
     default = next(
         r for r in comparison.default if r.point.source_point_id.endswith("c3_013")
     )
@@ -86,19 +88,19 @@ def test_newton_converges_the_bubble_state_the_default_cannot_bracket(
         r for r in comparison.newton if r.point.source_point_id.endswith("c3_013")
     )
 
-    assert default.bubble.status != "converged"
-    assert default.bubble.failure_reason is not None
-    assert newton.bubble.status == "converged"
+    assert default.bubble.status == newton.bubble.status == "converged"
+    assert "BOUNDARY_SATURATION_ROOT" in default.bubble.diagnostic_codes
+    assert default.bubble.predicted_pressure_pa == pytest.approx(
+        newton.bubble.predicted_pressure_pa, rel=1e-8
+    )
     # Measured 7.530 MPa; docs/ENGINE_CHANGE_PROPOSALS.md lists +0.5 %.
-    assert newton.bubble.pressure_percent_error == pytest.approx(0.5, abs=0.1)
+    assert default.bubble.pressure_percent_error == pytest.approx(0.5, abs=0.1)
 
 
-def test_only_the_state_the_default_cannot_solve_changes(comparison) -> None:
+def test_only_the_ambiguous_dew_state_changes(comparison) -> None:
     changes = _tool().changed_states(comparison)
 
-    assert any(point.endswith("c3_013") and d == "bubble" for _, point, d in changes)
-    assert not any(point.endswith("c2_001") for _, point, _ in changes)
-    assert not any(point.endswith("c3_009") for _, point, _ in changes)
+    assert [(point, d) for _, point, d in changes] == [("may2015_ch4_c3_013", "dew")]
 
 
 def test_the_csv_has_both_runs_for_every_state_and_direction(
@@ -107,15 +109,16 @@ def test_the_csv_has_both_runs_for_every_state_and_direction(
     rows = list(csv.DictReader(StringIO(_tool().render_csv(comparison))))
 
     assert len(rows) == 2 * len(SUBSET)
-    failed = next(
+    ambiguous = next(
         row
         for row in rows
-        if row["source_point_id"].endswith("c3_013") and row["direction"] == "bubble"
+        if row["source_point_id"].endswith("c3_013") and row["direction"] == "dew"
     )
-    assert failed["default_status"] != "converged"
-    assert failed["default_predicted_pressure_pa"] == ""
-    assert failed["newton_status"] == "converged"
-    assert failed["outcome_changed"] == "true"
+    assert ambiguous["default_status"] == "inconclusive"
+    assert ambiguous["default_predicted_pressure_pa"] == ""
+    assert ambiguous["newton_status"] == "converged"
+    assert ambiguous["outcome_changed"] == "true"
+    assert ambiguous["newton_counts_as_accuracy"] == "false"
 
 
 def test_the_report_states_the_numbers_it_recomputed(comparison) -> None:
@@ -124,7 +127,7 @@ def test_the_report_states_the_numbers_it_recomputed(comparison) -> None:
     assert "within 1e-09 relative" in report
     assert "**yes**" in report
     assert "may2015_ch4_c3_013" in report
-    assert "| ch4_c3 | 2 | 1 | 2 |" in report
+    assert "| ch4_c3 | 2 | 2 | 2 |" in report
 
 
 def test_newton_is_enabled_only_inside_the_context_and_then_restored() -> None:

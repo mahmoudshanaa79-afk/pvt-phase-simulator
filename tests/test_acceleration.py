@@ -375,9 +375,12 @@ def test_accelerated_methane_propane_dew_preserves_true_branch() -> None:
 
 
 def test_acceleration_preserves_trivial_rejection_and_pure_exception() -> None:
+    # 50/50 methane-ethane has no bubble point at 270 K: the bubble curve closes
+    # at the mixture critical point near 261 K. (Until P7 this test used 250 K,
+    # where a real bubble point exists that the grid scan alone missed.)
     trivial = calculate_saturation_pressure(
         _methane_ethane(),
-        250.0,
+        270.0,
         SaturationKind.BUBBLE_POINT,
         successive_substitution_acceleration_enabled=True,
     )
@@ -395,6 +398,20 @@ def test_acceleration_preserves_trivial_rejection_and_pure_exception() -> None:
     )
     assert pure.status is SaturationStatus.CONVERGED
     assert pure.incipient_composition == (1.0,)
+
+
+def test_acceleration_finds_the_same_near_critical_bubble_point() -> None:
+    accelerated = calculate_saturation_pressure(
+        _methane_ethane(),
+        250.0,
+        SaturationKind.BUBBLE_POINT,
+        successive_substitution_acceleration_enabled=True,
+    )
+    default = calculate_saturation_pressure(
+        _methane_ethane(), 250.0, SaturationKind.BUBBLE_POINT
+    )
+    assert accelerated.status is default.status is SaturationStatus.CONVERGED
+    assert accelerated.pressure_pa == pytest.approx(default.pressure_pa, rel=1e-9)
 
 
 def test_accelerated_envelope_is_deterministic_and_preserves_branch_identity() -> None:

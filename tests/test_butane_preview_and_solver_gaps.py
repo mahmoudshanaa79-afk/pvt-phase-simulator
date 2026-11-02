@@ -19,7 +19,6 @@ from tests.test_experimental_validation import _source_dataset, _thermoml_fixtur
 from tools import extract_may_2015_thermoml as extractor
 from tools.run_butane_preview import PROVISIONAL_COMPONENTS, _mixture, solve_point
 from tools.run_dew_uniqueness_audit import isotherm_dew_crossings
-from tools.run_empty_scan_whatif import analyze
 
 ROOT = Path(__file__).resolve().parents[1]
 INVESTIGATIONS = ROOT / "docs/investigations"
@@ -124,26 +123,27 @@ def test_one_butane_state_is_recomputed_from_the_engine() -> None:
     )
 
 
-def test_empty_scan_hides_a_real_bubble_root() -> None:
+def test_the_production_solver_now_returns_the_what_if_root() -> None:
+    """The what-if CSV records the pre-P7 solver; P7 now returns its root."""
+
     stored = next(
         row
         for row in _rows("empty_scan_whatif.csv")
         if row["source_point_id"] == "may2015_ch4_c3_013"
     )
+    assert stored["default_status"] == "not_found"
     mixture = FluidMixture(
         (
             MixtureComponent(COMPONENT_OBJECTS["methane"], 0.6572),
             MixtureComponent(COMPONENT_OBJECTS["propane"], 1.0 - 0.6572),
         )
     )
-    fresh = analyze(mixture, 243.62, SaturationKind.BUBBLE_POINT)
-    assert fresh["default_status"] == "not_found"
-    assert fresh["walk_root_count"] == 1
-    root = float(str(fresh["walk_roots_pa"]))
-    assert root == pytest.approx(float(stored["walk_roots_pa"]), rel=1e-9)
-    assert fresh["newton_status"] == "converged"
-    assert root == pytest.approx(float(str(fresh["newton_pressure_pa"])), rel=1e-8)
-    assert float(str(fresh["walk_root_max_fugacity_residual"])) < 1e-8
+    fresh = calculate_saturation_pressure(mixture, 243.62, SaturationKind.BUBBLE_POINT)
+    assert fresh.status is SaturationStatus.CONVERGED
+    assert fresh.pressure_pa == pytest.approx(float(stored["walk_roots_pa"]), rel=1e-9)
+    assert fresh.pressure_pa == pytest.approx(
+        float(stored["newton_pressure_pa"]), rel=1e-8
+    )
 
 
 def test_every_c1_c3_not_found_bubble_has_one_walk_root() -> None:
@@ -163,16 +163,26 @@ def test_every_c1_c3_not_found_bubble_has_one_walk_root() -> None:
     assert all(row["walk_root_count"] == "0" for row in dew)
 
 
-def test_n_butane_state_008_has_a_second_dew_root_the_solver_misses() -> None:
-    """PR's isotherm reaches y_exp at about 10.6 MPa, not only at 0.57 MPa."""
+def test_n_butane_state_008_has_a_second_dew_root() -> None:
+    """PR's isotherm reaches y_exp at about 10.6 MPa, not only at 0.57 MPa.
+
+    The preview CSV records the pre-P8 solver's unique 0.57 MPa answer. Since
+    P7 the bubble point of the measured liquid converges at 10.58 MPa, and since
+    P8 the dew state is ambiguous.
+    """
 
     heavy = PROVISIONAL_COMPONENTS["n_butane"]
-    fresh = analyze(_mixture(heavy, 0.7764), 244.48, SaturationKind.BUBBLE_POINT)
-    assert fresh["walk_root_count"] == 1
-    assert float(str(fresh["walk_roots_pa"])) == pytest.approx(10583492.67, rel=1e-8)
-    assert float(str(fresh["walk_root_incipient_first_component"])) == pytest.approx(
-        0.941325, abs=1e-6
+    bubble = calculate_saturation_pressure(
+        _mixture(heavy, 0.7764), 244.48, SaturationKind.BUBBLE_POINT
     )
+    assert bubble.status is SaturationStatus.CONVERGED
+    assert bubble.pressure_pa == pytest.approx(10583492.67, rel=1e-8)
+    assert bubble.incipient_composition[0] == pytest.approx(0.941325, abs=1e-6)
+    dew = calculate_saturation_pressure(
+        _mixture(heavy, 0.9406), 244.48, SaturationKind.DEW_POINT
+    )
+    assert dew.status is SaturationStatus.INCONCLUSIVE
+    assert "HIDDEN_SATURATION_ROOT" in {item.code for item in dew.diagnostics}
 
 
 def test_isotherm_crossings_are_counted_and_interpolated() -> None:

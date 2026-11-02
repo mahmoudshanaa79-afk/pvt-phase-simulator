@@ -1,5 +1,33 @@
 # Module 17 Experimental VLE Validation
 
+> **Updated 1 November 2026 (engine changes P7 and P8, owner-approved).** Two
+> more refinements of the production saturation solver:
+>
+> - **P7.** When the grid scan finds no root, the P2 boundary walk now runs
+>   anyway. If it finds exactly one root, that root is solved and reported
+>   (`BOUNDARY_SATURATION_ROOT`). This recovers all nine near-critical bubble
+>   states that were `not_found`: CH4+C2 009, 012, 013, 015, 016 and 017, and
+>   CH4+C3 013, 014 and 015. For 7 of them the engine's independent Newton
+>   option gives the same pressure to 1e-8.
+> - **P8.** When the walk stops at a failed inner evaluation without seeing a
+>   sign change, a bounded local Newton solve, seeded with the last converged
+>   walk state, checks the rest of the interval. A converged root that stays
+>   distinct from the trivial solution counts as a second root. Four CH4+C2
+>   dew results that looked unique are now ambiguous: 008, 009, 013 and 017.
+>   Each has an upper PR dew root (6.88, 6.76, 6.80 and 6.67 MPa) that the
+>   grid, the P2 walk and the diagnostic scan in section C all missed.
+>
+> Before these changes the record was:
+>
+> - CH4+C2 bubble: 11 successes, 0.454690 % AARD;
+> - CH4+C2 dew: 12 successes, 5.338393 % AARD;
+> - CH4+C3 bubble: 20 successes, 1.033805 % AARD.
+>
+> CH4+C3 dew is unchanged. The worst former CH4+C2 dew result (013, −25.8 %)
+> was the lower of two roots; the upper root is 1.3 % from the measurement.
+> See `docs/ENGINE_CHANGE_PROPOSALS.md` (P7, P8) and
+> `docs/NEW_COMPONENTS_PROPOSAL.md`.
+
 > **Updated 30 October 2026 (engine change P2, owner-approved).** The
 > production saturation solver now refines grid intervals next to a
 > non-converged node. When that reveals a second root, it reports the state as
@@ -101,21 +129,22 @@ errors, never zero, infinite, or arbitrary errors.
 
 | System/direction | Source / success / failure | Pressure AARD (%) | RMS (%) | Bias (%) | Composition MAE / maximum |
 |---|---:|---:|---:|---:|---:|
-| CH4+C2 bubble | 17 / 11 / 6 | 0.454690 | 0.695762 | -0.290249 | 0.00370912 / 0.00881340 |
-| CH4+C2 production-selected dew | 17 / 12 / 5 | 5.338393 | 9.655766 | -3.939801 | 0.03443752 / 0.18938747 |
-| CH4+C3 bubble | 23 / 20 / 3 | 1.033805 | 1.247494 | -1.022857 | 0.00228860 / 0.00704091 |
+| CH4+C2 bubble | 17 / 17 / 0 | 1.021039 | 1.385340 | -0.914636 | 0.00383737 / 0.00881340 |
+| CH4+C2 production-selected dew | 17 / 8 / 9 | 2.073158 | 2.884757 | -0.504427 | 0.00846322 / 0.02779495 |
+| CH4+C3 bubble | 23 / 23 / 0 | 1.005678 | 1.206626 | -0.782724 | 0.00268459 / 0.00740756 |
 | CH4+C3 production-selected dew | 23 / 1 / 22 | 2.834693 | 2.834693 | 2.834693 | 0.00313156 / 0.00313156 |
 
-Since P2, a production dew pressure is reported only when no second root is
-found. Only one CH4+C3 dew state (009) has a unique PR dew root, so its 2.83 %
+Since P2 and P8, a production dew pressure is reported only when no second
+root is found. For CH4+C2 that leaves 8 of 17 dew states, all below the
+near-critical region. Only one CH4+C3 dew state (009) has a unique PR dew root, so its 2.83 %
 AARD rests on a single state. The other CH4+C3 dew states are ambiguous or have
 no PR root. That is a property of the dew question near the vapour-composition
 maximum (`docs/DEW_INVESTIGATION.md`), not a solver success rate.
 
-Pressure uncertainty results remain: CH4+C2 bubble 10/11 within 1U and 11/11
-within 2U; CH4+C2 dew 7/12 and 11/12; CH4+C3 bubble 11/20 and 15/20; CH4+C3 dew
-1/1 and 1/1. Bubble-composition counts are CH4+C2 10/11 and 11/11, and CH4+C3
-20/20 and 20/20. Dew composition uncertainty is unavailable.
+Pressure uncertainty results: CH4+C2 bubble 15/17 within 1U and 17/17 within
+2U; CH4+C2 dew 6/8 and 7/8; CH4+C3 bubble 13/23 and 18/23; CH4+C3 dew 1/1 and
+1/1. Bubble-composition counts are CH4+C2 16/17 and 17/17, and CH4+C3 21/23
+and 23/23. Dew composition uncertainty is unavailable.
 
 ## C. PR dew branch-landscape diagnostics
 
@@ -136,14 +165,14 @@ behavior.
 |---|---:|---:|
 | Dew states examined | 17 | 23 |
 | Zero / one / multiple roots | 0 / 13 / 4 | 2 / 1 / 20 |
-| Production success | 15 | 7 |
-| Production class: single / lower / upper / intermediate / unmatched | 13 / 2 / 0 / 0 / 0 | 1 / 6 / 0 / 0 / 0 |
-| Production failures with demonstrated root | 2 | 14 |
+| Production success | 8 | 1 |
+| Production class: single / lower / upper / intermediate / unmatched | 8 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| Production failures with demonstrated root | 9 | 20 |
 | Production failures with no root found in scan | 0 | 2 |
 
 Across all states with a diagnostic root, nearest available PR dew-root AARD is
 5.031582% for CH4+C2 (17 states) and 10.710868% for CH4+C3 (21 states). On only
-the production-successful subsets it is 5.112453% (15) and 13.517856% (7).
+the production-successful subsets it is 2.073158% (8) and 2.834693% (1).
 These are **nearest available PR dew-root agreement** metrics. They use
 experimental pressure retrospectively to identify which already-existing PR
 root is nearest. They are not corrected predictions, improved model
@@ -157,7 +186,9 @@ predictions, or a prospective branch-selection algorithm.
 | `may2015_ch4_c3_015` | 8,320,000 | 2,550,204.25 / LOWER | 8,158,606.57 / UPPER | -69.3485% | -1.9398% |
 | `may2015_ch4_c3_023` | 7,630,000 | 5,840,051.39 / LOWER | 7,701,834.63 / UPPER | -23.4594% | +0.9415% |
 
-The large production error at point 015 is retained. The alternative upper root
+The production values in this table predate P2; since P2 these three states
+are reported as ambiguous. The large production error at point 015 is
+retained here as history. The alternative upper root
 is reported alongside it, never substituted for it.
 
 An upper-root heuristic would be scientifically invalid. At
@@ -169,10 +200,14 @@ reports the landscape; it does not invent a new selection rule.
 
 ### Production failure interpretation
 
-Production failure is not automatically model error. Both CH4+C2 dew failures
-and 14 of 16 CH4+C3 dew failures have a valid diagnostic PR root that the
-current production search does not reach. Thus 16 of 18 failures primarily
-expose current solver reachability/branch-selection limitations. Points
+Production failure is not automatically model error. All 9 CH4+C2 dew
+failures and 20 of 22 CH4+C3 dew failures have a valid diagnostic PR root.
+Most are ambiguous states with two PR roots, so a single dew pressure is not
+well posed there. The diagnostic scan in this section does not see the upper
+roots of CH4+C2 008, 009, 013 and 017: they lie beside non-converged inner
+evaluations, which the production solver now checks with a bounded Newton
+solve (P8), and the scan's single-root count of 13 is therefore an upper
+bound. Points
 `may2015_ch4_c3_020` and `may2015_ch4_c3_021` have no valid dew root found in the
 documented scan; this does **not** claim that no PR solution exists outside the
 grid or by another valid numerical path. Failed states remain excluded from
@@ -184,7 +219,7 @@ Recomputed production-selected sensitivity is:
 
 | Direction | With point: n / AARD / RMS / bias (%) | Without point: n / AARD / RMS / bias (%) | AARD shift when excluded |
 |---|---:|---:|---:|
-| CH4+C3 bubble | 20 / 1.033805 / 1.247494 / -1.022857 | 19 / 0.980767 / 1.191129 / -0.969243 | -0.053038 percentage points |
+| CH4+C3 bubble | 23 / 1.005678 / 1.206626 / -0.782724 | 22 / 0.958594 / 1.154417 / -0.725505 | -0.047084 percentage points |
 | CH4+C3 dew | 1 / 2.834693 / 2.834693 / 2.834693 | 1 / 2.834693 / 2.834693 / 2.834693 | 0.000000 percentage points |
 
 Since P2, the 283.38 K dew state is ambiguous, so it no longer enters the dew
@@ -210,8 +245,8 @@ thermodynamic mismatch from outer pressure-search and branch-selection behavior.
 `tools/run_module17_validation.py` regenerates the result CSV and machine-readable
 summary. Their SHA-256 values are currently:
 
-- result CSV: `BF11C4BE8462DBDBCFB25B2DF859A165475EA0BEBACB9227C7FEAFBE539B2397`;
-- summary JSON: `97178CB190814DFB9D8D1D32EB4260373F319EEA31D60EFC641D502CEDEC9AE3`.
+- result CSV: `EB924553F2F62692032C77016F5BD4B873C3ED97B5135EE84EB9990FC0CC5614`;
+- summary JSON: `033A40234745133806E827062F72D86D4EBCD6E4191116C1DB292DAE3642F465`.
 
 Coverage remains limited to two binaries, one source, its sampled domain,
 `kij=0`, and a finite diagnostic scan. No numerical T or liquid-x uncertainty

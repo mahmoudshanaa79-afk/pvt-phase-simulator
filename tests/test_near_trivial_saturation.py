@@ -269,19 +269,25 @@ def test_canonical_noncritical_states_remain_accepted(
 
 
 def test_verified_property_260k_bubble_is_a_known_safe_bracketing_gap() -> None:
-    """Pin NOT_FOUND without accepting a wrong, trivial, or inverted branch."""
+    """Report the unbracketed root, without accepting a wrong or trivial branch.
+
+    Since P8 the boundary check finds the bubble point at about 6.736 MPa with a
+    bounded Newton solve (vapour CH4 0.582, continuing the converged 257-258 K
+    points). It cannot be bracketed, so no pressure is reported. A Newton landing
+    on the trivial solution near 5.43 MPa is rejected.
+    """
 
     result = calculate_saturation_pressure(
         BINARY,
         260.0,
         SaturationKind.BUBBLE_POINT,
     )
-    assert result.status is SaturationStatus.NOT_FOUND
-    assert (
-        result.failure_reason == "No trustworthy saturation-pressure bracket was found."
-    )
+    assert result.status is SaturationStatus.INCONCLUSIVE
+    assert result.failure_reason is not None
+    assert "could not be bracketed" in result.failure_reason
+    assert "6.73579e+06 Pa" in result.failure_reason
     assert {diagnostic.code for diagnostic in result.diagnostics} >= {
-        "SATURATION_BRACKET_NOT_FOUND",
+        "SATURATION_ROOT_UNBRACKETED",
         "SATURATION_TRIVIAL_STATE",
     }
     assert result.pressure_pa is None

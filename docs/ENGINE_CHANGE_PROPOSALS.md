@@ -214,7 +214,7 @@ plotting API, so it is listed here.
 
 ## P6. Non-zero binary interaction parameters (kij)
 
-**Status: awaiting owner decision. Study in progress (branch `kij-study`).**
+**Status: awaiting owner decision. Study complete (PR #28).**
 
 **Question.** What does a non-zero kij do for Peng–Robinson on the May (2015)
 data, and should OpenPhase use one? The engine already accepts kij; the study
@@ -222,3 +222,42 @@ changes no engine file and leaves the kij = 0 validation record as it is.
 
 The evidence, the fitted values and the options are in
 `docs/investigations/kij_study.md`.
+
+## P7. Refine boundary intervals when the grid finds no root
+
+**Status: applied on 1 November 2026** with the owner's approval.
+
+**Finding.** The P2 walk ran only when the grid had already found exactly one
+root. When it found none, a root beside a non-converged node stayed hidden and
+the result was `not_found`. All nine `not_found` bubble states of the May
+(2015) record are of this kind (`tools/run_empty_scan_whatif.py`,
+`docs/investigations/empty_scan_whatif.csv`).
+
+**Change.** Run the walk when the grid finds no root as well. One root found:
+solve its bracket as usual (`BOUNDARY_SATURATION_ROOT`). More than one:
+`INCONCLUSIVE`. None: `NOT_FOUND` as before.
+
+**Effect.** CH4+C2 bubble 11 → 17 successes, CH4+C3 bubble 20 → 23. The
+recovered pressures equal the independent Newton option's to 1e-8 where it
+converges.
+
+## P8. Check the rest of an interval when the walk stops at a failure
+
+**Status: applied on 1 November 2026** with the owner's approval.
+
+**Finding.** The walk stops at the first non-converged evaluation. Near a
+critical point the inner iteration fails just before an upper dew root, so the
+lower root was reported as unique. An independent audit
+(`tools/run_dew_uniqueness_audit.py`) found this at CH4+C2 009 and 013; the
+CH4+n-butane preview found it at state 008 (`docs/NEW_COMPONENTS_PROPOSAL.md`).
+
+**Change.** When an interval's walk finds no sign change, a bounded local
+Newton solve seeded with the last converged walk state looks for a root in the
+rest of the interval. A converged, non-trivial root strictly inside the
+interval counts as a root; it makes the result ambiguous and is never reported
+as the pressure. See `docs/SATURATION_PRESSURE_DESIGN.md`.
+
+**Effect.** CH4+C2 dew 008, 009, 013 and 017 become ambiguous (upper roots
+6.88, 6.76, 6.80 and 6.67 MPa). CH4+C2 dew goes from 12 states at 5.34 % AARD
+to 8 states at 2.07 %. The former worst result, 013 at −25.8 %, was the lower
+of two roots; its upper root is 1.3 % from the measurement.

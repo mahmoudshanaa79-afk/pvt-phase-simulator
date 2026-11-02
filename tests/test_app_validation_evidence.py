@@ -88,5 +88,6 @@ def test_dew_conditioning_summary_on_the_committed_results() -> None:
     assert propane["Ill-posed (> 1 MPa from U_y)"] == 15
     assert propane["Measured y above PR maximum"] == 2
     ethane = rows.loc["Methane + ethane"]
-    assert (ethane["Dew states"], ethane["Within 1 U"]) == (17, 15)
-    assert ethane["Ill-posed (> 1 MPa from U_y)"] == 3
+    # P7 lets the isotherm reach CH4+C2 017, which is assessable since then.
+    assert (ethane["Dew states"], ethane["Within 1 U"]) == (17, 16)
+    assert ethane["Ill-posed (> 1 MPa from U_y)"] == 4

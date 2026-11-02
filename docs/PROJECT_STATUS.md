@@ -58,7 +58,9 @@ key whose numbers are recomputed from the engine by the tests.
 | P5: neutral dew stop marker label | Done, PR #16, in the app layer. The engine's own label is unchanged. |
 | P2: refine grid boundaries in the saturation scan | Done, owner-approved. Nine dew results that looked unique are now reported as ambiguous (`HIDDEN_SATURATION_ROOT`); each second root is confirmed. The Module 17 artifacts were regenerated: CH4+C3 dew 7 → 1 unique results, CH4+C2 dew 15 → 12. Bubble results unchanged. |
 | Pure-component reference data (V2-01-E) | Accepted, PR #10 (`docs/PURE_COMPONENT_SATURATION.md`). |
-| P3: conditioning-aware dew metric | Done for both binaries (`docs/investigations/dew_conditioning.csv`). PR's vapour composition at the measured pressure is within the stated uncertainty at 22 of 23 CH4+C3 states and 15 of 15 assessable CH4+C2 states. Shown on the Validation page. |
+| P3: conditioning-aware dew metric | Done for both binaries (`docs/investigations/dew_conditioning.csv`). PR's vapour composition at the measured pressure is within the stated uncertainty at 22 of 23 CH4+C3 states and 16 of 16 assessable CH4+C2 states (15 of 15 before P7). Shown on the Validation page. |
+| P7: refine boundaries when the scan finds no root | Done, owner-approved (1 Nov 2026). All nine `not_found` bubble states of the record now converge (CH4+C2 bubble 11 → 17, CH4+C3 20 → 23); 7 agree with the Newton option to 1e-8 and 250 K agrees with the independent envelope reference to 5e-14. |
+| P8: check past a failed walk step | Done, owner-approved (1 Nov 2026). CH4+C2 dew 008, 009, 013 and 017 have an upper root the solver missed and are now ambiguous; CH4+C2 dew 12 states at 5.34 % → 8 states at 2.07 %. Lab 2 updated. |
 | P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
 
 ## Waiting on an owner decision
@@ -90,18 +92,28 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
-- **2026-11-01, web (kij study, waiting for engine-p7-p8):**
+- **2026-11-02, web (kij study, P6):**
   - Done: `tools/run_kij_study.py`, the rendered `docs/investigations/kij_study.md`
-    and `tests/test_kij_study.py`, in draft PR #28. No engine change. Interim
-    fits on the current engine: CH4+C2 about 0, CH4+C3 +0.003; provisional
-    butanes about +0.012 (iC4) and +0.010 (nC4). A constant kij does not reduce
-    the ambiguous dew states.
-  - Open: PR #28 waits for the desktop's `engine-p7-p8` PR. After it merges,
-    merge master, rerun the study (about an hour) and take the kij = 0 reference
-    from the regenerated Module 17 summary. Published PR kij values could not
-    be verified from the web session (full texts blocked); someone with access
-    should check them.
-  - Next: rerun after engine-p7-p8, merge PR #28, then Lab 4 (kij).
+    and `tests/test_kij_study.py` (PR #28), rerun on the P7/P8 engine; kij = 0
+    reproduces the regenerated Module 17 record state by state. No engine
+    change. Fits to bubble pressure: CH4+C2 0, CH4+C3 +0.0021 (AARD 0.99 % to
+    0.68 % on a fixed set of 22); provisional butanes +0.0121 (iC4) and +0.0098
+    (nC4). A constant kij does not reduce the ambiguous dew states. Published
+    PR kij values could not be verified from the web session.
+  - Next: P7/P8 follow-ups (stale numbers, survey rerun), plain-language
+    solver codes, the owner-approved optional kij input (Option 2), Lab 4.
+
+- **2026-11-01, desktop (engine P7 + P8, owner-approved):**
+  - Done: `saturation_pressure.py` runs the boundary walk when the grid finds
+    no root (P7) and, where a walk stops at a failed step, checks the rest of
+    the interval with a bounded Newton solve that may only make a result
+    ambiguous, never supply its pressure (P8). Module 17 artifacts, the
+    Newton comparison and the P3 study regenerated; Lab 2 and the validation
+    write-up updated. The Newton comparison now also treats states the
+    default solver calls ambiguous as multi-root.
+  - Parallel: the web session's kij study (PR #28) must merge master and
+    rerun on the new engine.
+  - Next: release v1.6 (owner approval); then the butanes decision.
 
 - **2026-11-01, desktop (new components proposal):**
   - Done: `docs/NEW_COMPONENTS_PROPOSAL.md`. The May (2015) ThermoML record

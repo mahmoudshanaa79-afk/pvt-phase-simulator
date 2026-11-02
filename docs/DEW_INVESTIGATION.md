@@ -112,18 +112,22 @@ The same comparison over the 17 CH4+C2 dew states
 (`docs/investigations/dew_conditioning.csv`, column `system_id`) gives:
 
 - **Composition agreement.** PR's vapour composition at the measured pressure
-  is within the stated uncertainty at 15 of the 15 assessable states.
-- **Two states not assessed.** At 013 and 017, near the 243.6 K critical
-  region, the measured pressure is above the highest converged PR bubble
-  pressure on the isotherm. They are reported as `above_isotherm` rather than
-  given a number.
+  is within the stated uncertainty at 16 of the 16 assessable states.
+- **One state not assessed.** At 013, near the 243.6 K critical region, the
+  measured pressure is above the highest converged PR bubble pressure on the
+  isotherm. It is reported as `above_isotherm` rather than given a number.
+  Since P7 (1 November 2026) the isotherm reaches 017 as well; one refinement
+  solve failed there, so its value is interpolated between converged samples
+  (`grid_interpolated`).
 - **Conditioning.** The dew question is much better posed than for CH4+C3:
-  only 3 of 17 states allow more than 1 MPa of dew-pressure spread from the
-  composition uncertainty. All three sit at 243.6 K close to the vapour
-  maximum (012, 015, 016).
+  only 4 of 17 states allow more than 1 MPa of dew-pressure spread from the
+  composition uncertainty. All four sit at 243.6 K close to the vapour
+  maximum (012, 015, 016, 017).
 
-This is why the production CH4+C2 dew pressures (5.34 % AARD over 12 unique
-states) are informative, while the CH4+C3 ones are mostly not.
+This is why the production CH4+C2 dew pressures are informative, while the
+CH4+C3 ones are mostly not. Since P8 the unique CH4+C2 dew results are the 8
+states away from the critical region (2.07 % AARD); 008, 009, 013 and 017 have a
+second, upper PR root and are reported as ambiguous.
 
 ### Limits and a real bias
 
