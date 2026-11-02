@@ -105,6 +105,25 @@ work and added in that task's PR. Sessions read only the latest few entries.
     pre-P7/P8 and left unchanged.
   - Next: plain-language solver codes in the app, then the kij input.
 
+- **2026-11-02, web (kij study, P6):**
+  - Done: `tools/run_kij_study.py`, the rendered `docs/investigations/kij_study.md`
+    and `tests/test_kij_study.py` (PR #28), rerun on the P7/P8 engine; kij = 0
+    reproduces the regenerated Module 17 record state by state. No engine
+    change. Fits to bubble pressure: CH4+C2 0, CH4+C3 +0.0021 (AARD 0.99 % to
+    0.68 % on a fixed set of 22); provisional butanes +0.0121 (iC4) and +0.0098
+    (nC4). A constant kij does not reduce the ambiguous dew states. Published
+    PR kij values could not be verified from the web session.
+  - Next: P7/P8 follow-ups (stale numbers, survey rerun), plain-language
+    solver codes, the owner-approved optional kij input (Option 2), Lab 4.
+
+- **2026-11-02, web (CI: run the full suite in parallel):**
+  - Done: the "Full test suite" step runs `pytest -n auto --dist loadfile`
+    (pytest-xdist added to the dev group, `uv.lock` updated). After P7/P8 the
+    serial suite took about 15.5 min of its 20-min step on master, and the kij
+    study PR timed out at 84 %. Same tests, same gates, same timeout.
+  - Open: PRs #28, #30, #31 and #32 merge master in after this.
+  - Next: finish the kij study PR, then the chain.
+
 - **2026-11-01, desktop (engine P7 + P8, owner-approved):**
   - Done: `saturation_pressure.py` runs the boundary walk when the grid finds
     no root (P7) and, where a walk stops at a failed step, checks the rest of

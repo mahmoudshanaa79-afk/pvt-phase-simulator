@@ -84,8 +84,16 @@ class _BubbleFailure(Exception):
     pass
 
 
+def _interactions(heavy: Component, kij: float) -> dict[tuple[str, str], float] | None:
+    """Symmetric kij for the binary, or None (the engine's kij = 0 default) at 0."""
+
+    if kij == 0.0:
+        return None
+    return {(METHANE.name, heavy.name): kij, (heavy.name, METHANE.name): kij}
+
+
 def _bubble(
-    temperature_k: float, methane: float, heavy: Component
+    temperature_k: float, methane: float, heavy: Component, kij: float = 0.0
 ) -> tuple[float, float] | None:
     mixture = FluidMixture(
         (
@@ -97,6 +105,7 @@ def _bubble(
         mixture,
         temperature_k,
         SaturationKind.BUBBLE_POINT,
+        binary_interactions=_interactions(heavy, kij),
         saturation_newton_enabled=True,
     )
     if result.status is not SaturationStatus.CONVERGED or result.pressure_pa is None:
@@ -111,13 +120,13 @@ def _require(state: tuple[float, float] | None) -> tuple[float, float]:
 
 
 def _isotherm(
-    temperature_k: float, heavy: Component
+    temperature_k: float, heavy: Component, kij: float = 0.0
 ) -> list[tuple[float, float, float]]:
     """Converged ``(x, P, y)`` samples of PR's bubble isotherm, by ``x``."""
 
     samples = []
     for methane in GRID:
-        state = _bubble(temperature_k, methane, heavy)
+        state = _bubble(temperature_k, methane, heavy, kij)
         if state is not None:
             samples.append((methane, state[0], state[1]))
     if not samples:
@@ -125,8 +134,13 @@ def _isotherm(
     return samples
 
 
-def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
-    """Compare one measured dew state with PR's isotherm at its temperature."""
+def analyze_dew_state(point: ExperimentalVLEPoint, kij: float = 0.0) -> DewConditioning:
+    """Compare one measured dew state with PR's isotherm at its temperature.
+
+    ``kij`` is the methane-heavy interaction parameter. The default, 0, passes no
+    interactions to the engine, so the published P3 results are reproduced
+    exactly; a non-zero value is used only by ``tools/run_kij_study.py``.
+    """
 
     temperature = point.temperature_k
     pressure = point.pressure_pa
@@ -135,7 +149,7 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
     if uncertainty is None:
         raise ValueError(f"{point.source_point_id} has no vapour uncertainty")
     heavy = HEAVY[point.component_ids[1]]
-    samples = _isotherm(temperature, heavy)
+    samples = _isotherm(temperature, heavy, kij)
 
     # Vapour-composition maximum: refine around the best grid sample.
     best = max(range(len(samples)), key=lambda index: samples[index][2])
@@ -147,12 +161,12 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
     if window[0] < window[1]:
         try:
             maximum = minimize_scalar(
-                lambda x: -_require(_bubble(temperature, x, heavy))[1],
+                lambda x: -_require(_bubble(temperature, x, heavy, kij))[1],
                 bounds=window,
                 method="bounded",
                 options={"xatol": 1e-5},
             )
-            refined = _require(_bubble(temperature, maximum.x, heavy))
+            refined = _require(_bubble(temperature, maximum.x, heavy, kij))
             if refined[1] >= vapor_maximum:
                 pressure_at_maximum, vapor_maximum = refined
         except _BubbleFailure:
@@ -180,17 +194,19 @@ def analyze_dew_state(point: ExperimentalVLEPoint) -> DewConditioning:
         low, high = bracket
         try:
             methane = brentq(
-                lambda x: _require(_bubble(temperature, x, heavy))[0] - pressure,
+                lambda x: _require(_bubble(temperature, x, heavy, kij))[0] - pressure,
                 low[0],
                 high[0],
                 xtol=1e-10,
             )
-            model_vapor = _require(_bubble(temperature, methane, heavy))[1]
+            model_vapor = _require(_bubble(temperature, methane, heavy, kij))[1]
             below = _require(
-                _bubble(temperature, max(low[0], methane - DERIVATIVE_STEP), heavy)
+                _bubble(temperature, max(low[0], methane - DERIVATIVE_STEP), heavy, kij)
             )
             above = _require(
-                _bubble(temperature, min(high[0], methane + DERIVATIVE_STEP), heavy)
+                _bubble(
+                    temperature, min(high[0], methane + DERIVATIVE_STEP), heavy, kij
+                )
             )
             slope = (above[0] - below[0]) / (above[1] - below[1])
             method = "solved"
