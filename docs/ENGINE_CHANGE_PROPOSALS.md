@@ -210,6 +210,21 @@ what happened: "Dew branch stopped (engine near-critical guard)". A label change
 could be done in the application layer, but the label belongs to the engine
 plotting API, so it is listed here.
 
+---
+
+## P6. Non-zero binary interaction parameters (kij)
+
+**Status: Option 2 approved by the owner on 2026-11-02; app input in Task 4
+(PR #32). Study complete (PR #28).** kij = 0 stays the default and the
+validation reference; the app offers an optional, labelled kij input.
+
+**Question.** What does a non-zero kij do for Peng–Robinson on the May (2015)
+data, and should OpenPhase use one? The engine already accepts kij; the study
+changes no engine file and leaves the kij = 0 validation record as it is.
+
+The evidence, the fitted values and the options are in
+`docs/investigations/kij_study.md`.
+
 ## P7. Refine boundary intervals when the grid finds no root
 
 **Status: applied on 1 November 2026** with the owner's approval.

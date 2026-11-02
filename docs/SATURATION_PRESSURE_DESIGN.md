@@ -206,6 +206,10 @@ result `INCONCLUSIVE` (a second root, `HIDDEN_SATURATION_ROOT`) or, when it is
 the only root found, `INCONCLUSIVE` with `SATURATION_ROOT_UNBRACKETED`; it is
 never reported as the pressure. On May (2015) this recovers nine bubble states
 and turns four CH4+C2 dew states (008, 009, 013, 017) into ambiguous ones.
+Their second roots are confirmed without the scan by
+`tools/run_hidden_dew_root_check.py` (`docs/investigations/hidden_dew_root_check.csv`):
+009, 013 and 017 by PR's bubble isotherm, and 008, whose upper root lies beyond
+the last converged bubble solve, by tracing the dew branch of its vapour.
 The optional Newton layer is a local solve from
 the Wilson estimate, used for continuation. It returns the root near that
 estimate and does **not** certify uniqueness; only this scanning path does. One bracket is solved in `ln(P)`
