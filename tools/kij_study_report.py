@@ -257,5 +257,6 @@ def render(root: Path) -> str:
         text.literature(),
         text.limits(),
         text.proposal(rows, fits),
+        text.APP_DESIGN,
     ]
     return "\n\n".join(part.strip("\n") for part in parts if part.strip()) + "\n"

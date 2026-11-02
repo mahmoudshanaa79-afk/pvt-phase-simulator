@@ -333,3 +333,38 @@ reference, and let the owner decide whether an optional kij input is worth its
 test burden. Do not adopt fitted defaults on one source; revisit if a second,
 independent dataset for these binaries is added.
 """
+
+
+APP_DESIGN = """## App design for an optional kij input (Option 2)
+
+The design for Option 2. Nothing here is implemented by this study; the app
+change is a separate pull request.
+
+- **Page and control.** One collapsed expander in the sidebar input form,
+  *Advanced: binary interaction (kij)*, below the composition, temperature and
+  pressure fields, so kij is submitted with the case like every other input.
+  One number field per pair (C1–C2, C1–C3, C2–C3), default 0.000, range −0.10
+  to +0.20, step 0.001. A pair whose component is absent from the mixture is
+  shown disabled and never reaches the engine.
+- **Help text.** Quotes the fitted values of this study and says they are fits
+  to bubble pressures from one source, and that a non-zero kij is a fitted,
+  non-predictive choice.
+- **Labelling.** Whenever any kij in use is non-zero: a visible *user-supplied
+  kij* badge; the header caption *Peng-Robinson EOS - 3 verified components -
+  kij = 0* names the values instead; every result page says the result was
+  calculated with them; exports (`binary_interaction_assumption`, plus the
+  values per pair) and the HTML report state the values actually used. At
+  kij = 0 nothing changes, byte for byte.
+- **Where kij applies.** Every engine call the app makes: flash, saturation,
+  the phase envelope and its extended overlay, the critical point, the
+  criticality map and the sweeps.
+- **What stays at kij = 0.** The Validation page always shows the kij = 0
+  record, with a note when the user's kij differs. Learn mode and the teaching
+  labs stay at kij = 0 unless a lab says otherwise.
+- **Case files.** Save and load round-trip kij; a file without kij loads as
+  kij = 0, and a kij = 0 case saves exactly as before.
+- **Guarding tests.** kij = 0 gives the same engine calls and byte-identical
+  exports on several pages; a non-zero kij reaches the engine (the app's bubble
+  pressure equals a direct `calculate_saturation_pressure` call with the same
+  `binary_interactions`); save/load, export labels and the badge are tested; the
+  real-browser test sets one kij and sees the badge."""
