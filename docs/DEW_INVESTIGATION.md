@@ -163,12 +163,17 @@ engine's existing Newton refinement switched on, all three converge:
 
 The Module 17 validation calls the solver with defaults, which leave Newton off.
 
+*Update, 2026-11-01:* since proposal P7 the default solver (Newton still off)
+converges at all three as well, and the regenerated Module 17 record has 23 of
+23 CH4+C3 bubble results (`docs/ENGINE_CHANGE_PROPOSALS.md`, P7).
+
 ## 2. Early `phase_role_lost` stops on the extended envelope
 
 *Update, 2026-10-30:* proposal P1 was applied in PR #15. The default 50/50
 methane/propane dew branch from 270 K now ends at 322.52 K / 8.472 MPa, and the
-extended-envelope survey closes 13 of 16 cases instead of 9
-(`docs/investigations/envelope_survey.md`). The text below is the measurement that
+extended-envelope survey closed 13 of 16 cases instead of 9
+(`docs/investigations/envelope_survey.md`; 14 of 16 since proposal P7 fixed a
+warm-start bubble initialization). The text below is the measurement that
 led to that decision.
 
 The pseudo-arclength tracer rejects a step when fixed-root continuity is lost,

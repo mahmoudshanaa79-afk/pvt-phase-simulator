@@ -9,15 +9,15 @@ The 16-case list behind the older wording in
 reconstruction (the three shipped examples plus binaries and ternaries) and
 its counts are not a re-measurement of the older ones.
 
-- **Before P1** (the earlier root-count rule): 9 closed, 7 stopped early.
-- **Current code**: 13 closed, 3 stopped early.
+- **Before P1** (the earlier root-count rule): 10 closed, 6 stopped early.
+- **Current code**: 14 closed, 2 stopped early.
 
 | Case | Mol % C1/C2/C3 | T (K) | Before P1 | Current |
 |---|---|---:|---|---|
 | shipped: Default two-phase-oriented case | 50/0/50 | 300 | closed | closed |
 | shipped: Known single-phase case at 300 K and 20 MPa | 50/0/50 | 300 | closed | closed |
 | shipped: Audited critical-solver seed | 50/0/50 | 321.583 | closed | closed |
-| C1/C3 50/50, warm start | 50/0/50 | 330 | stopped: bubble initialization_failed | stopped: bubble initialization_failed |
+| C1/C3 50/50, warm start | 50/0/50 | 330 | closed | closed |
 | C1/C3 10/90 | 10/0/90 | 330 | stopped: dew phase_role_lost | closed |
 | C1/C3 30/70 | 30/0/70 | 310 | closed | closed |
 | C1/C3 70/30 | 70/0/30 | 270 | stopped: bubble trivial_state | stopped: bubble trivial_state |

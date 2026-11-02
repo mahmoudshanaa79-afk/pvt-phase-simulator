@@ -167,8 +167,9 @@ TOPICS: Final[dict[PageName, LearnTopic]] = {
         exercises=(
             "Compare the CH4+C3 bubble and dew results. The bubble direction "
             "(measured liquid composition → pressure) has about 1 % AARD. Why "
-            "might the dew direction (measured vapour composition → pressure) "
-            "look far worse for the same model and data?",
+            "does the dew direction (measured vapour composition → pressure) "
+            "give a unique answer at only 1 of the 23 states for the same model "
+            "and data?",
         ),
     ),
     "diagnostics": LearnTopic(
