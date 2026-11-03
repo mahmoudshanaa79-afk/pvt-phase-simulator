@@ -344,6 +344,25 @@ def write(timings: list[Timing], output: Path | None, runs: int) -> None:
             )
 
 
+def compare(before: Path, after: Path) -> None:
+    """Print a before/after table from two CSV files written by ``--output``."""
+
+    def read(path: Path) -> dict[tuple[str, str, str], float]:
+        with path.open(encoding="utf-8", newline="") as stream:
+            return {
+                (row["group"], row["label"], row["case"]): float(row["median_s"])
+                for row in csv.DictReader(stream)
+            }
+
+    first, second = read(before), read(after)
+    print("| Group | What | Case | Before (s) | After (s) |")
+    print("|---|---|---|---:|---:|")
+    for key, value in first.items():
+        if key in second:
+            group, label, case = key
+            print(f"| {group} | {label} | {case} | {value:.2f} | {second[key]:.2f} |")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--runs", type=int, default=3)
@@ -358,7 +377,17 @@ def main() -> None:
         default="all",
         help="'all' or 'default': which shipped examples the AppTest actions use",
     )
+    parser.add_argument(
+        "--compare",
+        nargs=2,
+        type=Path,
+        metavar=("BEFORE", "AFTER"),
+        help="print a before/after table from two CSV files and exit",
+    )
     arguments = parser.parse_args()
+    if arguments.compare:
+        compare(*arguments.compare)
+        return
     logging.disable(logging.CRITICAL)
     skip = set(filter(None, arguments.skip.split(",")))
     timings: list[Timing] = []
