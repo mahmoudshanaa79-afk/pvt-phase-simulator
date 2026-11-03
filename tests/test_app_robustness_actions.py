@@ -69,7 +69,10 @@ def test_an_interrupted_action_leaves_no_result_and_no_error(
     go(app, "phase_envelope.py")
     assert_clean(app, app_errors, "after an interrupted envelope")
     assert not has_result(app, "envelope")
-    assert "No calculated envelope is available." in [item.value for item in app.info]
+    assert any(
+        item.value.startswith("No calculated envelope is available.")
+        for item in app.info
+    )
 
 
 def test_an_engine_rejection_shows_the_engine_reason(

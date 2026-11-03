@@ -287,7 +287,11 @@ def _full_precision(value: float | None) -> str:
 
 def _action_requirement(inputs: ScientificInputs | None) -> None:
     if inputs is None:
-        st.caption(":material/lock: Submit RUN FLASH to enable this action.")
+        st.caption(
+            ":material/lock: Submit RUN FLASH to enable this action. RUN FLASH is "
+            "at the bottom of the fluid inputs in the sidebar (open it with » on a "
+            "phone)."
+        )
 
 
 def _action_inputs(inputs: ScientificInputs | None) -> ScientificInputs | None:
@@ -319,6 +323,29 @@ def _calculate_sweep(
     """A sweep for one complete request; ``_progress`` is not part of the key."""
 
     return run_sweep(request, progress=_progress)
+
+
+#: Shown on Overview before the first result: what to do first.
+START_HERE: Final = (
+    "**Start here.** 1. In the sidebar, choose an **Example case** or enter a "
+    "composition (mol %), temperature and pressure. 2. Press **RUN FLASH** at the "
+    "bottom of the sidebar inputs (on a phone, open the sidebar with »). 3. Then "
+    "open **Phase Envelope**, **Critical Point** or **Engineering Sweeps** for "
+    "more calculations. Turn on Learn mode for explanations, exercises and "
+    "the teaching labs."
+)
+#: The envelope's first run is engine time: about 2-3 minutes on a 2.8 GHz
+#: machine (docs/investigations/app_performance.md), longer on a shared server.
+ENVELOPE_TIME_NOTE: Final = (
+    "The first run of a case can take a few minutes; running the same case again "
+    "is answered from the cache at once."
+)
+
+
+def phase_split_text(liquid: float | None, vapor: float | None) -> str:
+    """The phase split in words, so it never depends on colour alone."""
+
+    return f"Liquid {_optional(liquid)} · Vapor {_optional(vapor)} (mole fractions)"
 
 
 #: Plotly titles never wrap. Beyond this length a "Name — detail" title is split
@@ -440,7 +467,7 @@ def _composition_table(result: TwoPhaseFlashResult) -> None:
         pd.DataFrame(rows, index=COMPONENT_NAMES).T,
         width="stretch",
         column_config={
-            name: st.column_config.NumberColumn(name, format="%.6g mol %")
+            name: st.column_config.NumberColumn(name, format="%.6g mol %%")
             for name in COMPONENT_NAMES
         },
     )
@@ -622,15 +649,11 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     st.header("Overview")
     render_learn_panel("overview")
     units = unit_preferences()
-    _render_model_scope_panel()
     raw = get_result(session(), "flash")
     if raw is None:
         if not _show_action_failure("flash"):
-            st.info(
-                "Submit valid fluid inputs with RUN FLASH to create a production "
-                "result.",
-                icon=":material/info:",
-            )
+            st.info(START_HERE, icon=":material/flag:")
+        _render_model_scope_panel()
         return
     result = cast(TwoPhaseFlashResult, raw)
     view = adapt_flash_result(result)
@@ -677,7 +700,10 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     phase_columns[2].metric("Vapor Z", _optional(view.vapor_z))
     phase_columns[3].metric("Liquid Z", _optional(view.liquid_z))
     if view.vapor_fraction is not None and view.liquid_fraction is not None:
-        st.caption("Engineering phase split · liquid / vapor")
+        st.caption(
+            "Engineering phase split · "
+            + phase_split_text(view.liquid_fraction, view.vapor_fraction)
+        )
         phase_split_bar(view.vapor_fraction, view.liquid_fraction)
     if view.single_phase_z is not None:
         st.info(
@@ -774,6 +800,8 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         _flash_details(result)
         if st.toggle("Show advanced public-object inspection", key="overview_raw"):
             st.json(asdict(result))
+    # The result comes first; the model panel follows it.
+    _render_model_scope_panel()
 
 
 @st.cache_resource(show_spinner=False, max_entries=LARGE_RESULT_CACHE_ENTRIES)
@@ -953,7 +981,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                 "Cold-starting below the operating point, then continuing both "
                 "branches through its temperature."
             )
-            status.write("Typical first run: about 20–30 seconds.")
+            status.write(ENVELOPE_TIME_NOTE)
             status.caption("An unchanged submitted case reuses the bounded UI cache.")
             try:
                 result = _calculate_envelope(action_inputs)
@@ -1001,7 +1029,11 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     raw = get_result(session(), "envelope")
     if raw is None:
         if not _show_action_failure("envelope"):
-            st.info("No calculated envelope is available.", icon=":material/info:")
+            st.info(
+                "No calculated envelope is available. Press RUN PHASE ENVELOPE "
+                "above. " + ENVELOPE_TIME_NOTE,
+                icon=":material/info:",
+            )
         return
     result = cast(PhaseEnvelopeResult, raw)
     _stale("envelope", inputs)
@@ -1223,7 +1255,11 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
     raw = get_result(session(), "critical")
     if raw is None:
         if not _show_action_failure("critical"):
-            st.info("No production critical-point solve has been requested.")
+            st.info(
+                "No production critical-point solve has been requested. Press RUN "
+                "CRITICAL SOLVER above; RUN CRITICALITY MAP shows the stability "
+                "map around the submitted state."
+            )
     else:
         result = cast(MixtureCriticalPointResult, raw)
         _kij_result_note("critical")
@@ -1957,7 +1993,10 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
     sweep = cast(SweepResult | None, get_result(session(), "sweep"))
     if sweep is None:
         if not _show_action_failure("sweep"):
-            st.info("No sweep has been calculated yet.")
+            st.info(
+                "No sweep has been calculated yet. Choose the swept variable and "
+                "its range above, then press RUN SWEEP."
+            )
         return
     if _stale("sweep", inputs):
         return

@@ -347,3 +347,42 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     assert not page_errors
     assert not failed_requests
     assert not blocking_console_errors
+
+
+def test_phone_width_page_load_and_one_action(
+    browser: Browser,
+    streamlit_url: str,
+    evidence_directory: Path,
+) -> None:
+    """At phone width the sidebar starts closed, nothing scrolls sideways, and
+    the first action works from the sidebar."""
+
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.set_default_timeout(60_000)
+    page_errors: list[str] = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.goto(streamlit_url, wait_until="domcontentloaded")
+    expect(page.get_by_role("heading", name="Overview", exact=True)).to_be_visible(
+        timeout=120_000
+    )
+    expect(page.get_by_text("Start here.", exact=False)).to_be_visible()
+    # The sidebar is collapsed on a phone, so the page is not covered.
+    open_sidebar = page.get_by_test_id("stExpandSidebarButton")
+    expect(open_sidebar).to_be_visible()
+    page.wait_for_function("document.documentElement.scrollWidth <= window.innerWidth")
+    _assert_healthy_ui(page)
+    _screenshot(page, evidence_directory, "09-phone-start")
+
+    open_sidebar.click()
+    _click_button(page, "RUN FLASH")
+    page.get_by_test_id("stSidebarCollapseButton").locator("button").click()
+    expect(page.get_by_text("Source-provided phase compositions")).to_be_visible(
+        timeout=180_000
+    )
+    expect(
+        page.get_by_text("Engineering phase split · Liquid", exact=False)
+    ).to_be_visible()
+    page.wait_for_function("document.documentElement.scrollWidth <= window.innerWidth")
+    _assert_healthy_ui(page)
+    _screenshot(page, evidence_directory, "10-phone-flash-result")
+    assert not page_errors
