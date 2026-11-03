@@ -95,6 +95,16 @@ jobs:
         timeout-minutes: 5
         run: uv run python tools/streamlit_smoke.py --timeout 60
 
+      - name: App runs with only the deployed dependencies
+        # Streamlit Community Cloud installs the locked runtime dependencies
+        # without the dev group. Build that environment outside the checkout
+        # and run every page and a flash in it.
+        timeout-minutes: 10
+        run: |
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/deployed" uv sync --no-dev --locked
+          "$RUNNER_TEMP/deployed/bin/python" tools/streamlit_smoke.py --timeout 60
+          "$RUNNER_TEMP/deployed/bin/python" tools/deploy_check.py
+
       - name: Working tree is unchanged by verification
         # Verification must not mutate the checkout. Any diff here means a gate
         # wrote into the repository.
