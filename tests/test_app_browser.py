@@ -320,6 +320,19 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     _assert_healthy_ui(page)
     _screenshot(page, evidence_directory, "07-diagnostics")
 
+    # The raw objects switch: the envelope is a summary plus a download, so the
+    # page stays responsive (the full JSON tree used to freeze the tab).
+    page.get_by_text("Show advanced raw public objects", exact=True).click()
+    expect(
+        page.get_by_role("button", name="Download raw envelope (JSON)")
+    ).to_be_visible(timeout=60_000)
+    _assert_healthy_ui(page)
+    _screenshot(page, evidence_directory, "07b-diagnostics-raw")
+    page.get_by_text("Show advanced raw public objects", exact=True).click()
+    expect(
+        page.get_by_role("button", name="Download raw envelope (JSON)")
+    ).to_have_count(0, timeout=60_000)
+
     # Optional kij (Option 2 of P6): set one pair, submit, and see the badge.
     page.get_by_text("Advanced: binary interaction (kij)", exact=True).click()
     kij_field = page.get_by_role("spinbutton", name="kij C1–C3", exact=False)
