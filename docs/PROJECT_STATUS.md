@@ -92,6 +92,18 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-03, web (deployment health):**
+  - Done: `tests/test_app_deployment.py` (runtime imports declared, lock pins
+    the project and its dependencies, Python 3.12 everywhere, every
+    `config.toml` option is a Streamlit option, the app and engine import only
+    built modules, the known-limits text). `tools/deploy_check.py` runs every
+    page and a flash with only the deployed dependencies; it and
+    `tools/streamlit_smoke.py` pass in a `--no-dev` environment. The app's
+    known limits now name the validation source (May et al. (2015), via NIST
+    ThermoML) and the input range. Reboot steps and a post-reboot checklist in
+    `docs/STREAMLIT_APPLICATION.md`.
+  - Next: the v1.6 release notes in PR 36 (owner decides the release).
+
 - **2026-11-03, web (app performance):**
   - Done: `tools/profile_app.py` and `docs/investigations/app_performance.md`
     (before/after, median of 3). The phase envelope is the only slow action

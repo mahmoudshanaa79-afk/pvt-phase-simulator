@@ -330,6 +330,47 @@ step and is not wired to the default branch.
 Deployment remains outside `.github/workflows/quality.yml`, which verifies only
 and holds read-only repository permissions.
 
+### Rebooting the public app and what to check afterwards
+
+The app follows `master`, but a running app keeps the code it started with.
+It picks up `master` when it wakes from sleep; otherwise the owner reboots it:
+
+1. Sign in at <https://share.streamlit.io> with the account that owns the app.
+2. In the app list, open the **⋮** menu next to the app and choose **Reboot**,
+   or open the app and use **Manage app → ⋮ → Reboot app**.
+3. Wait for the logs in **Manage app** to show the dependency install
+   (`uv sync`) and "You can now view your Streamlit app". The first load after
+   a reboot also installs the dependencies, so it can take a few minutes.
+
+Then check, in this order (about five minutes):
+
+- The page loads with no error box, and Overview shows the **Start here** box.
+- **Model and limitations** names the three components, kij = 0, the input
+  range and the validation source (May et al. (2015), via NIST ThermoML).
+- Choose the example **Default two-phase-oriented case** and press **RUN
+  FLASH**: Overview shows "Two phase" and "Solver status: Converged".
+- **Phase Envelope → RUN PHASE ENVELOPE** finishes (the first run takes a few
+  minutes) and lists the bubble and dew pressure at the operating temperature.
+  Pressing it again answers at once.
+- **Validation → GENERATE VALIDATION FIGURES** shows the figures.
+- On a phone, the sidebar starts closed and the page does not scroll sideways.
+- **Manage app → logs** show no traceback.
+
+Before a reboot, the same checks can be run locally against the deployed
+dependencies only (no dev packages):
+
+```bash
+UV_PROJECT_ENVIRONMENT=/tmp/openphase-deploy uv sync --no-dev --locked
+/tmp/openphase-deploy/bin/python tools/streamlit_smoke.py --timeout 90
+/tmp/openphase-deploy/bin/python tools/deploy_check.py
+```
+
+`tests/test_app_deployment.py` checks in CI that every import is a runtime
+dependency, that the lock file pins the project and its dependencies, that
+`.python-version` and CI use Python 3.12, that every `.streamlit/config.toml`
+option is a real Streamlit option, and that the app's known-limits text is
+complete.
+
 One hosting observation is recorded for completeness. During initial deployment
 testing, one hosted session became unresponsive after several computationally
 heavy calculations were run sequentially. Two subsequent fresh-session

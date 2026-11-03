@@ -51,6 +51,10 @@ from pvt_phase_simulator.plotting import (
 )
 from pvt_phase_simulator_ui.adapters import (
     COMPONENT_NAMES,
+    MAXIMUM_PRESSURE_PA,
+    MAXIMUM_TEMPERATURE_K,
+    MINIMUM_PRESSURE_PA,
+    MINIMUM_TEMPERATURE_K,
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
@@ -538,6 +542,16 @@ def _doi_link(doi: str | None) -> str:
     return f"[DOI {doi}](https://doi.org/{doi})"
 
 
+def short_citation(citation: str) -> str:
+    """'First-author et al. (year)' from a recorded citation, or the citation."""
+
+    first_author = citation.split(",", 1)[0].split()
+    year = re.search(r"\b(19|20)\d{2}\b", citation)
+    if not first_author or year is None:
+        return citation
+    return f"{first_author[-1]} et al. ({year.group(0)})"
+
+
 def _render_model_scope_panel() -> None:
     scope = _model_scope()
     units = unit_preferences()
@@ -580,7 +594,9 @@ def _render_model_scope_panel() -> None:
             f"**{scope.validation_state_count} experimental VLE states** for "
             f"**{systems}**, spanning {temperature_min:g}–{temperature_max:g} "
             f"{units.temperature.value} and {pressure_min:g}–{pressure_max:g} "
-            f"{units.pressure.value} in the recorded states. This "
+            f"{units.pressure.value} in the recorded states, from one source: "
+            f"{short_citation(scope.validation_source.citation)}, via "
+            f"{scope.validation_source.name}. This "
             "does not establish accuracy for other components, mixtures, or "
             "conditions."
         )
@@ -591,7 +607,10 @@ def _render_model_scope_panel() -> None:
             "`CriticalPointStatus.CONVERGED` is a certified critical point. The "
             "application provides no reservoir depletion, CCE/CVD, separator "
             "trains, pseudocomponents or C7+, EOS tuning, kij fitting, new-component "
-            "support, or arbitrary reservoir-fluid validation."
+            "support, or arbitrary reservoir-fluid validation. Inputs are limited "
+            f"to the supported range of {MINIMUM_TEMPERATURE_K:g}–"
+            f"{MAXIMUM_TEMPERATURE_K:g} K and {MINIMUM_PRESSURE_PA:g} Pa–"
+            f"{MAXIMUM_PRESSURE_PA / 1e9:g} GPa."
         )
         st.warning(
             "This is not a commercial PVT package and is not a substitute for "
