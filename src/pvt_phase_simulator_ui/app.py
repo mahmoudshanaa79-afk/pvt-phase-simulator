@@ -36,6 +36,7 @@ from pvt_phase_simulator_ui.state import (
     INPUT_EXAMPLES,
     apply_selected_input_example,
     begin_result_attempt,
+    failure_with_engine_reason,
     initialize_session,
     store_result,
     store_result_action_failure,
@@ -271,6 +272,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     temperature_unit=temperature_unit,
                     pressure_unit=pressure_unit,
                     kij=kij,
+                    supported_range=True,
                 )
                 validated = validate_scientific_inputs(
                     values,
@@ -279,6 +281,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     temperature_unit=TemperatureUnit.KELVIN,
                     pressure_unit=PressureUnit.PA,
                     kij=kij,
+                    supported_range=True,
                 )
                 validation_error = None
             except InputValidationError as error:
@@ -394,10 +397,11 @@ def run_app() -> None:
                 result = _cached_flash(inputs)
                 store_result(session(), "flash", result, inputs)
                 status.update(label="Flash complete", state="complete", expanded=False)
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the production flash action")
-                store_result_action_failure(session(), "flash", FLASH_ACTION_FAILURE)
+                message = failure_with_engine_reason(FLASH_ACTION_FAILURE, error)
+                store_result_action_failure(session(), "flash", message)
                 status.update(label="Flash failed", state="error", expanded=True)
-                st.error(FLASH_ACTION_FAILURE, icon=":material/error:")
+                st.error(message, icon=":material/error:")
             else:
                 st.rerun()

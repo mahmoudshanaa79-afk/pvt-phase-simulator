@@ -92,6 +92,7 @@ from pvt_phase_simulator_ui.state import (
     SWEEP_POINTS_WIDGET_KEY,
     SWEEP_START_WIDGET_KEY,
     begin_result_attempt,
+    failure_with_engine_reason,
     get_result,
     get_result_action_failure,
     initialize_sweep_widget_state,
@@ -940,10 +941,12 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                         _calculate_extended_envelope(action_inputs),
                         action_inputs,
                     )
-                except Exception:  # noqa: BLE001 - the standard envelope stays valid
+                except Exception as error:  # noqa: BLE001 - the envelope stays valid
                     LOGGER.exception("Unexpected failure extending the phase envelope")
                     store_result_action_failure(
-                        session(), "envelope_extension", EXTENSION_ACTION_FAILURE
+                        session(),
+                        "envelope_extension",
+                        failure_with_engine_reason(EXTENSION_ACTION_FAILURE, error),
                     )
                 status.write("Solving bubble and dew pressure at the operating point…")
                 try:
@@ -953,16 +956,20 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                         _calculate_operating_saturation(action_inputs),
                         action_inputs,
                     )
-                except Exception:  # noqa: BLE001 - the envelope stays valid
+                except Exception as error:  # noqa: BLE001 - the envelope stays valid
                     LOGGER.exception("Unexpected failure in the saturation solves")
                     store_result_action_failure(
-                        session(), "saturation", SATURATION_ACTION_FAILURE
+                        session(),
+                        "saturation",
+                        failure_with_engine_reason(SATURATION_ACTION_FAILURE, error),
                     )
                 status.update(label="Envelope trace complete", state="complete")
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the phase-envelope action")
                 store_result_action_failure(
-                    session(), "envelope", ENVELOPE_ACTION_FAILURE
+                    session(),
+                    "envelope",
+                    failure_with_engine_reason(ENVELOPE_ACTION_FAILURE, error),
                 )
                 status.update(label="Envelope trace failed", state="error")
     _action_requirement(action_inputs)
@@ -1160,10 +1167,12 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     action_inputs,
                 )
                 status.update(label="Critical solver complete", state="complete")
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the critical-point action")
                 store_result_action_failure(
-                    session(), "critical", CRITICAL_ACTION_FAILURE
+                    session(),
+                    "critical",
+                    failure_with_engine_reason(CRITICAL_ACTION_FAILURE, error),
                 )
                 status.update(label="Critical solver failed", state="error")
     if run_map:
@@ -1178,10 +1187,12 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     action_inputs,
                 )
                 status.update(label="Criticality map complete", state="complete")
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the criticality-map action")
                 store_result_action_failure(
-                    session(), "critical_scan", CRITICAL_SCAN_ACTION_FAILURE
+                    session(),
+                    "critical_scan",
+                    failure_with_engine_reason(CRITICAL_SCAN_ACTION_FAILURE, error),
                 )
                 status.update(label="Criticality map failed", state="error")
     raw = get_result(session(), "critical")
@@ -1906,9 +1917,13 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
             try:
                 with st.spinner("Running the sweep…"):
                     result = run_sweep(request, progress=_advance)
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the engineering-sweep action")
-                store_result_action_failure(session(), "sweep", SWEEP_ACTION_FAILURE)
+                store_result_action_failure(
+                    session(),
+                    "sweep",
+                    failure_with_engine_reason(SWEEP_ACTION_FAILURE, error),
+                )
             else:
                 store_result(session(), "sweep", result, action_inputs)
             finally:
