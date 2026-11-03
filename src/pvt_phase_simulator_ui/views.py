@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Callable
@@ -23,6 +24,7 @@ from pvt_phase_simulator.eos.critical_point import (
 from pvt_phase_simulator.eos.flash import TwoPhaseFlashResult
 from pvt_phase_simulator.eos.phase_envelope import (
     EnvelopeContinuationSettings,
+    PhaseEnvelopeBranchResult,
     PhaseEnvelopeResult,
     calculate_phase_envelope,
 )
@@ -1679,9 +1681,53 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
         if flash_raw is not None:
             st.json(asdict(cast(TwoPhaseFlashResult, flash_raw)))
         if envelope_raw is not None:
-            st.json(asdict(cast(PhaseEnvelopeResult, envelope_raw)))
+            _raw_envelope(cast(PhaseEnvelopeResult, envelope_raw))
         if critical_raw is not None:
             st.json(asdict(cast(MixtureCriticalPointResult, critical_raw)))
+
+
+def envelope_summary(result: PhaseEnvelopeResult) -> dict[str, object]:
+    """The envelope's top-level fields, without its per-step histories."""
+
+    def branch(traced: PhaseEnvelopeBranchResult) -> dict[str, object]:
+        return {
+            "branch_kind": traced.branch_kind.value,
+            "termination_reason": traced.termination_reason.value,
+            "termination_message": traced.termination_message,
+            "accepted_points": len(traced.points),
+            "rejected_attempts": len(traced.rejected_attempts),
+            "diagnostic_codes": list(_codes(traced.diagnostics)),
+        }
+
+    return {
+        "bubble_branch": branch(result.bubble_branch),
+        "dew_branch": branch(result.dew_branch),
+        "diagnostic_codes": list(_codes(result.diagnostics)),
+    }
+
+
+def raw_envelope_json(result: PhaseEnvelopeResult) -> bytes:
+    """The complete raw envelope object as JSON (tens of megabytes)."""
+
+    return json.dumps(asdict(result), default=str).encode("utf-8")
+
+
+def _raw_envelope(result: PhaseEnvelopeResult) -> None:
+    # The full object holds every saturation solve of every step: about 40 MB
+    # of JSON for the default case. Drawn as a JSON tree it froze the browser
+    # tab, so the page shows a summary and the full object is a download that
+    # is built only when it is clicked.
+    st.markdown("**Phase envelope** (summary; the full object is a download)")
+    st.json(envelope_summary(result))
+    st.download_button(
+        "Download raw envelope (JSON)",
+        data=lambda: raw_envelope_json(result),
+        file_name="openphase-raw-envelope.json",
+        mime="application/json",
+        key="download_raw_envelope",
+        on_click="ignore",
+        icon=":material/download:",
+    )
 
 
 SWEEP_TABLE_COLUMNS: Final = (

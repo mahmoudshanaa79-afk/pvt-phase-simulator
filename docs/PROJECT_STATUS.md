@@ -92,6 +92,16 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-03, web (Diagnostics raw-objects freeze, owner report):**
+  - Done: the owner reported the app freezing after the Diagnostics "Show
+    advanced raw public objects" switch. Reproduced in a real browser: with
+    nothing run the switch is harmless, but after a phase envelope it drew
+    the full envelope object (about 43 MB of JSON) and froze the tab. The
+    page now shows a short envelope summary and offers the full object as a
+    download built only on click. Tests: `tests/test_app_diagnostics_raw.py`
+    and a browser step that turns the switch on and off.
+  - Next: owner decisions on PR 36 (v1.6.0), P9 and the input range.
+
 - **2026-11-03, web (deployment health):**
   - Done: `tests/test_app_deployment.py` (runtime imports declared, lock pins
     the project and its dependencies, Python 3.12 everywhere, every
