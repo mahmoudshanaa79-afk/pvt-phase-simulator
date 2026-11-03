@@ -76,9 +76,13 @@ CASE_SAVE_FAILURE = (
 )
 
 
-@st.cache_data(show_spinner=False, max_entries=16)
+@st.cache_resource(show_spinner=False, max_entries=16)
 def _cached_flash(inputs: ScientificInputs) -> object:
-    """Cache an unchanged submitted case without changing its calculations."""
+    """Cache an unchanged submitted case without changing its calculations.
+
+    The flash result is deeply immutable, so the cached object is returned as
+    is (see ``LARGE_RESULT_CACHE_ENTRIES`` in ``views.py``).
+    """
 
     return calculate_two_phase_flash(
         inputs.mixture(),

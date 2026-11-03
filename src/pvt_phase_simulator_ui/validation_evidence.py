@@ -30,7 +30,7 @@ SYSTEM_LABELS: Final = {"ch4_c2": "Methane + ethane", "ch4_c3": "Methane + propa
 ILL_POSED_SPREAD_PA: Final = 1.0e6
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=8)
 def _read_csv(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 

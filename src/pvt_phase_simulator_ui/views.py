@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Final, Literal, cast
@@ -107,6 +108,7 @@ from pvt_phase_simulator_ui.sweeps import (
     MAX_SWEEP_POINTS,
     MIN_SWEEP_POINTS,
     SweepKind,
+    SweepRequest,
     SweepResult,
     SweepValidationError,
     run_sweep,
@@ -293,6 +295,29 @@ def _action_inputs(inputs: ScientificInputs | None) -> ScientificInputs | None:
     if result_is_stale(session(), "flash", inputs):
         return None
     return inputs
+
+
+#: Engine results are cached with ``st.cache_resource``: a cache hit returns
+#: the stored object itself, where ``st.cache_data`` unpickled a fresh copy of
+#: hundreds of thousands of dataclasses on every hit (about 4.6 s for a repeated
+#: envelope). This is safe only because every cached result is deeply immutable
+#: (frozen dataclasses, tuples, frozen pydantic components), which
+#: tests/test_app_performance.py checks, and the app never mutates a result.
+#: Keys are the complete ``ScientificInputs`` (composition, T, P and kij);
+#: units only change the display. An envelope is about 16 MB and a saturation
+#: pair about 7 MB in memory, so those caches hold 4 entries; the rest are tiny.
+LARGE_RESULT_CACHE_ENTRIES: Final = 4
+SMALL_RESULT_CACHE_ENTRIES: Final = 8
+SWEEP_CACHE_ENTRIES: Final = 8
+
+
+@st.cache_resource(show_spinner=False, max_entries=SWEEP_CACHE_ENTRIES)
+def _calculate_sweep(
+    request: SweepRequest, _progress: Callable[[int, int], None] | None = None
+) -> SweepResult:
+    """A sweep for one complete request; ``_progress`` is not part of the key."""
+
+    return run_sweep(request, progress=_progress)
 
 
 #: Plotly titles never wrap. Beyond this length a "Name — detail" title is split
@@ -750,7 +775,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             st.json(asdict(result))
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=LARGE_RESULT_CACHE_ENTRIES)
 def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
     start_temperature_k = inputs.temperature_k - 30.0
     settings = EnvelopeContinuationSettings(
@@ -768,7 +793,7 @@ def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=LARGE_RESULT_CACHE_ENTRIES)
 def _calculate_operating_saturation(
     inputs: ScientificInputs,
 ) -> tuple[SaturationPressureResult, SaturationPressureResult]:
@@ -893,7 +918,7 @@ def _render_operating_saturation(
             _render_code_explanations(codes)
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=SMALL_RESULT_CACHE_ENTRIES)
 def _calculate_extended_envelope(inputs: ScientificInputs) -> ExtendedEnvelope:
     return trace_extended_envelope(
         inputs.mixture(),
@@ -1098,7 +1123,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             st.info(f"Phase-composition figure unavailable: {error}")
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=SMALL_RESULT_CACHE_ENTRIES)
 def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
     return solve_mixture_critical_point(
         inputs.mixture(),
@@ -1109,7 +1134,7 @@ def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=SMALL_RESULT_CACHE_ENTRIES)
 def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
     return scan_mixture_criticality(
         inputs.mixture(),
@@ -1905,7 +1930,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
 
             try:
                 with st.spinner("Running the sweep…"):
-                    result = run_sweep(request, progress=_advance)
+                    result = _calculate_sweep(request, _advance)
             except Exception:  # noqa: BLE001 - preserve a safe application boundary
                 LOGGER.exception("Unexpected failure in the engineering-sweep action")
                 store_result_action_failure(session(), "sweep", SWEEP_ACTION_FAILURE)
