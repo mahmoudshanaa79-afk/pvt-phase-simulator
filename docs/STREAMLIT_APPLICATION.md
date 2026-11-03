@@ -372,6 +372,15 @@ that was not kept, so it is not directly comparable. "Closed" means the engine's
 near-critical guard stopped both branches, not a certified critical point; the
 per-case results are in `docs/investigations/envelope_survey.md`.
 
+## First use and small screens
+
+Before any result, Overview opens with a short **Start here** box (choose an
+example or enter a case, press RUN FLASH, then use the other pages). After a
+flash the result comes first and the model-and-limitations panel follows it.
+Each empty state names the button to press. The sidebar starts expanded on a
+desktop and collapsed on a phone, where it would cover the page. The usability
+review behind these choices is `docs/investigations/usability_review.md`.
+
 ## Learn mode
 
 A **Learn mode** switch at the top of the sidebar adds a short teaching panel to
@@ -380,7 +389,8 @@ each page:
 - a plain-language explanation of what the page calculates (flash and
   stability, reading a P-T envelope, the two critical-point conditions, sweeps,
   verification versus validation, diagnostics);
-- "Try this" exercises on the shipped default case.
+- "Try this" exercises on the shipped default case;
+- links to the four teaching labs in `docs/teaching/`.
 
 Learn mode is off by default. It never runs a calculation, changes an input or
 alters a result. Every number an exercise quotes was produced with the unchanged
