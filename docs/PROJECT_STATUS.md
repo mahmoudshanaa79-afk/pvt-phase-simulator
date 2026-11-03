@@ -92,6 +92,18 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-03, web (app performance):**
+  - Done: `tools/profile_app.py` and `docs/investigations/app_performance.md`
+    (before/after, median of 3). The phase envelope is the only slow action
+    (about 2-3 min, engine time); everything else is under 5 s. Engine results
+    are now cached with `st.cache_resource` (deeply immutable, bounded), so a
+    repeated envelope takes 0.13 s instead of 3.4 s; the sweep is cached too.
+    `tests/test_app_performance.py` proves byte-identical results and exports,
+    complete keys and bounded memory. Engine proposal P9 (validate component
+    parameters once per evaluation, about half the envelope time) waits for
+    the owner.
+  - Next: usability review and fixes.
+
 - **2026-11-03, web (crash hunt):**
   - Done: robustness AppTests (`tests/test_app_robustness*.py`, harness in
     `tests/_robustness.py`) drive every page with hostile inputs, every unit,

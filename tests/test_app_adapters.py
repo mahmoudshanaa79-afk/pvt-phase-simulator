@@ -610,7 +610,7 @@ def test_operating_point_reports_available_branch_and_missing_reason() -> None:
 
 
 def test_ui_envelope_trace_is_centered_on_operating_temperature(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
 ) -> None:
     inputs = validate_scientific_inputs((50.0, 0.0, 50.0), 300.0, 5.0)
     captured: dict[str, object] = {}
@@ -622,6 +622,8 @@ def test_ui_envelope_trace_is_centered_on_operating_temperature(
         return sentinel
 
     views._calculate_envelope.clear()
+    # The stand-in result must not stay cached for later tests in this process.
+    request.addfinalizer(views._calculate_envelope.clear)
     monkeypatch.setattr(views, "calculate_phase_envelope", fake_calculate)
     result = views._calculate_envelope(inputs)
     args = cast(tuple[object, ...], captured["args"])

@@ -263,3 +263,43 @@ as the pressure. See `docs/SATURATION_PRESSURE_DESIGN.md`.
 6.88, 6.76, 6.80 and 6.67 MPa). CH4+C2 dew goes from 12 states at 5.34 % AARD
 to 8 states at 2.07 %. The former worst result, 013 at −25.8 %, was the lower
 of two roots; its upper root is 1.3 % from the measurement.
+
+
+## P9. Validate component parameters once per evaluation, not per pair
+
+**Status: proposed (web session, 3 November 2026). Awaiting owner decision.**
+Nothing in the engine has been changed.
+
+**Finding.** The phase-envelope action is the app's only slow action: about
+125 s of engine time for the default example (179 s for the critical-solver
+seed) against under 5 s for every other action
+(`docs/investigations/app_performance.md`). A cProfile of the app's
+`calculate_phase_envelope` call at 300 K shows where the time goes (cProfile
+roughly triples wall time; the shares are what matter):
+
+- every corrector step runs a full saturation solve: 49 solves, 1,548 pressure
+  evaluations, 66,291 flash-phase evaluations and 67,725 mixture fugacity
+  calculations;
+- about half of the profile is repeated validation of the same three
+  components' parameters: `_validate_single_component_parameter` 4.6 million
+  calls (199 s cumulative of 410 s), `_require_derived_parameter` 31 million
+  calls, `require_finite` 200 million calls and provenance validation
+  (`validate_component_parameter_provenance`) 346,000 calls;
+- `calculate_component_pair_attraction_parameter` alone is called 1.8 million
+  times (206 s cumulative), mostly validating its inputs;
+- the P2/P7/P8 boundary walk (`_boundary_roots`) is 66 % of the cumulative time,
+  because every corrector solve runs it.
+
+**Proposal.** Validate each mixture's component parameters and kij once per
+evaluation (per temperature) and pass validated values to the pair and
+fugacity kernels, instead of re-validating them inside every pair call. The
+arithmetic and its order stay the same, so every result should be
+bit-for-bit identical; the golden master and the Module 17 record would show
+it. Expected saving: roughly half of the envelope time.
+
+**Not proposed here.** Narrowing the corrector's saturation bracket from the
+predictor would also cut time but can change which root is found, so it is a
+scientific decision, not a speed-up.
+
+**Measurement to repeat after a change.** `tools/profile_app.py` (before and
+after tables) and the golden-master suite.
