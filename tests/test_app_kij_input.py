@@ -334,6 +334,10 @@ def test_the_badge_and_caption_state_the_kij_and_validation_keeps_kij_zero() -> 
     assert labels["kij C1–C2 (not in mixture)"].disabled
     assert labels["kij C2–C3 (not in mixture)"].disabled
     assert not [item for item in app.markdown if "user-supplied kij" in item.value]
+    assert any(
+        "No fitted interaction parameters are used." in item.value
+        for item in app.markdown
+    )
 
     _submit_kij_case(app, 0.002)
     assert any("user-supplied kij" in item.value for item in app.markdown)
@@ -343,6 +347,10 @@ def test_the_badge_and_caption_state_the_kij_and_validation_keeps_kij_zero() -> 
     )
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics["Interactions"] == "user-supplied kij"
+    # The model panel must not claim that no fitted interactions are used.
+    model = next(item.value for item in app.markdown if "**Model.**" in item.value)
+    assert "No fitted interaction parameters are used." not in model
+    assert "user-supplied kij: C1–C3 = +0.002" in model
 
     app.switch_page(PAGES / "validation.py").run()
     assert not app.exception
