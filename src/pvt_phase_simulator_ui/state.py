@@ -394,6 +394,21 @@ def store_result_action_failure(
     state["result_action_failures"][name] = message
 
 
+def failure_with_engine_reason(message: str, error: BaseException) -> str:
+    """Add the engine's own reason when it rejected a state with a value error.
+
+    The engine raises ``ValueError`` (or an arithmetic error) with a plain
+    statement such as "fugacity coefficient must be finite." when a state is
+    outside what it can evaluate; that reason is shown. Any other exception is
+    an application defect and stays redacted behind ``message``.
+    """
+
+    reason = str(error).strip()
+    if isinstance(error, (ValueError, ArithmeticError)) and reason:
+        return f"{message} Engine reason: {reason}"
+    return message
+
+
 def get_result_action_failure(state: MutableMapping[str, Any], name: str) -> str | None:
     """Return the safe message for an action that produced no result."""
 

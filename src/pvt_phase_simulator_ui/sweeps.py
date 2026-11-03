@@ -213,6 +213,7 @@ def validate_sweep_request(
                 temperature_unit=selected_temperature_unit,
                 pressure_unit=selected_pressure_unit,
                 kij=kij,
+                supported_range=True,
             )
             for temperature, pressure in states
         )
@@ -313,6 +314,7 @@ def run_sweep(
             temperature_unit=request.temperature_unit,
             pressure_unit=request.pressure_unit,
             kij=request.kij,
+            supported_range=True,
         )
         try:
             if flash_api is None:
