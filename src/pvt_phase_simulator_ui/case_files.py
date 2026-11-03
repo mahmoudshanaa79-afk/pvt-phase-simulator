@@ -228,6 +228,7 @@ def _case_inputs(document: dict[str, object], with_kij: bool) -> ScientificInput
             temperature_unit=TemperatureUnit.KELVIN,
             pressure_unit=PressureUnit.PA,
             kij=_case_kij(inputs, with_kij),
+            supported_range=True,
         )
     except InputValidationError as error:
         # Preserve the manual-entry validation message, including the explicit
@@ -456,6 +457,12 @@ def load_case(data: bytes | str) -> OpenPhaseCase:
         )
     except json.JSONDecodeError as error:
         raise CaseFileError("Case file is not valid JSON.") from error
+    except RecursionError as error:
+        # A small file can still nest arrays deeply enough to exhaust the
+        # parser's recursion limit; no OpenPhase case nests more than 4 levels.
+        raise CaseFileError(
+            "Case file is not a valid OpenPhase case: it is nested too deeply."
+        ) from error
     except _DuplicateKeyError as error:
         raise _schema_error(f"duplicate object key {error.args[0]!r}.") from error
     except _NonFiniteJsonNumberError as error:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Final, Literal, cast
@@ -50,6 +51,10 @@ from pvt_phase_simulator.plotting import (
 )
 from pvt_phase_simulator_ui.adapters import (
     COMPONENT_NAMES,
+    MAXIMUM_PRESSURE_PA,
+    MAXIMUM_TEMPERATURE_K,
+    MINIMUM_PRESSURE_PA,
+    MINIMUM_TEMPERATURE_K,
     ScientificInputs,
     adapt_critical_result,
     adapt_flash_result,
@@ -92,6 +97,7 @@ from pvt_phase_simulator_ui.state import (
     SWEEP_POINTS_WIDGET_KEY,
     SWEEP_START_WIDGET_KEY,
     begin_result_attempt,
+    failure_with_engine_reason,
     get_result,
     get_result_action_failure,
     initialize_sweep_widget_state,
@@ -107,6 +113,7 @@ from pvt_phase_simulator_ui.sweeps import (
     MAX_SWEEP_POINTS,
     MIN_SWEEP_POINTS,
     SweepKind,
+    SweepRequest,
     SweepResult,
     SweepValidationError,
     run_sweep,
@@ -284,7 +291,11 @@ def _full_precision(value: float | None) -> str:
 
 def _action_requirement(inputs: ScientificInputs | None) -> None:
     if inputs is None:
-        st.caption(":material/lock: Submit RUN FLASH to enable this action.")
+        st.caption(
+            ":material/lock: Submit RUN FLASH to enable this action. RUN FLASH is "
+            "at the bottom of the fluid inputs in the sidebar (open it with » on a "
+            "phone)."
+        )
 
 
 def _action_inputs(inputs: ScientificInputs | None) -> ScientificInputs | None:
@@ -293,6 +304,52 @@ def _action_inputs(inputs: ScientificInputs | None) -> ScientificInputs | None:
     if result_is_stale(session(), "flash", inputs):
         return None
     return inputs
+
+
+#: Engine results are cached with ``st.cache_resource``: a cache hit returns
+#: the stored object itself, where ``st.cache_data`` unpickled a fresh copy of
+#: hundreds of thousands of dataclasses on every hit (about 4.6 s for a repeated
+#: envelope). This is safe only because every cached result is deeply immutable
+#: (frozen dataclasses, tuples, frozen pydantic components), which
+#: tests/test_app_performance.py checks, and the app never mutates a result.
+#: Keys are the complete ``ScientificInputs`` (composition, T, P and kij);
+#: units only change the display. An envelope is about 16 MB and a saturation
+#: pair about 7 MB in memory, so those caches hold 4 entries; the rest are tiny.
+LARGE_RESULT_CACHE_ENTRIES: Final = 4
+SMALL_RESULT_CACHE_ENTRIES: Final = 8
+SWEEP_CACHE_ENTRIES: Final = 8
+
+
+@st.cache_resource(show_spinner=False, max_entries=SWEEP_CACHE_ENTRIES)
+def _calculate_sweep(
+    request: SweepRequest, _progress: Callable[[int, int], None] | None = None
+) -> SweepResult:
+    """A sweep for one complete request; ``_progress`` is not part of the key."""
+
+    return run_sweep(request, progress=_progress)
+
+
+#: Shown on Overview before the first result: what to do first.
+START_HERE: Final = (
+    "**Start here.** 1. In the sidebar, choose an **Example case** or enter a "
+    "composition (mol %), temperature and pressure. 2. Press **RUN FLASH** at the "
+    "bottom of the sidebar inputs (on a phone, open the sidebar with »). 3. Then "
+    "open **Phase Envelope**, **Critical Point** or **Engineering Sweeps** for "
+    "more calculations. Turn on Learn mode for explanations, exercises and "
+    "the teaching labs."
+)
+#: The envelope's first run is engine time: about 2-3 minutes on a 2.8 GHz
+#: machine (docs/investigations/app_performance.md), longer on a shared server.
+ENVELOPE_TIME_NOTE: Final = (
+    "The first run of a case can take a few minutes; running the same case again "
+    "is answered from the cache at once."
+)
+
+
+def phase_split_text(liquid: float | None, vapor: float | None) -> str:
+    """The phase split in words, so it never depends on colour alone."""
+
+    return f"Liquid {_optional(liquid)} · Vapor {_optional(vapor)} (mole fractions)"
 
 
 #: Plotly titles never wrap. Beyond this length a "Name — detail" title is split
@@ -414,7 +471,7 @@ def _composition_table(result: TwoPhaseFlashResult) -> None:
         pd.DataFrame(rows, index=COMPONENT_NAMES).T,
         width="stretch",
         column_config={
-            name: st.column_config.NumberColumn(name, format="%.6g mol %")
+            name: st.column_config.NumberColumn(name, format="%.6g mol %%")
             for name in COMPONENT_NAMES
         },
     )
@@ -512,6 +569,16 @@ def _doi_link(doi: str | None) -> str:
     return f"[DOI {doi}](https://doi.org/{doi})"
 
 
+def short_citation(citation: str) -> str:
+    """'First-author et al. (year)' from a recorded citation, or the citation."""
+
+    first_author = citation.split(",", 1)[0].split()
+    year = re.search(r"\b(19|20)\d{2}\b", citation)
+    if not first_author or year is None:
+        return citation
+    return f"{first_author[-1]} et al. ({year.group(0)})"
+
+
 def _render_model_scope_panel() -> None:
     scope = _model_scope()
     units = unit_preferences()
@@ -527,13 +594,21 @@ def _render_model_scope_panel() -> None:
 
     with st.container(border=True):
         st.subheader("Model and limitations", anchor="model-and-limitations")
+        submitted = session().get("submitted_inputs")
+        if isinstance(submitted, ScientificInputs) and submitted.uses_kij:
+            interactions = (
+                f"This case uses **{submitted.binary_interaction_assumption}**, "
+                "a user choice; pairs left at 0 keep kij = 0. The validation "
+                "record and Learn mode use kij = 0."
+            )
+        else:
+            interactions = "No fitted interaction parameters are used."
         st.markdown(
             f"**Model.** {scope.eos_name} for {len(scope.verified_component_names)} "
-            f"property-verified components: **{components}**. The active "
+            f"property-verified components: **{components}**. The default "
             "interaction policy is "
             f"`{scope.interaction_policy.value}`: every omitted off-diagonal "
-            "binary interaction is **kij = 0**; no fitted interaction parameters "
-            "are used."
+            f"binary interaction is **kij = 0**. {interactions}"
         )
         st.markdown(
             "**Supported calculations.** Phase stability and isothermal flash; "
@@ -546,7 +621,9 @@ def _render_model_scope_panel() -> None:
             f"**{scope.validation_state_count} experimental VLE states** for "
             f"**{systems}**, spanning {temperature_min:g}–{temperature_max:g} "
             f"{units.temperature.value} and {pressure_min:g}–{pressure_max:g} "
-            f"{units.pressure.value} in the recorded states. This "
+            f"{units.pressure.value} in the recorded states, from one source: "
+            f"{short_citation(scope.validation_source.citation)}, via "
+            f"{scope.validation_source.name}. This "
             "does not establish accuracy for other components, mixtures, or "
             "conditions."
         )
@@ -557,7 +634,10 @@ def _render_model_scope_panel() -> None:
             "`CriticalPointStatus.CONVERGED` is a certified critical point. The "
             "application provides no reservoir depletion, CCE/CVD, separator "
             "trains, pseudocomponents or C7+, EOS tuning, kij fitting, new-component "
-            "support, or arbitrary reservoir-fluid validation."
+            "support, or arbitrary reservoir-fluid validation. Inputs are limited "
+            f"to the supported range of {MINIMUM_TEMPERATURE_K:g}–"
+            f"{MAXIMUM_TEMPERATURE_K:g} K and {MINIMUM_PRESSURE_PA:g} Pa–"
+            f"{MAXIMUM_PRESSURE_PA / 1e9:g} GPa."
         )
         st.warning(
             "This is not a commercial PVT package and is not a substitute for "
@@ -588,15 +668,11 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     st.header("Overview")
     render_learn_panel("overview")
     units = unit_preferences()
-    _render_model_scope_panel()
     raw = get_result(session(), "flash")
     if raw is None:
         if not _show_action_failure("flash"):
-            st.info(
-                "Submit valid fluid inputs with RUN FLASH to create a production "
-                "result.",
-                icon=":material/info:",
-            )
+            st.info(START_HERE, icon=":material/flag:")
+        _render_model_scope_panel()
         return
     result = cast(TwoPhaseFlashResult, raw)
     view = adapt_flash_result(result)
@@ -643,7 +719,10 @@ def render_overview(inputs: ScientificInputs | None) -> None:
     phase_columns[2].metric("Vapor Z", _optional(view.vapor_z))
     phase_columns[3].metric("Liquid Z", _optional(view.liquid_z))
     if view.vapor_fraction is not None and view.liquid_fraction is not None:
-        st.caption("Engineering phase split · liquid / vapor")
+        st.caption(
+            "Engineering phase split · "
+            + phase_split_text(view.liquid_fraction, view.vapor_fraction)
+        )
         phase_split_bar(view.vapor_fraction, view.liquid_fraction)
     if view.single_phase_z is not None:
         st.info(
@@ -740,9 +819,11 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         _flash_details(result)
         if st.toggle("Show advanced public-object inspection", key="overview_raw"):
             st.json(asdict(result))
+    # The result comes first; the model panel follows it.
+    _render_model_scope_panel()
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=LARGE_RESULT_CACHE_ENTRIES)
 def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
     start_temperature_k = inputs.temperature_k - 30.0
     settings = EnvelopeContinuationSettings(
@@ -760,7 +841,7 @@ def _calculate_envelope(inputs: ScientificInputs) -> PhaseEnvelopeResult:
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=LARGE_RESULT_CACHE_ENTRIES)
 def _calculate_operating_saturation(
     inputs: ScientificInputs,
 ) -> tuple[SaturationPressureResult, SaturationPressureResult]:
@@ -885,7 +966,7 @@ def _render_operating_saturation(
             _render_code_explanations(codes)
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=SMALL_RESULT_CACHE_ENTRIES)
 def _calculate_extended_envelope(inputs: ScientificInputs) -> ExtendedEnvelope:
     return trace_extended_envelope(
         inputs.mixture(),
@@ -919,7 +1000,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                 "Cold-starting below the operating point, then continuing both "
                 "branches through its temperature."
             )
-            status.write("Typical first run: about 20–30 seconds.")
+            status.write(ENVELOPE_TIME_NOTE)
             status.caption("An unchanged submitted case reuses the bounded UI cache.")
             try:
                 result = _calculate_envelope(action_inputs)
@@ -932,10 +1013,12 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                         _calculate_extended_envelope(action_inputs),
                         action_inputs,
                     )
-                except Exception:  # noqa: BLE001 - the standard envelope stays valid
+                except Exception as error:  # noqa: BLE001 - the envelope stays valid
                     LOGGER.exception("Unexpected failure extending the phase envelope")
                     store_result_action_failure(
-                        session(), "envelope_extension", EXTENSION_ACTION_FAILURE
+                        session(),
+                        "envelope_extension",
+                        failure_with_engine_reason(EXTENSION_ACTION_FAILURE, error),
                     )
                 status.write("Solving bubble and dew pressure at the operating point…")
                 try:
@@ -945,23 +1028,31 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
                         _calculate_operating_saturation(action_inputs),
                         action_inputs,
                     )
-                except Exception:  # noqa: BLE001 - the envelope stays valid
+                except Exception as error:  # noqa: BLE001 - the envelope stays valid
                     LOGGER.exception("Unexpected failure in the saturation solves")
                     store_result_action_failure(
-                        session(), "saturation", SATURATION_ACTION_FAILURE
+                        session(),
+                        "saturation",
+                        failure_with_engine_reason(SATURATION_ACTION_FAILURE, error),
                     )
                 status.update(label="Envelope trace complete", state="complete")
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the phase-envelope action")
                 store_result_action_failure(
-                    session(), "envelope", ENVELOPE_ACTION_FAILURE
+                    session(),
+                    "envelope",
+                    failure_with_engine_reason(ENVELOPE_ACTION_FAILURE, error),
                 )
                 status.update(label="Envelope trace failed", state="error")
     _action_requirement(action_inputs)
     raw = get_result(session(), "envelope")
     if raw is None:
         if not _show_action_failure("envelope"):
-            st.info("No calculated envelope is available.", icon=":material/info:")
+            st.info(
+                "No calculated envelope is available. Press RUN PHASE ENVELOPE "
+                "above. " + ENVELOPE_TIME_NOTE,
+                icon=":material/info:",
+            )
         return
     result = cast(PhaseEnvelopeResult, raw)
     _stale("envelope", inputs)
@@ -1090,7 +1181,7 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
             st.info(f"Phase-composition figure unavailable: {error}")
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=SMALL_RESULT_CACHE_ENTRIES)
 def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
     return solve_mixture_critical_point(
         inputs.mixture(),
@@ -1101,7 +1192,7 @@ def _calculate_critical(inputs: ScientificInputs) -> MixtureCriticalPointResult:
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_resource(show_spinner=False, max_entries=SMALL_RESULT_CACHE_ENTRIES)
 def _calculate_scan(inputs: ScientificInputs) -> CriticalPointScanResult:
     return scan_mixture_criticality(
         inputs.mixture(),
@@ -1152,10 +1243,12 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     action_inputs,
                 )
                 status.update(label="Critical solver complete", state="complete")
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the critical-point action")
                 store_result_action_failure(
-                    session(), "critical", CRITICAL_ACTION_FAILURE
+                    session(),
+                    "critical",
+                    failure_with_engine_reason(CRITICAL_ACTION_FAILURE, error),
                 )
                 status.update(label="Critical solver failed", state="error")
     if run_map:
@@ -1170,16 +1263,22 @@ def render_critical_point(inputs: ScientificInputs | None) -> None:
                     action_inputs,
                 )
                 status.update(label="Criticality map complete", state="complete")
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the criticality-map action")
                 store_result_action_failure(
-                    session(), "critical_scan", CRITICAL_SCAN_ACTION_FAILURE
+                    session(),
+                    "critical_scan",
+                    failure_with_engine_reason(CRITICAL_SCAN_ACTION_FAILURE, error),
                 )
                 status.update(label="Criticality map failed", state="error")
     raw = get_result(session(), "critical")
     if raw is None:
         if not _show_action_failure("critical"):
-            st.info("No production critical-point solve has been requested.")
+            st.info(
+                "No production critical-point solve has been requested. Press RUN "
+                "CRITICAL SOLVER above; RUN CRITICALITY MAP shows the stability "
+                "map around the submitted state."
+            )
     else:
         result = cast(MixtureCriticalPointResult, raw)
         _kij_result_note("critical")
@@ -1897,10 +1996,14 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
 
             try:
                 with st.spinner("Running the sweep…"):
-                    result = run_sweep(request, progress=_advance)
-            except Exception:  # noqa: BLE001 - preserve a safe application boundary
+                    result = _calculate_sweep(request, _advance)
+            except Exception as error:  # noqa: BLE001 - a safe application boundary
                 LOGGER.exception("Unexpected failure in the engineering-sweep action")
-                store_result_action_failure(session(), "sweep", SWEEP_ACTION_FAILURE)
+                store_result_action_failure(
+                    session(),
+                    "sweep",
+                    failure_with_engine_reason(SWEEP_ACTION_FAILURE, error),
+                )
             else:
                 store_result(session(), "sweep", result, action_inputs)
             finally:
@@ -1909,7 +2012,10 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
     sweep = cast(SweepResult | None, get_result(session(), "sweep"))
     if sweep is None:
         if not _show_action_failure("sweep"):
-            st.info("No sweep has been calculated yet.")
+            st.info(
+                "No sweep has been calculated yet. Choose the swept variable and "
+                "its range above, then press RUN SWEEP."
+            )
         return
     if _stale("sweep", inputs):
         return

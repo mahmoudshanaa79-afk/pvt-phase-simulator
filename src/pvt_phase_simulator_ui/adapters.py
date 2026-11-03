@@ -34,6 +34,7 @@ from pvt_phase_simulator_ui.units import (
     TemperatureUnit,
     pressure_from_pa,
     pressure_to_pa,
+    temperature_from_k,
     temperature_to_k,
 )
 
@@ -41,6 +42,17 @@ COMPONENTS: Final = (METHANE, ETHANE, PROPANE)
 COMPONENT_NAMES: Final = tuple(component.name for component in COMPONENTS)
 COMPOSITION_TOTAL_MOL_PERCENT: Final = 100.0
 COMPOSITION_TOLERANCE_MOL_PERCENT: Final = 1.0e-8
+
+#: The application's supported input range, checked before any engine call.
+#: Outside it the engine raises instead of returning a status (below about 1 K
+#: and above about 1e12 Pa), and the phase-envelope action, which cold-starts
+#: 30 K below the operating temperature, needs more than 30 K. The range is an
+#: input limit, not a validated applicability range (that is the Module 17
+#: record, shown on the Validation page).
+MINIMUM_TEMPERATURE_K: Final = 50.0
+MAXIMUM_TEMPERATURE_K: Final = 1000.0
+MINIMUM_PRESSURE_PA: Final = 1.0
+MAXIMUM_PRESSURE_PA: Final = 1.0e9
 
 #: Binary pairs, as component indices, in the order the kij inputs use.
 KIJ_PAIRS: Final = ((0, 1), (0, 2), (1, 2))
@@ -199,6 +211,36 @@ def composition_total(values: Sequence[float]) -> float:
         return sum(numeric)
 
 
+def _temperature_bounds(unit: TemperatureUnit | str) -> str:
+    """The supported temperature range in kelvin and, if different, ``unit``."""
+
+    kelvin = f"{MINIMUM_TEMPERATURE_K:g} K and {MAXIMUM_TEMPERATURE_K:g} K"
+    try:
+        selected = TemperatureUnit(unit)
+    except ValueError:
+        return kelvin
+    if selected is TemperatureUnit.KELVIN:
+        return kelvin
+    low = temperature_from_k(MINIMUM_TEMPERATURE_K, selected)
+    high = temperature_from_k(MAXIMUM_TEMPERATURE_K, selected)
+    return f"{kelvin} ({low:g} {selected.value} to {high:g} {selected.value})"
+
+
+def _pressure_bounds(unit: PressureUnit | str) -> str:
+    """The supported pressure range in pascal and, if different, ``unit``."""
+
+    pascal = f"{MINIMUM_PRESSURE_PA:g} Pa and {MAXIMUM_PRESSURE_PA:g} Pa"
+    try:
+        selected = PressureUnit(unit)
+    except ValueError:
+        return pascal
+    if selected is PressureUnit.PA:
+        return pascal
+    low = pressure_from_pa(MINIMUM_PRESSURE_PA, selected)
+    high = pressure_from_pa(MAXIMUM_PRESSURE_PA, selected)
+    return f"{pascal} ({low:g} {selected.value} to {high:g} {selected.value})"
+
+
 def validate_scientific_inputs(
     composition_mol_percent: Sequence[float],
     temperature: float,
@@ -207,8 +249,14 @@ def validate_scientific_inputs(
     temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
     pressure_unit: PressureUnit | str = PressureUnit.MPA,
     kij: Sequence[float] = ZERO_KIJ,
+    supported_range: bool = False,
 ) -> ScientificInputs:
-    """Validate and convert user-facing values to the engine's K/Pa contract."""
+    """Validate and convert user-facing values to the engine's K/Pa contract.
+
+    ``supported_range`` also enforces the application's supported input range.
+    Every place a user's values enter the app (the form, sweeps and case files)
+    sets it; library callers that only build a mixture need not.
+    """
 
     if len(composition_mol_percent) != len(COMPONENTS):
         raise InputValidationError("Exactly Methane, Ethane, and Propane are required.")
@@ -235,6 +283,22 @@ def validate_scientific_inputs(
         raise InputValidationError("Temperature must be above absolute zero.")
     if pressure_pa <= 0.0:
         raise InputValidationError("Pressure must be positive.")
+    if supported_range and not (
+        MINIMUM_TEMPERATURE_K <= temperature_k <= MAXIMUM_TEMPERATURE_K
+    ):
+        raise InputValidationError(
+            "Temperature must be between "
+            f"{_temperature_bounds(temperature_unit)}, the application's "
+            "supported input range."
+        )
+    if (
+        supported_range
+        and not MINIMUM_PRESSURE_PA <= pressure_pa <= MAXIMUM_PRESSURE_PA
+    ):
+        raise InputValidationError(
+            f"Pressure must be between {_pressure_bounds(pressure_unit)}, the "
+            "application's supported input range."
+        )
     if len(kij) != len(KIJ_PAIRS):
         raise InputValidationError("Exactly three kij values are required.")
     interaction = tuple(float(value) for value in kij)

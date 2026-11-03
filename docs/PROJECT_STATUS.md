@@ -92,6 +92,73 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-03, web (v1.6.0 release notes updated, not merged):**
+  - Done: merged master (crash hunt, performance, usability, deployment
+    health) into `release-v1.6.0` and added them to
+    `docs/release_notes/v1.6.0.md`. PR 36 stays open; no tag.
+  - Waiting for the owner: approve PR 36 (then merge, tag, reboot and run
+    the checklist in `docs/STREAMLIT_APPLICATION.md`); P9; the input range;
+    the butane values.
+
+- **2026-11-03, web (deployment health):**
+  - Done: `tests/test_app_deployment.py` (runtime imports declared, lock pins
+    the project and its dependencies, Python 3.12 everywhere, every
+    `config.toml` option is a Streamlit option, the app and engine import only
+    built modules, the known-limits text). `tools/deploy_check.py` runs every
+    page and a flash with only the deployed dependencies; it and
+    `tools/streamlit_smoke.py` pass in a `--no-dev` environment. The app's
+    known limits now name the validation source (May et al. (2015), via NIST
+    ThermoML) and the input range. Reboot steps and a post-reboot checklist in
+    `docs/STREAMLIT_APPLICATION.md`.
+  - Next: the v1.6 release notes in PR 36 (owner decides the release).
+
+- **2026-11-03, web (usability review):**
+  - Done: `docs/investigations/usability_review.md` (12 findings from desktop,
+    phone and dark-scheme screenshots). Fixed the 2 high and 5 medium ones:
+    an honest envelope time note (minutes, not 20-30 s), Overview starts with
+    "Start here" and shows the result before the model panel, the sidebar is
+    collapsed on phones, empty states name the button, the composition table
+    shows 6 significant figures with mol % (its format string was invalid),
+    the phase split is stated in words, and Learn mode links the four labs.
+    `tests/test_app_usability.py` pins each fix; the browser test adds a
+    390 px page load and flash.
+  - Open (low, for the owner): download names mix `pvt-` and `openphase-`.
+  - Next: deployment health, then the v1.6 release notes.
+
+- **2026-11-03, web (app performance):**
+  - Done: `tools/profile_app.py` and `docs/investigations/app_performance.md`
+    (before/after, median of 3). The phase envelope is the only slow action
+    (about 2-3 min, engine time); everything else is under 5 s. Engine results
+    are now cached with `st.cache_resource` (deeply immutable, bounded), so a
+    repeated envelope takes 0.13 s instead of 3.4 s; the sweep is cached too.
+    `tests/test_app_performance.py` proves byte-identical results and exports,
+    complete keys and bounded memory. Engine proposal P9 (validate component
+    parameters once per evaluation, about half the envelope time) waits for
+    the owner.
+  - Next: usability review and fixes.
+
+- **2026-11-03, web (crash hunt):**
+  - Done: robustness AppTests (`tests/test_app_robustness*.py`, harness in
+    `tests/_robustness.py`) drive every page with hostile inputs, every unit,
+    kij edges, odd sweeps, broken case files and every RUN action with each
+    shipped example; a scenario fails on a raw exception, a generic
+    safe-boundary message or a logged app error. Fixed: inputs the engine
+    raises on (supported input range 50-1000 K, 1 Pa-1 GPa, now checked in
+    the form), engine reasons shown when an action still raises, and deeply
+    nested case files. No number changed.
+  - Open: the input range is a web-session choice; the owner may change it.
+  - Next: app performance (profile, caching), then usability.
+
+- **2026-11-03, desktop (kij input visual check):**
+  - Done: checked the web session's PRs 28 and 30-35 on GitHub (all merged,
+    master CI green) and the kij expander in the real app: fields, disabled
+    absent pairs, badge, caption and result note all correct. One fix: the
+    Overview "Model and limitations" text still said "no fitted interaction
+    parameters are used" with a user kij set; it now states the kij used.
+  - Open: PR 36 (release v1.6.0) waits for the owner.
+  - Next: owner approves v1.6 (then merge, tag, reboot and check the live
+    app); butane values from Yang & Richter (2025) Table 5.
+
 - **2026-11-02, web (v1.6.0 release prepared, not merged):**
   - Done: version 1.6.0 in `pyproject.toml` and `uv.lock`, the "(v1.6)"
     deployment wording in the README and `STREAMLIT_APPLICATION.md`, and

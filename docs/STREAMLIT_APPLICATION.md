@@ -91,6 +91,16 @@ in every supported unit, and rejects finite field values whose conversion would
 fall outside the supported floating-point range. It does not silently normalize
 invalid composition.
 
+The form also enforces the application's supported input range, **50–1000 K**
+and **1 Pa–1 GPa**, and states it in the selected unit when a value falls
+outside. This is an input limit, not a validated applicability range (that is
+the Module 17 record on the Validation page): outside it the engine raises
+instead of returning a status (below about 1 K and above about 1e12 Pa), and
+the phase-envelope action, which cold-starts 30 K below the operating
+temperature, needs more than 30 K. Sweeps and loaded case files are checked
+against the same range. If an engine call still raises, the page shows the
+engine's own reason after the safe message.
+
 The native example selector can fill the form with the default
 two-phase-oriented case, the known 50/50 methane/propane single-phase case at
 300 K and 20 MPa, or the audited 50/50 methane/propane critical-solver seed near
@@ -320,6 +330,47 @@ step and is not wired to the default branch.
 Deployment remains outside `.github/workflows/quality.yml`, which verifies only
 and holds read-only repository permissions.
 
+### Rebooting the public app and what to check afterwards
+
+The app follows `master`, but a running app keeps the code it started with.
+It picks up `master` when it wakes from sleep; otherwise the owner reboots it:
+
+1. Sign in at <https://share.streamlit.io> with the account that owns the app.
+2. In the app list, open the **⋮** menu next to the app and choose **Reboot**,
+   or open the app and use **Manage app → ⋮ → Reboot app**.
+3. Wait for the logs in **Manage app** to show the dependency install
+   (`uv sync`) and "You can now view your Streamlit app". The first load after
+   a reboot also installs the dependencies, so it can take a few minutes.
+
+Then check, in this order (about five minutes):
+
+- The page loads with no error box, and Overview shows the **Start here** box.
+- **Model and limitations** names the three components, kij = 0, the input
+  range and the validation source (May et al. (2015), via NIST ThermoML).
+- Choose the example **Default two-phase-oriented case** and press **RUN
+  FLASH**: Overview shows "Two phase" and "Solver status: Converged".
+- **Phase Envelope → RUN PHASE ENVELOPE** finishes (the first run takes a few
+  minutes) and lists the bubble and dew pressure at the operating temperature.
+  Pressing it again answers at once.
+- **Validation → GENERATE VALIDATION FIGURES** shows the figures.
+- On a phone, the sidebar starts closed and the page does not scroll sideways.
+- **Manage app → logs** show no traceback.
+
+Before a reboot, the same checks can be run locally against the deployed
+dependencies only (no dev packages):
+
+```bash
+UV_PROJECT_ENVIRONMENT=/tmp/openphase-deploy uv sync --no-dev --locked
+/tmp/openphase-deploy/bin/python tools/streamlit_smoke.py --timeout 90
+/tmp/openphase-deploy/bin/python tools/deploy_check.py
+```
+
+`tests/test_app_deployment.py` checks in CI that every import is a runtime
+dependency, that the lock file pins the project and its dependencies, that
+`.python-version` and CI use Python 3.12, that every `.streamlit/config.toml`
+option is a real Streamlit option, and that the app's known-limits text is
+complete.
+
 One hosting observation is recorded for completeness. During initial deployment
 testing, one hosted session became unresponsive after several computationally
 heavy calculations were run sequentially. Two subsequent fresh-session
@@ -362,6 +413,15 @@ that was not kept, so it is not directly comparable. "Closed" means the engine's
 near-critical guard stopped both branches, not a certified critical point; the
 per-case results are in `docs/investigations/envelope_survey.md`.
 
+## First use and small screens
+
+Before any result, Overview opens with a short **Start here** box (choose an
+example or enter a case, press RUN FLASH, then use the other pages). After a
+flash the result comes first and the model-and-limitations panel follows it.
+Each empty state names the button to press. The sidebar starts expanded on a
+desktop and collapsed on a phone, where it would cover the page. The usability
+review behind these choices is `docs/investigations/usability_review.md`.
+
 ## Learn mode
 
 A **Learn mode** switch at the top of the sidebar adds a short teaching panel to
@@ -370,7 +430,8 @@ each page:
 - a plain-language explanation of what the page calculates (flash and
   stability, reading a P-T envelope, the two critical-point conditions, sweeps,
   verification versus validation, diagnostics);
-- "Try this" exercises on the shipped default case.
+- "Try this" exercises on the shipped default case;
+- links to the four teaching labs in `docs/teaching/`.
 
 Learn mode is off by default. It never runs a calculation, changes an input or
 alters a result. Every number an exercise quotes was produced with the unchanged
