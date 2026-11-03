@@ -104,6 +104,16 @@ work and added in that task's PR. Sessions read only the latest few entries.
   - Open: the input range is a web-session choice; the owner may change it.
   - Next: app performance (profile, caching), then usability.
 
+- **2026-11-03, desktop (kij input visual check):**
+  - Done: checked the web session's PRs 28 and 30-35 on GitHub (all merged,
+    master CI green) and the kij expander in the real app: fields, disabled
+    absent pairs, badge, caption and result note all correct. One fix: the
+    Overview "Model and limitations" text still said "no fitted interaction
+    parameters are used" with a user kij set; it now states the kij used.
+  - Open: PR 36 (release v1.6.0) waits for the owner.
+  - Next: owner approves v1.6 (then merge, tag, reboot and check the live
+    app); butane values from Yang & Richter (2025) Table 5.
+
 - **2026-11-02, web (butanes admission plan, docs only):**
   - Done: `docs/BUTANES_ADMISSION_PLAN.md`, a step-by-step plan for admitting
     isobutane and n-butane once the owner supplies the six Yang & Richter

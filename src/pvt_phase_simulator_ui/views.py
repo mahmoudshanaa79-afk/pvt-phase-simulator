@@ -528,13 +528,21 @@ def _render_model_scope_panel() -> None:
 
     with st.container(border=True):
         st.subheader("Model and limitations", anchor="model-and-limitations")
+        submitted = session().get("submitted_inputs")
+        if isinstance(submitted, ScientificInputs) and submitted.uses_kij:
+            interactions = (
+                f"This case uses **{submitted.binary_interaction_assumption}**, "
+                "a user choice; pairs left at 0 keep kij = 0. The validation "
+                "record and Learn mode use kij = 0."
+            )
+        else:
+            interactions = "No fitted interaction parameters are used."
         st.markdown(
             f"**Model.** {scope.eos_name} for {len(scope.verified_component_names)} "
-            f"property-verified components: **{components}**. The active "
+            f"property-verified components: **{components}**. The default "
             "interaction policy is "
             f"`{scope.interaction_policy.value}`: every omitted off-diagonal "
-            "binary interaction is **kij = 0**; no fitted interaction parameters "
-            "are used."
+            f"binary interaction is **kij = 0**. {interactions}"
         )
         st.markdown(
             "**Supported calculations.** Phase stability and isothermal flash; "
