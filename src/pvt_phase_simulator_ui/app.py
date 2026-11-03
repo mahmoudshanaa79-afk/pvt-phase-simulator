@@ -339,7 +339,8 @@ def run_app() -> None:
         page_title="OpenPhase",
         page_icon=":material/science:",
         layout="wide",
-        initial_sidebar_state="expanded",
+        # Expanded on a desktop, collapsed on a phone where it would cover the page.
+        initial_sidebar_state="auto",
     )
     try:
         initialize_session(session())

@@ -104,6 +104,19 @@ work and added in that task's PR. Sessions read only the latest few entries.
     `docs/STREAMLIT_APPLICATION.md`.
   - Next: the v1.6 release notes in PR 36 (owner decides the release).
 
+- **2026-11-03, web (usability review):**
+  - Done: `docs/investigations/usability_review.md` (12 findings from desktop,
+    phone and dark-scheme screenshots). Fixed the 2 high and 5 medium ones:
+    an honest envelope time note (minutes, not 20-30 s), Overview starts with
+    "Start here" and shows the result before the model panel, the sidebar is
+    collapsed on phones, empty states name the button, the composition table
+    shows 6 significant figures with mol % (its format string was invalid),
+    the phase split is stated in words, and Learn mode links the four labs.
+    `tests/test_app_usability.py` pins each fix; the browser test adds a
+    390 px page load and flash.
+  - Open (low, for the owner): download names mix `pvt-` and `openphase-`.
+  - Next: deployment health, then the v1.6 release notes.
+
 - **2026-11-03, web (app performance):**
   - Done: `tools/profile_app.py` and `docs/investigations/app_performance.md`
     (before/after, median of 3). The phase envelope is the only slow action

@@ -31,6 +31,35 @@ LEARN_MODE_HELP: Final = (
 )
 
 
+#: Where the teaching labs are published; the files are in docs/teaching/.
+LAB_BASE_URL: Final = (
+    "https://github.com/mahmoudshanaa79-afk/pvt-phase-simulator/blob/master/"
+    "docs/teaching/"
+)
+#: (title, file name) of every teaching lab, in order.
+LABS: Final = (
+    (
+        "Lab 1: Phase behaviour of a methane–propane mixture",
+        "LAB_01_METHANE_PROPANE.md",
+    ),
+    (
+        "Lab 2: Bubble pressures and the P–x–y diagram of methane–ethane",
+        "LAB_02_METHANE_ETHANE.md",
+    ),
+    (
+        "Lab 3: How composition moves the phase envelope",
+        "LAB_03_COMPOSITION_AND_THE_ENVELOPE.md",
+    ),
+    ("Lab 4: What kij does (methane + propane)", "LAB_04_BINARY_INTERACTION.md"),
+)
+
+
+def labs_markdown() -> str:
+    """A list of links to the teaching labs."""
+
+    return "\n".join(f"- [{title}]({LAB_BASE_URL}{name})" for title, name in LABS)
+
+
 @dataclass(frozen=True, slots=True)
 class LearnTopic:
     title: str
@@ -220,3 +249,5 @@ def render_learn_panel(page: PageName) -> None:
         st.markdown("**Try this**")
         for exercise in topic.exercises:
             st.markdown(f"- {exercise}")
+        st.markdown("**Teaching labs** (worked in this app, with an instructor key)")
+        st.markdown(labs_markdown())
