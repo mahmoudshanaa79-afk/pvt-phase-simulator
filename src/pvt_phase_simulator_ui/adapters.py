@@ -249,8 +249,14 @@ def validate_scientific_inputs(
     temperature_unit: TemperatureUnit | str = TemperatureUnit.KELVIN,
     pressure_unit: PressureUnit | str = PressureUnit.MPA,
     kij: Sequence[float] = ZERO_KIJ,
+    supported_range: bool = False,
 ) -> ScientificInputs:
-    """Validate and convert user-facing values to the engine's K/Pa contract."""
+    """Validate and convert user-facing values to the engine's K/Pa contract.
+
+    ``supported_range`` also enforces the application's supported input range.
+    Every place a user's values enter the app (the form, sweeps and case files)
+    sets it; library callers that only build a mixture need not.
+    """
 
     if len(composition_mol_percent) != len(COMPONENTS):
         raise InputValidationError("Exactly Methane, Ethane, and Propane are required.")
@@ -277,13 +283,18 @@ def validate_scientific_inputs(
         raise InputValidationError("Temperature must be above absolute zero.")
     if pressure_pa <= 0.0:
         raise InputValidationError("Pressure must be positive.")
-    if not MINIMUM_TEMPERATURE_K <= temperature_k <= MAXIMUM_TEMPERATURE_K:
+    if supported_range and not (
+        MINIMUM_TEMPERATURE_K <= temperature_k <= MAXIMUM_TEMPERATURE_K
+    ):
         raise InputValidationError(
             "Temperature must be between "
             f"{_temperature_bounds(temperature_unit)}, the application's "
             "supported input range."
         )
-    if not MINIMUM_PRESSURE_PA <= pressure_pa <= MAXIMUM_PRESSURE_PA:
+    if (
+        supported_range
+        and not MINIMUM_PRESSURE_PA <= pressure_pa <= MAXIMUM_PRESSURE_PA
+    ):
         raise InputValidationError(
             f"Pressure must be between {_pressure_bounds(pressure_unit)}, the "
             "application's supported input range."

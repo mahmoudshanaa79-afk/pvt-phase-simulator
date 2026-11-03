@@ -228,6 +228,7 @@ def _case_inputs(document: dict[str, object], with_kij: bool) -> ScientificInput
             temperature_unit=TemperatureUnit.KELVIN,
             pressure_unit=PressureUnit.PA,
             kij=_case_kij(inputs, with_kij),
+            supported_range=True,
         )
     except InputValidationError as error:
         # Preserve the manual-entry validation message, including the explicit

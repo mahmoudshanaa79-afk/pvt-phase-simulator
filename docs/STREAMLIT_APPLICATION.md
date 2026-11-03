@@ -91,6 +91,16 @@ in every supported unit, and rejects finite field values whose conversion would
 fall outside the supported floating-point range. It does not silently normalize
 invalid composition.
 
+The form also enforces the application's supported input range, **50–1000 K**
+and **1 Pa–1 GPa**, and states it in the selected unit when a value falls
+outside. This is an input limit, not a validated applicability range (that is
+the Module 17 record on the Validation page): outside it the engine raises
+instead of returning a status (below about 1 K and above about 1e12 Pa), and
+the phase-envelope action, which cold-starts 30 K below the operating
+temperature, needs more than 30 K. Sweeps and loaded case files are checked
+against the same range. If an engine call still raises, the page shows the
+engine's own reason after the safe message.
+
 The native example selector can fill the form with the default
 two-phase-oriented case, the known 50/50 methane/propane single-phase case at
 300 K and 20 MPa, or the audited 50/50 methane/propane critical-solver seed near

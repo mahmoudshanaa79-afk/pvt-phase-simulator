@@ -272,6 +272,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     temperature_unit=temperature_unit,
                     pressure_unit=pressure_unit,
                     kij=kij,
+                    supported_range=True,
                 )
                 validated = validate_scientific_inputs(
                     values,
@@ -280,6 +281,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                     temperature_unit=TemperatureUnit.KELVIN,
                     pressure_unit=PressureUnit.PA,
                     kij=kij,
+                    supported_range=True,
                 )
                 validation_error = None
             except InputValidationError as error:

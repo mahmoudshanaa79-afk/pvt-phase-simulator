@@ -92,6 +92,18 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-03, web (crash hunt):**
+  - Done: robustness AppTests (`tests/test_app_robustness*.py`, harness in
+    `tests/_robustness.py`) drive every page with hostile inputs, every unit,
+    kij edges, odd sweeps, broken case files and every RUN action with each
+    shipped example; a scenario fails on a raw exception, a generic
+    safe-boundary message or a logged app error. Fixed: inputs the engine
+    raises on (supported input range 50-1000 K, 1 Pa-1 GPa, now checked in
+    the form), engine reasons shown when an action still raises, and deeply
+    nested case files. No number changed.
+  - Open: the input range is a web-session choice; the owner may change it.
+  - Next: app performance (profile, caching), then usability.
+
 - **2026-11-02, web (butanes admission plan, docs only):**
   - Done: `docs/BUTANES_ADMISSION_PLAN.md`, a step-by-step plan for admitting
     isobutane and n-butane once the owner supplies the six Yang & Richter
