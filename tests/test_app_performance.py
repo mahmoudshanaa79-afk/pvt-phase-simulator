@@ -66,6 +66,7 @@ CACHE_MEMORY_BUDGET_BYTES = 300e6
 def _clear_all() -> None:
     st.cache_data.clear()
     st.cache_resource.clear()
+    views._calculate_sweep.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -378,6 +379,41 @@ def test_the_cache_bounds_keep_memory_inside_the_budget() -> None:
 
 def test_every_cached_function_declares_a_bound() -> None:
     functions: list[Callable[..., Any]] = [entry[0] for entry in CACHED.values()]
-    functions += [views._calculate_sweep, views._model_scope, views._records]
+    functions += [views._model_scope, views._records]
     for function in functions:
         assert function._info.max_entries is not None, function
+    assert views._calculate_sweep.max_entries == views.SWEEP_CACHE_ENTRIES
+
+
+def test_the_sweep_cache_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(views, "run_sweep", _Engine())
+    for index in range(views.SWEEP_CACHE_ENTRIES + 5):
+        views._calculate_sweep(_sweep_request(start=1.0 + index))
+    assert len(views._calculate_sweep) == views.SWEEP_CACHE_ENTRIES
+
+
+def test_repeating_a_sweep_never_replays_its_progress_bar() -> None:
+    """Regression: a repeated sweep failed with CacheReplayClosureError.
+
+    Streamlit's cache replayed the progress bar into a page that was gone, and
+    the user saw "The engineering sweep stopped unexpectedly".
+    """
+
+    def run(app: AppTest) -> AppTest:
+        app.switch_page(PAGES / "engineering_sweeps.py").run()
+        next(b for b in app.button if b.label == "RUN SWEEP").click().run()
+        assert not app.exception
+        assert not [item.value for item in app.error], [i.value for i in app.error]
+        return app
+
+    first = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=300).run()
+    next(b for b in first.button if b.label == "RUN FLASH").click().run()
+    run(first)
+    result = first.session_state["results"]["sweep"]
+    first.switch_page(PAGES / "overview.py").run()
+    run(first)  # same session, same sweep: a cache hit
+    assert first.session_state["results"]["sweep"] is result
+    second = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=300).run()
+    next(b for b in second.button if b.label == "RUN FLASH").click().run()
+    run(second)  # another session, same sweep
+    assert second.session_state["results"]["sweep"] is result

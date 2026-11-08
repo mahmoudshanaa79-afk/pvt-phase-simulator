@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -322,13 +324,60 @@ SMALL_RESULT_CACHE_ENTRIES: Final = 8
 SWEEP_CACHE_ENTRIES: Final = 8
 
 
-@st.cache_resource(show_spinner=False, max_entries=SWEEP_CACHE_ENTRIES)
-def _calculate_sweep(
-    request: SweepRequest, _progress: Callable[[int, int], None] | None = None
-) -> SweepResult:
-    """A sweep for one complete request; ``_progress`` is not part of the key."""
+class _SweepCache:
+    """Bounded, thread-safe cache of sweep results keyed by the complete request.
 
-    return run_sweep(request, progress=_progress)
+    This is deliberately not ``st.cache_resource``. The progress callback draws
+    Streamlit elements, and Streamlit records elements drawn inside a cached
+    function and replays them on a later hit; once the page that drew them is
+    gone the replay fails (``CacheReplayClosureError``), so repeating a sweep
+    showed "The engineering sweep stopped unexpectedly". Here the callback runs
+    only on a miss, outside Streamlit's cache, and a hit returns the stored
+    result (immutable, like every cached engine result).
+    """
+
+    def __init__(self, max_entries: int) -> None:
+        self.max_entries = max_entries
+        self._results: OrderedDict[SweepRequest, SweepResult] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def __call__(
+        self,
+        request: SweepRequest,
+        progress: Callable[[int, int], None] | None = None,
+    ) -> SweepResult:
+        with self._lock:
+            cached = self._results.get(request)
+            if cached is not None:
+                self._results.move_to_end(request)
+                return cached
+        result = run_sweep(request, progress=progress)
+        with self._lock:
+            self._results[request] = result
+            self._results.move_to_end(request)
+            while len(self._results) > self.max_entries:
+                self._results.popitem(last=False)
+        return result
+
+    def __wrapped__(
+        self,
+        request: SweepRequest,
+        progress: Callable[[int, int], None] | None = None,
+    ) -> SweepResult:
+        """The uncached calculation."""
+
+        return run_sweep(request, progress=progress)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._results.clear()
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._results)
+
+
+_calculate_sweep: Final = _SweepCache(SWEEP_CACHE_ENTRIES)
 
 
 #: Shown on Overview before the first result: what to do first.
