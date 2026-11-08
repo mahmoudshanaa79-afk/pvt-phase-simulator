@@ -71,7 +71,7 @@ Selected states (signed relative error, PR minus reference):
   point (−8 to −11 % at Tr = 0.98). The model's critical compressibility,
   Zc = 0.307, is larger than the real fluids' (about 0.28). This is the
   behaviour that Péneloux volume translation corrects. The project does not
-  implement volume translation (README, Current limitations), so liquid
+  implement volume translation (README, "What OpenPhase is not"), so liquid
   densities from this app should not be used quantitatively.
 - **Saturated vapour density is good** (about 1–2 %), except close to the
   critical point.

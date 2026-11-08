@@ -114,6 +114,16 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-08, web (final docs):**
+  - Done: new README (what OpenPhase is and is not, quick start, public app,
+    pages, labs, evidence, known limits); `docs/USER_GUIDE.md`;
+    `docs/README.md` index split into current, design and historical
+    documents; `CHANGELOG.md` from the GitHub releases and release notes. The
+    README evidence table is checked against the record by
+    `tests/test_validation_claims.py`.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
 - **2026-11-08, web (final polish):**
   - Done: rewrote the top of this page (what exists, decided items incl.
     P6-P9, waiting items, not implemented, next steps); parallel CI and the
