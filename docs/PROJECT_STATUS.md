@@ -114,6 +114,15 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-08, web (CO2/N2 plan, owner approval D, docs only):**
+  - Done: `docs/CO2_N2_ADMISSION_PLAN.md`: why CO2 and N2 are harder (kij,
+    solid CO2, supercritical N2), property sources, provisional CoolProp
+    6.6.0 constants run in the session, candidate VLE datasets (all marked
+    not verified: ThermoML, doi.org and publishers did not resolve from the
+    web session), steps and owner decisions. Nothing in data/, engine or app.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
 - **2026-11-08, web (volume translation P11, owner approval C):**
   - Done: optional Péneloux module `eos/volume_translation.py`, off by
     default and called by no solver (engine fingerprint unchanged). App

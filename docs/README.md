@@ -10,12 +10,13 @@ run it.
 - [Streamlit application: pages, behaviour, deployment](STREAMLIT_APPLICATION.md)
 - [Experimental VLE validation (Module 17)](EXPERIMENTAL_VALIDATION.md)
 - [Dew-branch investigation](DEW_INVESTIGATION.md)
-- [Engine change proposals P1–P10](ENGINE_CHANGE_PROPOSALS.md)
+- [Engine change proposals P1–P11](ENGINE_CHANGE_PROPOSALS.md)
 - [Validation framework](VALIDATION_FRAMEWORK.md)
 - [Pure-component saturation check](PURE_COMPONENT_SATURATION.md)
 - [Optional volume translation (Péneloux, P11)](VOLUME_TRANSLATION.md)
 - [Next components: butanes proposal](NEW_COMPONENTS_PROPOSAL.md) and
   [butanes admission plan](BUTANES_ADMISSION_PLAN.md)
+- [CO2 and N2 admission plan (documentation only)](CO2_N2_ADMISSION_PLAN.md)
 - [Changelog](../CHANGELOG.md) and [release notes](release_notes/)
 
 ### Teaching
