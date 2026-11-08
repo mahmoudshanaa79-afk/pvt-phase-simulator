@@ -267,8 +267,33 @@ of two roots; its upper root is 1.3 % from the measurement.
 
 ## P9. Validate component parameters once per evaluation, not per pair
 
-**Status: proposed (web session, 3 November 2026). Awaiting owner decision.**
-Nothing in the engine has been changed.
+**Status: applied on 8 November 2026** with the owner's approval of engine
+speed-ups that keep every result byte-identical (approval A). Proposed on
+3 November 2026.
+
+**As applied.** Passing pre-validated values to private kernels would have
+bypassed the single authoritative pair helper that existing tests require, so
+the applied form keeps every call path and makes the repeated checks cheap
+instead: a validation that already succeeded for the very same immutable
+object is not repeated. Component rows and row tuples (frozen dataclasses) are
+keyed by object identity plus temperature, with the object held so its id
+cannot be reused; interaction mappings are reused only while they hold exactly
+the same key and value objects; supplied cubic roots are keyed by the exact
+bit patterns of (Z, A, B). Failures are never cached and the caches are
+bounded. Every public entry point validates exactly as before.
+
+**Identity.** `tools/engine_fingerprint.py` hashes the complete canonical form
+of 801 results (all 40 May (2015) states in both directions, with and without
+Newton and kij; synthetic binaries and ternaries; flash; stability; the app's
+envelope, extended overlay, saturation pair, critical point and criticality
+map). All 801 are byte-identical to master, and the full test suite, the golden
+master and the Module 17 pins pass with no test edited.
+
+**Effect.** The app's phase envelopes run about 1.9 times faster (see the after
+table in `docs/investigations/app_performance.md`). The remaining time is the
+cubic-root arithmetic itself.
+
+The original proposal follows.
 
 **Finding.** The phase-envelope action is the app's only slow action: about
 125 s of engine time for the default example (179 s for the critical-solver
