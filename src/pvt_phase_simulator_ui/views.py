@@ -439,6 +439,38 @@ def _square_chart(figure: Any, *, key: str) -> None:
         st.plotly_chart(_responsive_title(figure), width=680, height=640, key=key)
 
 
+OPERATING_POINT_NAME: Final = "Operating point (submitted case)"
+
+
+def add_operating_point(
+    figure: go.Figure, temperature_k: float, pressure_pa: float
+) -> go.Figure:
+    """Mark the submitted case on an SI envelope figure (before unit conversion).
+
+    A labelled cross, so the point never depends on colour alone. Its hover
+    text uses K and Pa, which the presentation step converts with the axes.
+    """
+
+    figure.add_trace(
+        go.Scatter(
+            x=[temperature_k],
+            y=[pressure_pa],
+            mode="markers",
+            name=OPERATING_POINT_NAME,
+            marker={
+                "symbol": "x-thin-open",
+                "size": 14,
+                "line": {"width": 3},
+                "color": "#142B43",
+            },
+            hovertemplate=(
+                "Operating point<br>T = %{x:.6g} K<br>P = %{y:.6g} Pa<extra></extra>"
+            ),
+        )
+    )
+    return figure
+
+
 def _annotate_missing_envelope_branches(
     figure: Any, result: PhaseEnvelopeResult
 ) -> Any:
@@ -838,7 +870,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             st.download_button(
                 "Download CSV",
                 data=export_csv_bytes(document),
-                file_name="pvt-current-case.csv",
+                file_name="openphase-current-case.csv",
                 mime="text/csv;charset=utf-8",
                 key="download_current_case_csv",
                 on_click="ignore",
@@ -848,7 +880,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
             st.download_button(
                 "Download JSON",
                 data=export_json_bytes(document),
-                file_name="pvt-current-case.json",
+                file_name="openphase-current-case.json",
                 mime="application/json",
                 key="download_current_case_json",
                 on_click="ignore",
@@ -1123,6 +1155,10 @@ def render_phase_envelope(inputs: ScientificInputs | None) -> None:
     )
     if extension is not None:
         envelope_figure = add_extended_branches(envelope_figure, extension)
+    if inputs is not None and not result_is_stale(session(), "envelope", inputs):
+        envelope_figure = add_operating_point(
+            envelope_figure, inputs.temperature_k, inputs.pressure_pa
+        )
     _wide_chart(
         _annotate_missing_envelope_branches(
             _presentation_figure(
@@ -1463,6 +1499,8 @@ def render_validation() -> None:
             ("bubble", "dew"),
             default="bubble",
             required=True,
+            # Labels only: the stored value stays "bubble" or "dew".
+            format_func=lambda value: value.capitalize(),
         ),
     )
     if st.button(
@@ -2138,7 +2176,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
         st.download_button(
             "Download CSV",
             data=export_sweep_csv_bytes(sweep, units),
-            file_name="pvt-engineering-sweep.csv",
+            file_name="openphase-engineering-sweep.csv",
             mime="text/csv;charset=utf-8",
             key="download_sweep_csv",
             on_click="ignore",
@@ -2148,7 +2186,7 @@ def render_engineering_sweeps(inputs: ScientificInputs | None) -> None:
         st.download_button(
             "Download JSON",
             data=export_json_bytes(document),
-            file_name="pvt-engineering-sweep.json",
+            file_name="openphase-engineering-sweep.json",
             mime="application/json",
             key="download_sweep_json",
             on_click="ignore",

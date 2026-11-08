@@ -200,3 +200,90 @@ def test_learn_mode_links_every_teaching_lab() -> None:
     assert re.match(
         r"https://github\.com/[\w-]+/[\w-]+/blob/master/docs/", LAB_BASE_URL
     )
+
+
+# Finding 11: the operating point is marked on the envelope plot.
+
+
+def test_the_operating_point_is_a_labelled_marker_in_display_units() -> None:
+    import plotly.graph_objects as go
+
+    from pvt_phase_simulator_ui.units import (
+        PressureUnit,
+        TemperatureUnit,
+        UnitPreferences,
+    )
+
+    figure = views.add_operating_point(go.Figure(), 300.0, 5.0e6)
+    trace = next(t for t in figure.data if t.name == views.OPERATING_POINT_NAME)
+    assert tuple(trace.x) == (300.0,) and tuple(trace.y) == (5.0e6,)
+    assert trace.mode == "markers" and trace.marker.symbol == "x-thin-open"
+    units = UnitPreferences(TemperatureUnit.CELSIUS, PressureUnit.BAR)
+    shown = views._presentation_figure(
+        figure, units, x_quantity="temperature", y_quantity="pressure"
+    )
+    trace = next(t for t in shown.data if t.name == views.OPERATING_POINT_NAME)
+    assert trace.x[0] == pytest.approx(26.85) and trace.y[0] == pytest.approx(50.0)
+    assert " °C" in trace.hovertemplate and " bar" in trace.hovertemplate
+
+
+def test_the_envelope_page_shows_the_operating_point(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def short(inputs: ScientificInputs) -> object:
+        settings = EnvelopeContinuationSettings(
+            target_temperature_k=inputs.temperature_k,
+            initial_temperature_step_k=5.0,
+            maximum_points=2,
+        )
+        start = inputs.temperature_k - 10.0
+        return calculate_phase_envelope(
+            inputs.mixture(), settings, settings, start, start
+        )
+
+    monkeypatch.setattr(views, "_calculate_envelope", short)
+    monkeypatch.setattr(views, "_calculate_extended_envelope", lambda _inputs: None)
+    monkeypatch.setattr(views, "_calculate_operating_saturation", lambda _inputs: None)
+    app = _app()
+    _button(app, "RUN FLASH").click().run()
+    app.switch_page(PAGES / "phase_envelope.py").run()
+    _button(app, "RUN PHASE ENVELOPE").click().run()
+    assert not app.exception
+    spec = json.loads(app.get("plotly_chart")[0].proto.spec)
+    marker = next(
+        t for t in spec["data"] if t.get("name") == views.OPERATING_POINT_NAME
+    )
+    assert marker["x"] == [300.0] and marker["y"] == [5.0]  # K and MPa
+
+
+# Finding 10: the Validation direction labels are capitalised; values are not.
+
+
+def test_the_validation_direction_is_capitalised_but_keeps_its_value() -> None:
+    app = _app()
+    app.switch_page(PAGES / "validation.py").run()
+    control = next(
+        item for item in app.segmented_control if item.label == "Prediction direction"
+    )
+    assert control.value == "bubble"
+    assert [control.format_func(option) for option in control.options] == [
+        "Bubble",
+        "Dew",
+    ]
+    control.set_value("dew").run()
+    _button(app, "GENERATE VALIDATION FIGURES").click().run()
+    assert not app.exception
+    assert app.session_state["validation_direction"] == "dew"
+
+
+# Finding 8: every download name starts with openphase-.
+
+
+def test_every_download_name_uses_the_openphase_prefix() -> None:
+    package = ROOT / "src" / "pvt_phase_simulator_ui"
+    names = re.findall(
+        r'file_name="([^"]+)"',
+        "".join(path.read_text(encoding="utf-8") for path in package.glob("*.py")),
+    )
+    assert len(names) >= 7
+    assert all(name.startswith("openphase-") for name in names), names
