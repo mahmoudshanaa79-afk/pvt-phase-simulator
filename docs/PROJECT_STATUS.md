@@ -106,6 +106,16 @@ work and added in that task's PR. Sessions read only the latest few entries.
     measured and written up for the owner.
   - Next: final polish, butanes draft PR, final docs.
 
+- **2026-11-08, desktop (release v1.6.0):**
+  - Done: the owner approved v1.6. After this PR merges and master CI passes,
+    the desktop session publishes the release (tag `v1.6.0`), and the owner
+    reboots the Streamlit app.
+  - Owner approvals for the next session (2026-11-08): engine speed-ups with
+    byte-identical results (P9); a butanes draft PR on provisional values, not
+    merged until the Table 5 values arrive; optional volume translation; a
+    CO2/N2 plan (docs only).
+  - Next: the finalize session (toward v1.7).
+
 - **2026-11-08, desktop (repeated sweep bug):**
   - Done: an independent review of PR 39 found that repeating a sweep with the
     same inputs failed ("stopped unexpectedly") and removed the earlier result:
@@ -125,6 +135,15 @@ work and added in that task's PR. Sessions read only the latest few entries.
     download built only on click. Tests: `tests/test_app_diagnostics_raw.py`
     and a browser step that turns the switch on and off.
   - Next: owner decisions on PR 36 (v1.6.0), P9 and the input range.
+
+- **2026-11-03, web (v1.6.0 release notes updated, not merged):**
+  - Done: merged master (crash hunt, performance, usability, deployment
+    health, and the Diagnostics fix) into
+    `release-v1.6.0` and added them to
+    `docs/release_notes/v1.6.0.md`. PR 36 stays open; no tag.
+  - Waiting for the owner: approve PR 36 (then merge, tag, reboot and run
+    the checklist in `docs/STREAMLIT_APPLICATION.md`); P9; the input range;
+    the butane values.
 
 - **2026-11-03, web (deployment health):**
   - Done: `tests/test_app_deployment.py` (runtime imports declared, lock pins
@@ -184,6 +203,15 @@ work and added in that task's PR. Sessions read only the latest few entries.
   - Open: PR 36 (release v1.6.0) waits for the owner.
   - Next: owner approves v1.6 (then merge, tag, reboot and check the live
     app); butane values from Yang & Richter (2025) Table 5.
+
+- **2026-11-02, web (v1.6.0 release prepared, not merged):**
+  - Done: version 1.6.0 in `pyproject.toml` and `uv.lock`, the "(v1.6)"
+    deployment wording in the README and `STREAMLIT_APPLICATION.md`, and
+    `docs/release_notes/v1.6.0.md`. PR "Release v1.6.0 (awaiting owner
+    approval)" is open and not merged; no tag.
+  - Waiting for the owner: approval of the release PR, then the tag and the
+    Streamlit Cloud reboot; the butane Table 5 values.
+  - Next: after approval, merge, tag v1.6.0 and check the public app.
 
 - **2026-11-02, web (butanes admission plan, docs only):**
   - Done: `docs/BUTANES_ADMISSION_PLAN.md`, a step-by-step plan for admitting
