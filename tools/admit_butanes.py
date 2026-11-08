@@ -23,9 +23,13 @@ What it does, in order, and nothing else:
 4. regenerates ``docs/validation`` with ``tools/run_module17_validation.py``,
    which now also validates the butane data file (option (b): validation
    only, the app's inputs are unchanged);
-5. checks that the methane-ethane and methane-propane rows of the regenerated
-   record are byte-identical to the previous record, and that the golden
-   master file is unchanged;
+5. regenerates the record on this machine before and after adding the rows
+   and requires the methane-ethane and methane-propane rows of the two runs to
+   be byte-identical; then writes the committed C1-C3 rows and summary entries
+   unchanged, followed by the new butane rows and summaries, so the C1-C3 rows
+   stay byte-identical to master on any machine (the last digits of a fresh
+   regeneration can differ between machines); checks the golden master file
+   is unchanged;
 6. refreshes the pinned SHA-256 values of the changed protected files in
    ``tests/test_validation_metrics.py`` and ``tests/test_app_adapters.py``;
 7. prints the butane results.
@@ -262,23 +266,7 @@ def refresh_pins(root: Path, digests: dict[str, tuple[str, str]]) -> list[str]:
     return sorted(set(changed))
 
 
-def run(root: Path, provisional: bool) -> dict[str, Any]:
-    values = read_values(root / VALUES, provisional)
-    for name in DATABASE_FILES:
-        if not (root / name).exists():
-            raise AdmissionError(f"missing {name}")
-    if _sha256(root / DATABASE_FILES[0]) != _sha256(root / DATABASE_FILES[1]):
-        raise AdmissionError("the two component-property CSVs differ before admission.")
-    protected = (DATABASE_FILES[0], RECORD, SUMMARY, GOLDEN)
-    before = {name: _sha256(root / name) for name in protected}
-    previous_c1_c3 = c1_c3_rows(root / RECORD)
-
-    rows = database_rows(values, provisional)
-    for name in DATABASE_FILES:
-        append_rows(root / name, rows)
-    if not provisional:
-        extend_source_tables(root / "tests/test_component_database.py", values)
-
+def _regenerate(root: Path) -> None:
     environment = os.environ | {"PYTHONPATH": f"{root / 'src'}{os.pathsep}{root}"}
     subprocess.run(
         [sys.executable, "tools/run_module17_validation.py", "--root", str(root)],
@@ -288,24 +276,97 @@ def run(root: Path, provisional: bool) -> dict[str, Any]:
         stdout=subprocess.DEVNULL,
     )
 
+
+def _rows_by_system(text: str) -> tuple[str, list[str], list[str]]:
+    """Header, C1-C3 lines and butane lines of a record, in file order."""
+
+    lines = text.splitlines(keepends=True)
+    index = lines[0].rstrip("\r\n").split(",").index("system_id")
+    core, butanes = [], []
+    for line in lines[1:]:
+        (core if next(csv.reader([line]))[index] in C1_C3 else butanes).append(line)
+    return lines[0], core, butanes
+
+
+def run(root: Path, provisional: bool) -> dict[str, Any]:
+    values = read_values(root / VALUES, provisional)
+    for name in DATABASE_FILES:
+        if not (root / name).exists():
+            raise AdmissionError(f"missing {name}")
+    if _sha256(root / DATABASE_FILES[0]) != _sha256(root / DATABASE_FILES[1]):
+        raise AdmissionError("the two component-property CSVs differ before admission.")
+    protected = (DATABASE_FILES[0], RECORD, SUMMARY, GOLDEN)
+    before = {name: _sha256(root / name) for name in protected}
+    committed_record = (root / RECORD).read_text(encoding="utf-8")
+    committed_summary = json.loads((root / SUMMARY).read_text(encoding="utf-8"))
+    header, committed_core, committed_butanes = _rows_by_system(committed_record)
+    if committed_butanes:
+        raise AdmissionError("the committed record already holds butane rows.")
+
+    # 1. The C1-C3 record as this machine computes it, before admission. Floating
+    # point can differ in the last digits between machines, so the identity
+    # check below compares two runs on the same machine.
+    _regenerate(root)
+    _, reference_core, _ = _rows_by_system((root / RECORD).read_text(encoding="utf-8"))
+    reproduces = reference_core == committed_core
+
+    # 2. Admit the rows and regenerate with the butane data file.
+    rows = database_rows(values, provisional)
+    for name in DATABASE_FILES:
+        append_rows(root / name, rows)
+    if not provisional:
+        extend_source_tables(root / "tests/test_component_database.py", values)
+    _regenerate(root)
+    _, admitted_core, butane_lines = _rows_by_system(
+        (root / RECORD).read_text(encoding="utf-8")
+    )
+    if admitted_core != reference_core:
+        raise AdmissionError(
+            "admitting the butanes changed the C1-C3 rows computed on this machine."
+        )
+    if len(butane_lines) != 36:
+        raise AdmissionError(f"expected 36 butane rows, found {len(butane_lines)}.")
+
+    # 3. Keep the committed C1-C3 rows and summary entries exactly; add the
+    # butane rows and summaries computed now.
+    regenerated_summary = json.loads((root / SUMMARY).read_text(encoding="utf-8"))
+    summary = dict(committed_summary)
+    summary["systems"] = list(committed_summary["systems"]) + [
+        system
+        for system in regenerated_summary["systems"]
+        if system["system_id"] not in C1_C3
+    ]
+    summary["butane_source"] = regenerated_summary["butane_source"]
+    (root / RECORD).write_text(
+        header + "".join(committed_core) + "".join(butane_lines),
+        encoding="utf-8",
+        newline="",
+    )
+    (root / SUMMARY).write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="",
+    )
+
     after = {name: _sha256(root / name) for name in protected}
-    if c1_c3_rows(root / RECORD) != previous_c1_c3:
-        raise AdmissionError("the C1-C3 rows of the regenerated record changed.")
+    if c1_c3_rows(root / RECORD) != [header, *committed_core]:
+        raise AdmissionError("the written record's C1-C3 rows differ from master.")
     if after[GOLDEN] != before[GOLDEN]:
         raise AdmissionError("the golden master changed.")
     pinned = refresh_pins(
         root, {name: (before[name], after[name]) for name in protected}
     )
-    summary = json.loads((root / SUMMARY).read_text(encoding="utf-8"))
     return {
         "mode": "provisional dry run" if provisional else "final (Table 5)",
-        "c1_c3_rows_identical": True,
+        "c1_c3_rows_identical_to_master": True,
+        "c1_c3_rows_unchanged_by_admission_on_this_machine": True,
+        "committed_c1_c3_rows_reproduce_bit_for_bit_on_this_machine": reproduces,
         "golden_master_unchanged": True,
         "hashes": {
             name: {"before": before[name], "after": after[name]} for name in protected
         },
         "pins_refreshed_in": pinned,
-        "butane_source": summary.get("butane_source"),
+        "butane_source": summary["butane_source"],
         "systems": [
             system for system in summary["systems"] if system["system_id"] not in C1_C3
         ],
