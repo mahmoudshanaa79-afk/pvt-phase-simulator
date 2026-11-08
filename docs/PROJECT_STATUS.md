@@ -92,6 +92,16 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-08, desktop (release v1.6.0):**
+  - Done: the owner approved v1.6. After this PR merges and master CI passes,
+    the desktop session publishes the release (tag `v1.6.0`), and the owner
+    reboots the Streamlit app.
+  - Owner approvals for the next session (2026-11-08): engine speed-ups with
+    byte-identical results (P9); a butanes draft PR on provisional values, not
+    merged until the Table 5 values arrive; optional volume translation; a
+    CO2/N2 plan (docs only).
+  - Next: the finalize session (toward v1.7).
+
 - **2026-11-03, web (Diagnostics raw-objects freeze, owner report):**
   - Done: the owner reported the app freezing after the Diagnostics "Show
     advanced raw public objects" switch. Reproduced in a real browser: with
