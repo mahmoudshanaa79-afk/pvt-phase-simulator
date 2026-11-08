@@ -13,6 +13,7 @@ run it.
 - [Engine change proposals P1–P10](ENGINE_CHANGE_PROPOSALS.md)
 - [Validation framework](VALIDATION_FRAMEWORK.md)
 - [Pure-component saturation check](PURE_COMPONENT_SATURATION.md)
+- [Optional volume translation (Péneloux, P11)](VOLUME_TRANSLATION.md)
 - [Next components: butanes proposal](NEW_COMPONENTS_PROPOSAL.md) and
   [butanes admission plan](BUTANES_ADMISSION_PLAN.md)
 - [Changelog](../CHANGELOG.md) and [release notes](release_notes/)

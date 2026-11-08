@@ -48,6 +48,9 @@ from pvt_phase_simulator_ui.units import (
     PressureUnit,
     TemperatureUnit,
 )
+from pvt_phase_simulator_ui.volume_translation_view import (
+    render_volume_translation_option,
+)
 
 PAGES_DIRECTORY = Path(__file__).with_name("pages")
 LOGGER = logging.getLogger(__name__)
@@ -306,6 +309,7 @@ def _input_form() -> tuple[ScientificInputs | None, bool]:
                 icon=":material/play_arrow:",
             )
         st.caption("A submit converts field values to internal K and Pa exactly once.")
+        render_volume_translation_option()
     session()["rendered_input_example"] = session().get("input_example")
     session()["current_inputs"] = validated
     if submitted:

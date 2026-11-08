@@ -380,3 +380,27 @@ found in this set but cannot be ruled out in general.
 A reasonable path, if wanted: adopt (b) in the app only, after a wider survey
 (for example the 16 cases of `tools/run_envelope_survey.py`) shows no lost
 points.
+
+
+## P11. Optional Péneloux volume translation
+
+**Status: approved by the owner on 8 November 2026 (approval C) and applied
+the same day as a new optional module, off by default.**
+
+- **What.** `src/pvt_phase_simulator/eos/volume_translation.py`: constant
+  per-component shifts, `v = v_PR − Σ xᵢ cᵢ`, applied only to volumes the
+  engine already computed. No existing engine module calls it, so every
+  engine result is byte-identical; the fingerprint comparison is recorded in
+  the PR. In the app it is a collapsed sidebar switch, labelled like the kij
+  inputs, that adds one Overview table and changes nothing else.
+- **Why phase behaviour is unaffected.** A constant shift adds the same
+  `−cᵢ P / (R T)` to `ln φᵢ` in every phase. K-values, phase split,
+  compositions and saturation pressures are unchanged, and
+  `tests/test_volume_translation.py` checks this.
+- **Shift values.** A stated fit anchored at the saturated liquid at T_r = 0.7
+  of the accepted reference file
+  `docs/investigations/pure_saturation_reference.csv`; not a published
+  correlation. Held-out errors before and after are in
+  `docs/VOLUME_TRANSLATION.md`: the liquid-density AARD falls by a factor of 2
+  to 3, but the worst near-critical error gets slightly worse.
+- **Not validated.** There is no mixture-density validation.

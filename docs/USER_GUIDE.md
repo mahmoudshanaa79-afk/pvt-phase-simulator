@@ -73,6 +73,11 @@ the answer to the new inputs.
 - **Advanced: binary interaction (kij).** kij = 0 unless you enter a value for
   a pair in the mixture. A non-zero kij carries a *user-supplied kij* badge
   and is recorded in every result, export and saved case.
+- **Advanced: volume translation (Péneloux)**, off by default, adds a table
+  of each phase's molar volume and density with and without the shift. It
+  changes no result, export or saved case. The shifts are fitted to pure
+  saturated liquids; mixture densities are not validated
+  ([`VOLUME_TRANSLATION.md`](VOLUME_TRANSLATION.md)).
 - **Save or load case** stores the inputs as a JSON file and loads them back.
   A file is checked before anything runs; a bad file is refused with a
   specific message. A browser reload starts a new session and clears results,
