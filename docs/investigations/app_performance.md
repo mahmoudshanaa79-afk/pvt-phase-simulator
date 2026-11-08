@@ -38,7 +38,9 @@ so absolute times there will differ; the ratios hold.
   overlay, critical point and criticality map are each under 0.2 MB (8–16
   entries). With `st.cache_resource`, sessions computing the same case also
   share one object instead of holding a copy each.
-- **The sweep is cached** (8 entries) with the same rules, so repeating a sweep
+- **The sweep is cached** (8 entries, in a small bounded store rather than
+  `st.cache_resource`, because its progress bar cannot be replayed on a hit)
+  with the same rules, so repeating a sweep
   is immediate. The progress callback is not part of the key.
 - **The evidence-tab CSV reader cache is bounded** (8 entries).
 
