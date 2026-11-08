@@ -78,3 +78,23 @@ def test_bubble_evidence_in_the_project_status() -> None:
             f"{bubble['source_count']} states"
         )
         assert quoted in status, quoted
+
+
+def test_readme_evidence_matches_the_record() -> None:
+    readme = _flat(ROOT / "README.md")
+    total = 0
+    for system, label in (
+        ("ch4_c2", "methane + ethane"),
+        ("ch4_c3", "methane + propane"),
+    ):
+        bubble = _metrics(system, "bubble")
+        dew = _metrics(system, "dew")
+        aard = float(str(bubble["pressure_aard_percent"]))
+        row = (
+            f"| {label} | {aard:.2f} % AARD, {bubble['success_count']} of "
+            f"{bubble['source_count']} states | {dew['success_count']} of "
+            f"{dew['source_count']} states |"
+        )
+        assert row in readme, row
+        total += int(str(bubble["source_count"]))
+    assert f"with {total} measured methane + ethane and methane + propane" in readme

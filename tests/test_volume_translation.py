@@ -87,6 +87,17 @@ def test_the_design_doc_quotes_the_held_out_errors() -> None:
     assert "no mixture-density validation" in doc.lower()
 
 
+def test_the_readme_quotes_the_plain_pr_liquid_error() -> None:
+    errors = [
+        abs(float(row["liquid_density_relative_error"]))
+        for row in _rows("pure_saturation_comparison.csv")
+        if row["model_status"] == "converged"
+    ]
+    readme = " ".join((ROOT / "README.md").read_text("utf-8").split())
+    quoted = f"off by up to about {round(100 * max(errors))} %"
+    assert quoted in readme, quoted
+
+
 def test_the_mixture_shift_is_the_mole_fraction_average() -> None:
     composition = (0.5, 0.2, 0.3)
     expected = math.fsum(

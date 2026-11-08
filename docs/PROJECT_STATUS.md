@@ -122,6 +122,17 @@ work and added in that task's PR. Sessions read only the latest few entries.
     file. Held-out liquid-density AARD 8.74/6.51/5.51 % falls to
     2.64/2.69/2.76 % (C1/C2/C3). The worst error, at T_r = 0.98, gets slightly
     worse. No mixture-density validation. See `docs/VOLUME_TRANSLATION.md`.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
+- **2026-11-08, web (final docs):**
+  - Done: new README (what OpenPhase is and is not, quick start, public app,
+    pages, labs, evidence, known limits); `docs/USER_GUIDE.md`;
+    `docs/README.md` index split into current, design and historical
+    documents; `CHANGELOG.md` from the GitHub releases and release notes. The
+    README evidence table is checked against the record by
+    `tests/test_validation_claims.py`.
+  - Open PRs: butanes draft (do not merge).
   - Next: release v1.7.0 PR (awaiting owner approval).
 
 - **2026-11-08, web (final polish):**
