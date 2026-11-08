@@ -130,6 +130,7 @@ from pvt_phase_simulator_ui.units import (
     temperature_from_k,
 )
 from pvt_phase_simulator_ui.validation_evidence import render_further_evidence
+from pvt_phase_simulator_ui.volume_translation_view import render_translated_volumes
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGGER = logging.getLogger(__name__)
@@ -637,6 +638,7 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
             )
     if phase_rows:
         st.dataframe(pd.DataFrame(phase_rows), hide_index=True, width="stretch")
+    render_translated_volumes(result)
 
 
 @st.cache_data(show_spinner=False, max_entries=1)
