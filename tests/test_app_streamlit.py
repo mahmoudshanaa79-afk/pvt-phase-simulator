@@ -534,9 +534,9 @@ def test_download_widgets_receive_real_payloads_and_mime_metadata(
     assert report_download["mime"] == "text/html;charset=utf-8"
     assert isinstance(report_download["data"], bytes)
     assert b"<!doctype html>" in report_download["data"]
-    assert csv_download["file_name"] == "pvt-current-case.csv"
+    assert csv_download["file_name"] == "openphase-current-case.csv"
     assert csv_download["mime"] == "text/csv;charset=utf-8"
-    assert json_download["file_name"] == "pvt-current-case.json"
+    assert json_download["file_name"] == "openphase-current-case.json"
     assert json_download["mime"] == "application/json"
 
     csv_payload = csv_download["data"]
