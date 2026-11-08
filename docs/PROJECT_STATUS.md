@@ -1,47 +1,54 @@
 # Project status
 
-Last updated: 31 October 2026 (release v1.5.0).
+Last updated: 8 November 2026 (v1.6.0 is being published from PR #36; the
+next release, v1.7.0, will be prepared for the owner).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
 
 ## What exists
 
-**Scientific engine (Modules 1–21, frozen).**
+**Scientific engine (frozen; changed only with the owner's approval).**
 
-- Peng–Robinson EOS with classical mixing and kij = 0, for verified methane,
-  ethane and propane.
+- Peng–Robinson EOS with classical mixing for verified methane, ethane and
+  propane; kij = 0 by default, with optional user-supplied kij.
 - Tangent-plane-distance stability and two-phase flash.
-- Bubble and dew pressures with an optional Newton refinement.
+- Bubble and dew pressures with an optional Newton refinement, and honest
+  reporting of hidden, multiple and unbracketed roots (P2, P7, P8).
 - P–T envelope tracing with natural and pseudo-arclength continuation.
 - Mixture criticality derivatives and a critical-point solver that requires
   both Gibbs conditions.
 - Scientific plotting.
 
-**Validation framework (V2-01-A to D).**
+**Validation framework (V2-01-A to E).**
 
 - Typed records, provenance and serialization.
 - Generalized metrics that keep model accuracy separate from software
   correctness.
 - A reproducible evidence report over the protected Module 17 data (May et al.,
-  2015; CH4+C2 and CH4+C3).
+  2015; CH4+C2 and CH4+C3), and pure-component saturation references.
 
 **Application (public on Streamlit Community Cloud).**
 
-- Flash, phase envelope with the extended display overlay, critical point,
-  engineering sweeps, validation and diagnostics pages.
+- Flash, phase envelope with the extended display overlay and the operating
+  point, critical point, engineering sweeps, validation and diagnostics pages.
 - Field units, save and load of cases, an engineering report, and exports.
+- An optional, clearly labelled kij input (Option 2 of P6).
+- Plain-language explanations next to the solver's diagnostic codes.
 - Learn mode, with explanations and exercises that are checked against the
-  engine.
+  engine, and links to the teaching labs.
+- A supported input range of 50–1000 K and 1 Pa–1 GPa, checked before any
+  engine call.
 
-**Teaching.** [Lab 1](teaching/LAB_01_METHANE_PROPANE.md), with an instructor
-key whose numbers are recomputed from the engine by the tests.
+**Teaching.** Four labs in [docs/teaching](teaching/) (methane–propane,
+methane–ethane, composition and the envelope, what kij does), each with an
+instructor key whose numbers are recomputed from the engine by the tests.
 
 ## Evidence
 
-- About 1,000 test functions (about 1,500 test cases with parameters). CI runs
-  lint, types, the full suite, a real-browser smoke test and a health check on
-  every push.
+- About 1,800 test cases. CI runs lint, types, the full suite in parallel, a
+  real-browser test, a localhost health check and a run with only the deployed
+  dependencies on every push.
 - Experimental bubble pressures (record regenerated after P7 and P8):
   - CH4+C2: 1.02 % AARD, 17 of 17 states;
   - CH4+C3: 1.01 % AARD, 23 of 23 states.
@@ -49,6 +56,9 @@ key whose numbers are recomputed from the engine by the tests.
 - [Dew investigation](DEW_INVESTIGATION.md): the large CH4+C3 dew-pressure
   error comes mostly from an ill-posed question and from hidden second roots,
   not from model error.
+- App robustness, performance and usability checks:
+  `docs/investigations/app_performance.md`,
+  `docs/investigations/usability_review.md` and the robustness tests.
 
 ## Decided
 
@@ -59,38 +69,61 @@ key whose numbers are recomputed from the engine by the tests.
 | P2: refine grid boundaries in the saturation scan | Done, owner-approved. Nine dew results that looked unique are now reported as ambiguous (`HIDDEN_SATURATION_ROOT`); each second root is confirmed. The Module 17 artifacts were regenerated: CH4+C3 dew 7 → 1 unique results, CH4+C2 dew 15 → 12. Bubble results unchanged. |
 | Pure-component reference data (V2-01-E) | Accepted, PR #10 (`docs/PURE_COMPONENT_SATURATION.md`). |
 | P3: conditioning-aware dew metric | Done for both binaries (`docs/investigations/dew_conditioning.csv`). PR's vapour composition at the measured pressure is within the stated uncertainty at 22 of 23 CH4+C3 states and 16 of 16 assessable CH4+C2 states (15 of 15 before P7). Shown on the Validation page. |
+| P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
+| P6: non-zero kij | Option 2, owner-approved (2 Nov 2026): kij = 0 stays the default and the validation reference; the app offers an optional, labelled kij input (PR #32). Study: `docs/investigations/kij_study.md` (CH4+C3 fitted kij +0.0021). |
 | P7: refine boundaries when the scan finds no root | Done, owner-approved (1 Nov 2026). All nine `not_found` bubble states of the record now converge (CH4+C2 bubble 11 → 17, CH4+C3 20 → 23); 7 agree with the Newton option to 1e-8 and 250 K agrees with the independent envelope reference to 5e-14. |
 | P8: check past a failed walk step | Done, owner-approved (1 Nov 2026). CH4+C2 dew 008, 009, 013 and 017 have an upper root the solver missed and are now ambiguous; CH4+C2 dew 12 states at 5.34 % → 8 states at 2.07 %. Lab 2 updated. |
-| P4: Newton refinement in validation | Option B, done in PR #18: both runs are reported side by side in `docs/investigations/validation_newton_comparison.md`. The frozen artifacts are unchanged. Newton's extra dew results at multi-root states are labelled one root of several, not accuracy. |
+| P9: skip repeated validation of the same inputs | Owner-approved (8 Nov 2026) on the condition that every result stays byte-identical; see PR #43 and `tools/engine_fingerprint.py`. |
+| Parallel CI | Accepted default: the full suite runs with pytest-xdist (`-n auto --dist loadfile`); every test still runs once. |
+| Supported input range | Accepted default: 50–1000 K and 1 Pa–1 GPa, checked by the form, sweeps and case files (`adapters.py`). |
 
 ## Waiting on an owner decision
 
 | Item | Where | Effect |
 |---|---|---|
+| Release v1.6.0 | PR #36 (being published by the desktop session) | Public app picks up v1.6 |
+| Release v1.7.0 | prepared at the end of the 8 November session | Not released or tagged until approved |
+| Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
+| P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
 
 - Three-phase or multiphase flash.
-- Volume translation. Liquid densities are not quantitative.
-- Components beyond C1–C3.
-- kij other than zero.
+- Volume translation (approved as an optional module; not yet built). Liquid
+  densities are not quantitative.
+- Components beyond C1–C3 (butanes waiting for verified constants; CO2 and N2
+  not started).
+- Fitted kij as a default: kij is optional and user-supplied, never applied
+  silently.
 - More than one experimental source.
 
 ## Suggested next steps, in order
 
-1. P1–P5, the pure-component data, the Validation page evidence tabs and
-   release v1.5 are done.
-2. Send the faculty brief and act on the answers, especially on kij and on
-   which components and datasets come next.
-3. Add CO2 and N2, or the butanes, with verified properties and at least one
-   experimental dataset each.
-4. Consider Péneloux volume translation as a new engine module.
+1. Publish v1.6.0 and, after review, v1.7.0.
+2. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
+   draft PR (validation only).
+3. Decide on P10 (b).
+4. Volume translation as an optional module, then a CO2/N2 plan with measured
+   VLE data.
+5. A second experimental source for methane + propane, to test kij beyond one
+   laboratory.
 
 ## Session log
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-08, web (final polish):**
+  - Done: rewrote the top of this page (what exists, decided items incl.
+    P6-P9, waiting items, not implemented, next steps); parallel CI and the
+    50-1000 K / 1 Pa-1 GPa input range recorded as accepted defaults.
+    Usability findings #8 (all downloads `openphase-`), #10 (capitalised
+    Validation direction labels, same stored values) and #11 (operating point
+    marked on the envelope plot) fixed with tests. New
+    `tests/test_docs_references.py` checks that every path the docs mention
+    exists (none were dead).
+  - Next: butanes draft PR, final docs.
 
 - **2026-11-08, web (engine speed-up P9, owner approval A):**
   - Done: `tools/engine_fingerprint.py` hashes the complete canonical form of
