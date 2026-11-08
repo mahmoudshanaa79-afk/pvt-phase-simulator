@@ -267,8 +267,35 @@ of two roots; its upper root is 1.3 % from the measurement.
 
 ## P9. Validate component parameters once per evaluation, not per pair
 
-**Status: proposed (web session, 3 November 2026). Awaiting owner decision.**
-Nothing in the engine has been changed.
+**Status: applied on 8 November 2026** with the owner's approval of engine
+speed-ups that keep every result byte-identical (approval A). Proposed on
+3 November 2026.
+
+**As applied.** Passing pre-validated values to private kernels would have
+bypassed the single authoritative pair helper that existing tests require, so
+the applied form keeps every call path and makes the repeated checks cheap
+instead: a validation that already succeeded for the very same immutable
+object is not repeated. Component rows and row tuples (frozen dataclasses) are
+keyed by object identity plus temperature, with the object held so its id
+cannot be reused; interaction mappings are reused only while they hold exactly
+the same key and value objects; supplied cubic roots are keyed by the exact
+bit patterns of (Z, A, B). Failures are never cached and the caches are
+bounded. Every public entry point validates exactly as before.
+
+**Identity.** `tools/engine_fingerprint.py` hashes the complete canonical form
+of 801 results (all 40 May (2015) states in both directions, with and without
+Newton and kij; synthetic binaries and ternaries; flash; stability; the app's
+envelope, extended overlay, saturation pair, critical point and criticality
+map). All 801 are byte-identical to master, and the full test suite, the golden
+master and the Module 17 pins pass with no test edited.
+
+**Effect.** Measured on one machine before and after (median of 3), the app's
+first phase envelope takes 34.6 s instead of 82.1 s for the default example and
+48.4 s instead of 106.9 s for the critical-solver seed (2.1 to 2.4 times
+faster; `docs/investigations/app_performance.md`). The remaining time is the
+cubic-root arithmetic itself.
+
+The original proposal follows.
 
 **Finding.** The phase-envelope action is the app's only slow action: about
 125 s of engine time for the default example (179 s for the critical-solver
@@ -303,3 +330,53 @@ scientific decision, not a speed-up.
 
 **Measurement to repeat after a change.** `tools/profile_app.py` (before and
 after tables) and the golden-master suite.
+
+
+## P10. Faster envelope continuation that changes recorded results
+
+**Status: proposed (web session, 8 November 2026). Awaiting owner decision.**
+Nothing in the engine has been changed. Both options below change the result
+objects, so they were outside the byte-identical speed-up (P9) and were measured
+only on a scratch copy, by replacing the engine function or setting at run time.
+
+**Measurement.** The app's `calculate_phase_envelope` call on six states (the
+three shipped examples' 50/50 C1/C3 at 300 K and 321.58 K, 50/50 C1/C3 at 250 K,
+50/50 C1/C2 at 250 K, 71.23/28.77 C1/C2 at 243.6 K, 40/30/30 at 250 K with
+kij = 0.01), after P9, three variants run side by side on one machine:
+
+| State | P9 (s) | (a) no boundary walk (s) | (b) no global fallback (s) |
+|---|---:|---:|---:|
+| 50/50 C1/C3, 300 K (default example) | 29.2 | 10.5 | 22.6 |
+| 50/50 C1/C3, 321.58 K (critical seed) | 38.6 | 14.2 | 30.4 |
+| 50/50 C1/C2, 250 K | 43.3 | 12.6 | 34.2 |
+| 71.23/28.77 C1/C2, 243.6 K | 39.6 | 8.7 | 30.6 |
+| 50/50 C1/C3, 250 K | 3.7 | 2.2 | 3.8 |
+| 40/30/30, 250 K, kij = 0.01 | 3.1 | 2.0 | 3.3 |
+
+**(a) Skip the P2/P7/P8 boundary walk inside the envelope's saturation
+solves.** About three times faster, but it changes results and removes the
+hidden-root safety net:
+
+- 71.23/28.77 C1/C2 at 243.6 K: the bubble branch fails entirely
+  (`corrector_failed`, 0 points instead of 10);
+- 50/50 C1/C2 at 250 K: the bubble branch ends at `maximum_points` instead of
+  `near_critical`, with 15 instead of 13 points; pressures differ by up to
+  0.74 % and temperatures by up to 1.05 K;
+- the critical-solver seed: the same 15 points (to 2e-14) but 6 rejected
+  attempts instead of 0.
+
+Not recommended.
+
+**(b) Turn off the corrector's global fallback in the app's envelope settings
+(`allow_global_fallback=False`).** About a quarter faster on the slow states. On
+all six states every accepted envelope point, every termination reason and
+every point count is identical; only the record of rejected corrector attempts
+is shorter (for example 23 → 20 on the default example's dew branch), because
+the failed full-range retries are no longer attempted. The plotted envelope and
+everything the app shows from it would be unchanged, but the exported result
+objects would differ, and states where the fallback rescues a step were not
+found in this set but cannot be ruled out in general.
+
+A reasonable path, if wanted: adopt (b) in the app only, after a wider survey
+(for example the 16 cases of `tools/run_envelope_survey.py`) shows no lost
+points.

@@ -126,12 +126,39 @@ def _require_derived_parameter(
         raise ValueError(f"{name} is inconsistent with component provenance.")
 
 
+#: Validations that have already succeeded, keyed by the identity of the
+#: immutable object validated and the reference temperature (proposal P9).
+#: Validation is a pure function of a frozen row (or a tuple of frozen rows)
+#: and the temperature, so repeating it for the very same object can only
+#: succeed again; the stored value is the object itself, which keeps it alive
+#: so its ``id`` cannot be reused while cached. Failures are never cached.
+_VALIDATED_ROWS: dict[tuple[int, float | None], PureComponentMixtureParameters] = {}
+_VALIDATED_ROW_SETS: dict[
+    tuple[int, float | None], tuple[PureComponentMixtureParameters, ...]
+] = {}
+#: Small bounds: a solve reuses a handful of row objects many times.
+_VALIDATION_CACHE_LIMIT: Final = 512
+
+
 def _validate_single_component_parameter(
     parameter: PureComponentMixtureParameters,
     temperature_k: float | None = None,
 ) -> None:
     """Validate one parameter row against its immutable component and T."""
 
+    key = (id(parameter), temperature_k)
+    if _VALIDATED_ROWS.get(key) is parameter:
+        return
+    _validate_single_component_parameter_uncached(parameter, temperature_k)
+    if len(_VALIDATED_ROWS) >= _VALIDATION_CACHE_LIMIT:
+        _VALIDATED_ROWS.clear()
+    _VALIDATED_ROWS[key] = parameter
+
+
+def _validate_single_component_parameter_uncached(
+    parameter: PureComponentMixtureParameters,
+    temperature_k: float | None,
+) -> None:
     if not isinstance(parameter.component, Component):
         raise ValueError("component provenance must be an immutable Component.")
     _require_non_negative(parameter.mole_fraction, "mole_fraction")
@@ -187,6 +214,21 @@ def validate_component_parameter_provenance(
 ) -> None:
     """Re-derive every component parameter from immutable properties and T."""
 
+    key = (id(component_parameters), temperature_k)
+    if _VALIDATED_ROW_SETS.get(key) is component_parameters:
+        return
+    _validate_component_parameter_provenance_uncached(
+        component_parameters, temperature_k
+    )
+    if len(_VALIDATED_ROW_SETS) >= _VALIDATION_CACHE_LIMIT:
+        _VALIDATED_ROW_SETS.clear()
+    _VALIDATED_ROW_SETS[key] = component_parameters
+
+
+def _validate_component_parameter_provenance_uncached(
+    component_parameters: tuple[PureComponentMixtureParameters, ...],
+    temperature_k: float | None,
+) -> None:
     if not component_parameters:
         raise ValueError("component_parameters must not be empty.")
     if temperature_k is not None:
@@ -216,6 +258,27 @@ def validate_component_parameter_provenance(
         raise ValueError("component mole fractions must sum to one within tolerance.")
 
 
+#: Interaction mappings that have already passed validation (P9), keyed by the
+#: mapping's identity and the component-name set. A mapping can be mutated, so a
+#: success is reused only while the mapping still holds exactly the same key
+#: and value objects, in the same order, as when it passed; the validation is a
+#: pure function of those objects and the names.
+_VALIDATED_INTERACTIONS: dict[
+    tuple[int, frozenset[str] | None],
+    tuple[BinaryInteractionMapping, tuple[tuple[object, object], ...]],
+] = {}
+
+
+def _same_objects(
+    items: tuple[tuple[object, object], ...],
+    snapshot: tuple[tuple[object, object], ...],
+) -> bool:
+    return len(items) == len(snapshot) and all(
+        key is old_key and value is old_value
+        for (key, value), (old_key, old_value) in zip(items, snapshot, strict=True)
+    )
+
+
 def _validate_binary_interactions(
     binary_interactions: BinaryInteractionMapping | None,
     component_names: set[str] | None = None,
@@ -223,6 +286,26 @@ def _validate_binary_interactions(
     if binary_interactions is None:
         return
 
+    items = tuple(binary_interactions.items())
+    names = None if component_names is None else frozenset(component_names)
+    key = (id(binary_interactions), names)
+    cached = _VALIDATED_INTERACTIONS.get(key)
+    if (
+        cached is not None
+        and cached[0] is binary_interactions
+        and _same_objects(items, cached[1])
+    ):
+        return
+    _validate_binary_interactions_uncached(binary_interactions, component_names)
+    if len(_VALIDATED_INTERACTIONS) >= _VALIDATION_CACHE_LIMIT:
+        _VALIDATED_INTERACTIONS.clear()
+    _VALIDATED_INTERACTIONS[key] = (binary_interactions, items)
+
+
+def _validate_binary_interactions_uncached(
+    binary_interactions: BinaryInteractionMapping,
+    component_names: set[str] | None,
+) -> None:
     for key, coefficient in binary_interactions.items():
         if (
             not isinstance(key, tuple)
