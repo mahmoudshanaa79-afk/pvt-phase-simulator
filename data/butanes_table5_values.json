@@ -1,0 +1,21 @@
+{
+  "status": "provisional",
+  "status_help": "provisional: CoolProp 6.6.0 values, used only for the dry run; never verified. table5: the owner has entered the Yang & Richter (2025) Table 5 values exactly as printed, and filled read_by, read_on and original_source_as_printed.",
+  "source": "PROVISIONAL: CoolProp 6.6.0 reference equations of state (PropsSI Tcrit, pcrit, acentric); reproduce with the command in tools/run_butane_preview.py. These are NOT the Yang & Richter (2025) Table 5 values.",
+  "read_by": null,
+  "read_on": null,
+  "components": {
+    "isobutane": {
+      "critical_temperature_k": 407.817,
+      "critical_pressure_kpa": 3629.0,
+      "acentric_factor": 0.183532,
+      "original_source_as_printed": null
+    },
+    "n_butane": {
+      "critical_temperature_k": 425.125,
+      "critical_pressure_kpa": 3796.0,
+      "acentric_factor": 0.20081,
+      "original_source_as_printed": null
+    }
+  }
+}

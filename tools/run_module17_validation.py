@@ -8,6 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from pvt_phase_simulator.experimental_validation import (
+    butanes_admitted,
     load_experimental_vle_dataset,
     summarize_283_38_k_sensitivity,
     summarize_validation_results,
@@ -31,6 +32,16 @@ def main() -> None:
         root / "data/experimental/may_2015_source_manifest.json",
     )
     results = validate_experimental_dataset(dataset)
+    butanes = None
+    if butanes_admitted():
+        # Validation only (docs/BUTANES_ADMISSION_PLAN.md): the butane systems
+        # come from their own data file and manifest, after the C1-C3 rows,
+        # which therefore stay exactly as before.
+        butanes = load_experimental_vle_dataset(
+            root / "data/experimental/may_2015_butanes_vle.csv",
+            root / "data/experimental/may_2015_butanes_manifest.json",
+        )
+        results = results + validate_experimental_dataset(butanes)
     summaries = summarize_validation_results(results)
     output_directory = root / "docs/validation"
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -57,6 +68,12 @@ def main() -> None:
         },
         "systems": [asdict(summary) for summary in summaries],
     }
+    if butanes is not None:
+        summary_document["butane_source"] = {
+            "source_id": butanes.source.source_id,
+            "normalized_csv_sha256": butanes.source.normalized_csv_sha256,
+            "source_point_count": len(butanes.points),
+        }
     (output_directory / "module17_vle_validation_summary.json").write_text(
         json.dumps(summary_document, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

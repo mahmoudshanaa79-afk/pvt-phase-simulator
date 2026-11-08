@@ -270,9 +270,28 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--butanes",
+        action="store_true",
+        help=(
+            "extract the CH4+isobutane and CH4+n-butane systems instead "
+            "(data/experimental/may_2015_butanes_vle.csv); the default output "
+            "is unchanged"
+        ),
+    )
     args = parser.parse_args()
     document = json.loads(args.input.read_text(encoding="utf-8"))
-    output = normalized_rows_to_csv(extract_normalized_rows(document))
+    rows = (
+        extract_normalized_rows(
+            document,
+            BUTANE_SYSTEMS,
+            BUTANE_COMPOUNDS,
+            skip_identical_duplicates=True,
+        )
+        if args.butanes
+        else extract_normalized_rows(document)
+    )
+    output = normalized_rows_to_csv(rows)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(output, encoding="utf-8", newline="")
     print(f"wrote {output.count(chr(10)) - 1} normalized VLE points to {args.output}")

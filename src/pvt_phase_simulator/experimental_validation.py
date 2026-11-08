@@ -16,6 +16,10 @@ from typing import Any, Final, cast
 
 from scipy.optimize import brentq  # type: ignore[import-untyped]
 
+from pvt_phase_simulator.component_database import (
+    DEFAULT_COMPONENT_DATABASE,
+    UnsupportedComponentError,
+)
 from pvt_phase_simulator.eos.flash import PhaseInteractionProvenance
 from pvt_phase_simulator.eos.mixing_rules import (
     BinaryInteractionPolicy,
@@ -51,7 +55,14 @@ from pvt_phase_simulator.fluid_models import (
 SYSTEM_COMPONENTS: Final = {
     "ch4_c2": ("methane", "ethane"),
     "ch4_c3": ("methane", "propane"),
+    "ch4_ic4": ("methane", "isobutane"),
+    "ch4_nc4": ("methane", "n_butane"),
 }
+#: Systems every validation run must contain. The butane systems are optional:
+#: they are validated only once their components are in the component database
+#: (docs/BUTANES_ADMISSION_PLAN.md), from their own data file and manifest.
+REQUIRED_SYSTEMS: Final = ("ch4_c2", "ch4_c3")
+BUTANE_SYSTEMS: Final = ("ch4_ic4", "ch4_nc4")
 DEW_DIAGNOSTIC_MINIMUM_PRESSURE_PA: Final = 50_000.0
 DEW_DIAGNOSTIC_MAXIMUM_PRESSURE_PA: Final = 15_000_000.0
 DEW_DIAGNOSTIC_PRESSURE_STEP_PA: Final = 50_000.0
@@ -62,6 +73,22 @@ COMPONENT_OBJECTS: Final[dict[str, Component]] = {
     "ethane": ETHANE,
     "propane": PROPANE,
 }
+for _component_id in ("isobutane", "n_butane"):
+    try:
+        COMPONENT_OBJECTS[_component_id] = DEFAULT_COMPONENT_DATABASE.get_component(
+            _component_id
+        )
+    except UnsupportedComponentError:
+        # Not admitted yet: the database holds no row for this component.
+        pass
+
+
+def butanes_admitted() -> bool:
+    """True once both butanes are in the component database."""
+
+    return all(name in COMPONENT_OBJECTS for name in ("isobutane", "n_butane"))
+
+
 NORMALIZED_FIELDS: Final = (
     "source_point_id",
     "source_pair_key",
@@ -531,9 +558,16 @@ def load_experimental_vle_dataset(
         str(key): int(value)
         for key, value in dict(manifest["normalized_point_counts"]).items()
     }
-    actual_counts = {
+    # Count every system the manifest names, and any other system that has
+    # points, so a dataset can hold only some systems but never an unlisted one.
+    counts = {
         system: sum(point.system_id == system for point in points)
         for system in SYSTEM_COMPONENTS
+    }
+    actual_counts = {
+        system: count
+        for system, count in counts.items()
+        if count or system in expected_counts
     }
     if actual_counts != expected_counts:
         raise ValueError("normalized experimental point counts do not match manifest.")
@@ -1182,6 +1216,8 @@ def summarize_validation_results(
             for result in system_results
         )
         if not residuals:
+            if system_id not in REQUIRED_SYSTEMS:
+                continue
             raise ValueError(f"validation results contain no {system_id} points.")
         summaries.append(
             SystemValidationSummary(
