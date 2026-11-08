@@ -108,7 +108,8 @@ parameters inside every pair calculation (4.6 million
 `_validate_single_component_parameter` calls, 200 million `require_finite`
 calls). The engine is frozen, so this is written up as **P9** in
 `docs/ENGINE_CHANGE_PROPOSALS.md` for the owner to decide; nothing in the
-engine was changed.
+engine was changed at the time. P9 was later approved and applied; see the
+section below.
 
 ## After the engine speed-up (P9, 8 November 2026)
 
