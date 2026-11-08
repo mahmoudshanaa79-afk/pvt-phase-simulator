@@ -15,6 +15,7 @@ run it.
 - [Pure-component saturation check](PURE_COMPONENT_SATURATION.md)
 - [Next components: butanes proposal](NEW_COMPONENTS_PROPOSAL.md) and
   [butanes admission plan](BUTANES_ADMISSION_PLAN.md)
+- [CO2 and N2 admission plan (documentation only)](CO2_N2_ADMISSION_PLAN.md)
 - [Changelog](../CHANGELOG.md) and [release notes](release_notes/)
 
 ### Teaching

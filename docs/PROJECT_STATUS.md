@@ -114,6 +114,14 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-08, web (CO2/N2 plan, owner approval D, docs only):**
+  - Done: `docs/CO2_N2_ADMISSION_PLAN.md`: why CO2 and N2 are harder (kij,
+    solid CO2, supercritical N2), property sources, provisional CoolProp
+    6.6.0 constants run in the session, candidate VLE datasets (all marked
+    not verified: ThermoML, doi.org and publishers did not resolve from the
+    web session), steps and owner decisions. Nothing in data/, engine or app.
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
 - **2026-11-08, web (final docs):**
   - Done: new README (what OpenPhase is and is not, quick start, public app,
     pages, labs, evidence, known limits); `docs/USER_GUIDE.md`;
