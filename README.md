@@ -34,8 +34,10 @@ and every number shown to students is recomputed from the engine by a test.
 - Not a reservoir-fluid characterisation tool: no C7+ or pseudo-components,
   no CCE/CVD, separators or depletion, and no EOS tuning.
 - Not a three-phase or multiphase flash.
-- Not a density tool: there is no volume translation, so liquid densities are
-  not quantitative.
+- Not a density tool. Plain PR saturated-liquid densities are off by up to about 13 %.
+  An optional, display-only volume translation narrows the average error for
+  pure saturated liquids, but no mixture density has been validated
+  ([`docs/VOLUME_TRANSLATION.md`](docs/VOLUME_TRANSLATION.md)).
 
 ## Quick start
 
@@ -67,7 +69,10 @@ The app opens in your browser. Pick an example in the sidebar, press
 The sidebar also holds **Learn mode** (explanations and "Try this"
 exercises), **Save or load case**, and the collapsed **Advanced: binary
 interaction (kij)** inputs. kij = 0 unless you set a value; a non-zero kij is
-labelled as user-supplied in every result and export.
+labelled as user-supplied in every result and export. The collapsed
+**Advanced: volume translation (Péneloux)** switch, off by default, adds
+translated phase volumes and densities to Overview without changing any
+result.
 
 ## Teaching labs
 

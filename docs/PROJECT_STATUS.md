@@ -120,6 +120,18 @@ work and added in that task's PR. Sessions read only the latest few entries.
     6.6.0 constants run in the session, candidate VLE datasets (all marked
     not verified: ThermoML, doi.org and publishers did not resolve from the
     web session), steps and owner decisions. Nothing in data/, engine or app.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
+- **2026-11-08, web (volume translation P11, owner approval C):**
+  - Done: optional Péneloux module `eos/volume_translation.py`, off by
+    default and called by no solver (engine fingerprint unchanged). App
+    switch "Advanced: volume translation (Péneloux)" adds one Overview table.
+    Shifts fitted at T_r = 0.7 against the accepted pure-component reference
+    file. Held-out liquid-density AARD 8.74/6.51/5.51 % falls to
+    2.64/2.69/2.76 % (C1/C2/C3). The worst error, at T_r = 0.98, gets slightly
+    worse. No mixture-density validation. See `docs/VOLUME_TRANSLATION.md`.
+  - Open PRs: butanes draft (do not merge).
   - Next: release v1.7.0 PR (awaiting owner approval).
 
 - **2026-11-08, web (final docs):**

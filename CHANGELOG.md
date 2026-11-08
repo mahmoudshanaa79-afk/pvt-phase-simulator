@@ -13,6 +13,12 @@ made only with the owner's approval and are named below.
   envelope of the shipped examples became about 2.1–2.4 times faster on the
   same machine (`docs/investigations/app_performance.md`). P10 records the
   ideas that would change results; none is applied.
+- **Optional volume translation, P11 (owner approval C).** A new Péneloux
+  module (`eos/volume_translation.py`), off by default and called by no
+  solver; all 801 fingerprinted results are unchanged. An app switch adds
+  translated phase volumes and densities to Overview. The shifts are fitted
+  at T_r = 0.7 to the pure-component reference file; there is no
+  mixture-density validation (`docs/VOLUME_TRANSLATION.md`).
 - **Sweep fix.** Repeating the same sweep no longer fails on the cache hit.
 - **Polish.** The operating point is marked on the envelope plot. Every
   download is named `openphase-…`. The Validation direction labels are
