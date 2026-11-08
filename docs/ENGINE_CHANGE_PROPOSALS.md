@@ -328,3 +328,53 @@ scientific decision, not a speed-up.
 
 **Measurement to repeat after a change.** `tools/profile_app.py` (before and
 after tables) and the golden-master suite.
+
+
+## P10. Faster envelope continuation that changes recorded results
+
+**Status: proposed (web session, 8 November 2026). Awaiting owner decision.**
+Nothing in the engine has been changed. Both options below change the result
+objects, so they were outside the byte-identical speed-up (P9) and were measured
+only on a scratch copy, by replacing the engine function or setting at run time.
+
+**Measurement.** The app's `calculate_phase_envelope` call on six states (the
+three shipped examples' 50/50 C1/C3 at 300 K and 321.58 K, 50/50 C1/C3 at 250 K,
+50/50 C1/C2 at 250 K, 71.23/28.77 C1/C2 at 243.6 K, 40/30/30 at 250 K with
+kij = 0.01), after P9, three variants run side by side on one machine:
+
+| State | P9 (s) | (a) no boundary walk (s) | (b) no global fallback (s) |
+|---|---:|---:|---:|
+| 50/50 C1/C3, 300 K (default example) | 29.2 | 10.5 | 22.6 |
+| 50/50 C1/C3, 321.58 K (critical seed) | 38.6 | 14.2 | 30.4 |
+| 50/50 C1/C2, 250 K | 43.3 | 12.6 | 34.2 |
+| 71.23/28.77 C1/C2, 243.6 K | 39.6 | 8.7 | 30.6 |
+| 50/50 C1/C3, 250 K | 3.7 | 2.2 | 3.8 |
+| 40/30/30, 250 K, kij = 0.01 | 3.1 | 2.0 | 3.3 |
+
+**(a) Skip the P2/P7/P8 boundary walk inside the envelope's saturation
+solves.** About three times faster, but it changes results and removes the
+hidden-root safety net:
+
+- 71.23/28.77 C1/C2 at 243.6 K: the bubble branch fails entirely
+  (`corrector_failed`, 0 points instead of 10);
+- 50/50 C1/C2 at 250 K: the bubble branch ends at `maximum_points` instead of
+  `near_critical`, with 15 instead of 13 points; pressures differ by up to
+  0.74 % and temperatures by up to 1.05 K;
+- the critical-solver seed: the same 15 points (to 2e-14) but 6 rejected
+  attempts instead of 0.
+
+Not recommended.
+
+**(b) Turn off the corrector's global fallback in the app's envelope settings
+(`allow_global_fallback=False`).** About a quarter faster on the slow states. On
+all six states every accepted envelope point, every termination reason and
+every point count is identical; only the record of rejected corrector attempts
+is shorter (for example 23 → 20 on the default example's dew branch), because
+the failed full-range retries are no longer attempted. The plotted envelope and
+everything the app shows from it would be unchanged, but the exported result
+objects would differ, and states where the fallback rescues a step were not
+found in this set but cannot be ruled out in general.
+
+A reasonable path, if wanted: adopt (b) in the app only, after a wider survey
+(for example the 16 cases of `tools/run_envelope_survey.py`) shows no lost
+points.
