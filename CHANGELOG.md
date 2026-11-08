@@ -5,7 +5,10 @@ v1.0–v1.5, and `docs/release_notes/` from v1.6 on. Every version keeps the sam
 Peng–Robinson model (classical mixing, kij = 0 by default); engine changes are
 made only with the owner's approval and are named below.
 
-## Unreleased (on `master`)
+## 1.7.0 (prepared 8 November 2026; awaiting the owner's approval, not tagged)
+
+Full notes: [`docs/release_notes/v1.7.0.md`](docs/release_notes/v1.7.0.md).
+
 
 - **Engine speed-up, P9 (owner approval A).** Repeated validation of the same
   immutable inputs is skipped. Every result is byte-identical: 801 of 801
@@ -23,6 +26,9 @@ made only with the owner's approval and are named below.
 - **Polish.** The operating point is marked on the envelope plot. Every
   download is named `openphase-…`. The Validation direction labels are
   capitalised. A test checks that every file the docs mention exists.
+- **CO2 and N2 plan (owner approval D).** Documentation only
+  (`docs/CO2_N2_ADMISSION_PLAN.md`); every candidate dataset is marked not
+  verified.
 - **Docs.** A new README, a user guide (`docs/USER_GUIDE.md`), a documentation
   index that separates current from historical documents, and this changelog.
 

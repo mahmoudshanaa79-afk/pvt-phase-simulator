@@ -1,7 +1,7 @@
 # Project status
 
-Last updated: 8 November 2026 (v1.6.0 is being published from PR #36; the
-next release, v1.7.0, will be prepared for the owner).
+Last updated: 8 November 2026 (v1.6.0 merged in PR #36 but not yet tagged;
+v1.7.0 is prepared in the release PR and waits for the owner's approval).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -81,8 +81,8 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 | Item | Where | Effect |
 |---|---|---|
-| Release v1.6.0 | PR #36 (being published by the desktop session) | Public app picks up v1.6 |
-| Release v1.7.0 | prepared at the end of the 8 November session | Not released or tagged until approved |
+| Release v1.6.0 | merged in PR #36; tag `v1.6.0` and GitHub release not yet published | Release record for v1.6 |
+| Release v1.7.0 | PR "Release v1.7.0 (awaiting owner approval)" and `docs/release_notes/v1.7.0.md` | Not merged, released or tagged until approved |
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
@@ -113,6 +113,16 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-08, web (release v1.7.0 prepared, not merged):**
+  - Done: on fresh master (after PRs 43, 44, 46, 48, 49, 50) the full suite,
+    `tests/test_app_browser.py`, `tools/streamlit_smoke.py` and
+    `tools/deploy_check.py` (runtime-only environment) passed. Version 1.7.0
+    (`uv lock`), `docs/release_notes/v1.7.0.md` (only what merged; numbers
+    checked by `tests/test_release_notes.py`), changelog section.
+  - Open PRs: this release PR (do not merge without the owner), butanes
+    draft (do not merge).
+  - Next: owner approves v1.7.0; tag v1.6.0 first if it is still wanted.
 
 - **2026-11-08, web (CO2/N2 plan, owner approval D, docs only):**
   - Done: `docs/CO2_N2_ADMISSION_PLAN.md`: why CO2 and N2 are harder (kij,
