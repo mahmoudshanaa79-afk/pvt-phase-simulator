@@ -92,6 +92,16 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-08, desktop (repeated sweep bug):**
+  - Done: an independent review of PR 39 found that repeating a sweep with the
+    same inputs failed ("stopped unexpectedly") and removed the earlier result:
+    the cached function updated a progress bar created outside it, which
+    Streamlit cannot replay on a cache hit. Sweeps now use a small bounded
+    store, with the progress bar outside it. A new test repeats flash, critical
+    solver, criticality map and sweep through their real pages; it fails on the
+    old code.
+  - Next: merge master into PR 36, then release v1.6.0.
+
 - **2026-11-03, web (Diagnostics raw-objects freeze, owner report):**
   - Done: the owner reported the app freezing after the Diagnostics "Show
     advanced raw public objects" switch. Reproduced in a real browser: with

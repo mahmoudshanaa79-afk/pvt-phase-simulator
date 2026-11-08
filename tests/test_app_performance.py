@@ -122,7 +122,7 @@ def test_every_cached_result_is_deeply_immutable(name: str) -> None:
 
 
 def test_the_sweep_result_is_deeply_immutable() -> None:
-    assert _mutable_parts(views._calculate_sweep.__wrapped__(_sweep_request())) == []
+    assert _mutable_parts(views.run_sweep(_sweep_request())) == []
 
 
 # --- byte-identical results ------------------------------------------------------
@@ -159,9 +159,55 @@ def test_a_cached_sweep_gives_the_same_bytes_and_reports_progress() -> None:
     assert seen[-1] == (5, 5)
     warm = views._calculate_sweep(request)
     assert warm is cold
-    assert pickle.dumps(cold) == pickle.dumps(
-        views._calculate_sweep.__wrapped__(request)
-    )
+    assert pickle.dumps(cold) == pickle.dumps(views.run_sweep(request))
+
+
+def test_the_sweep_store_is_bounded_and_evicts_the_oldest_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(views, "run_sweep", _Engine())
+    bound = views.SWEEP_CACHE_ENTRIES
+    requests = [_sweep_request(start=1.0 + index / 10) for index in range(bound + 2)]
+    for request in requests:
+        views._calculate_sweep(request)
+    store = views._sweep_store()
+    assert len(store) == bound
+    assert store.get(requests[0]) is None
+    assert store.get(requests[-1]) is not None
+
+
+@pytest.mark.parametrize(
+    ("page", "button", "result"),
+    (
+        ("overview.py", "RUN FLASH", "flash"),
+        ("critical_point.py", "RUN CRITICAL SOLVER", "critical"),
+        ("critical_point.py", "RUN CRITICALITY MAP", "critical_scan"),
+        ("engineering_sweeps.py", "RUN SWEEP", "sweep"),
+    ),
+)
+def test_an_action_can_be_repeated_on_its_page(
+    page: str, button: str, result: str
+) -> None:
+    """A cache hit through the real page must work, progress elements included.
+
+    A cached function that updates an element created outside it raises on the
+    hit, and the page's safety boundary turned that into a failure message.
+    """
+
+    app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=600).run()
+    app.number_input(key="temperature_value").set_value(FAST.temperature_k)
+    next(b for b in app.button if b.label == "RUN FLASH").click().run()
+    app.switch_page(PAGES / page).run()
+    stored = []
+    for _ in range(2):
+        next(b for b in app.button if b.label == button).click().run()
+        assert not app.exception
+        # An engine verdict such as NOT CERTIFIED is a correct error box; only
+        # the action's safety-boundary failure message is a defect here.
+        assert not [item.value for item in app.error if "unexpectedly" in item.value]
+        stored.append(app.session_state["results"][result])
+    assert stored[0] is not None
+    assert pickle.dumps(stored[1]) == pickle.dumps(stored[0])
 
 
 def _capture_downloads(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
@@ -378,6 +424,6 @@ def test_the_cache_bounds_keep_memory_inside_the_budget() -> None:
 
 def test_every_cached_function_declares_a_bound() -> None:
     functions: list[Callable[..., Any]] = [entry[0] for entry in CACHED.values()]
-    functions += [views._calculate_sweep, views._model_scope, views._records]
+    functions += [views._sweep_store, views._model_scope, views._records]
     for function in functions:
         assert function._info.max_entries is not None, function

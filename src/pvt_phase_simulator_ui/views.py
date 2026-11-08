@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -322,13 +324,55 @@ SMALL_RESULT_CACHE_ENTRIES: Final = 8
 SWEEP_CACHE_ENTRIES: Final = 8
 
 
-@st.cache_resource(show_spinner=False, max_entries=SWEEP_CACHE_ENTRIES)
-def _calculate_sweep(
-    request: SweepRequest, _progress: Callable[[int, int], None] | None = None
-) -> SweepResult:
-    """A sweep for one complete request; ``_progress`` is not part of the key."""
+class _SweepStore:
+    """A thread-safe, bounded store of sweep results, oldest evicted first."""
 
-    return run_sweep(request, progress=_progress)
+    def __init__(self, maximum_entries: int) -> None:
+        self._maximum_entries = maximum_entries
+        self._lock = threading.Lock()
+        self._results: OrderedDict[SweepRequest, SweepResult] = OrderedDict()
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._results)
+
+    def get(self, request: SweepRequest) -> SweepResult | None:
+        with self._lock:
+            result = self._results.get(request)
+            if result is not None:
+                self._results.move_to_end(request)
+            return result
+
+    def put(self, request: SweepRequest, result: SweepResult) -> None:
+        with self._lock:
+            self._results[request] = result
+            self._results.move_to_end(request)
+            while len(self._results) > self._maximum_entries:
+                self._results.popitem(last=False)
+
+
+@st.cache_resource(show_spinner=False, max_entries=1)
+def _sweep_store() -> _SweepStore:
+    return _SweepStore(SWEEP_CACHE_ENTRIES)
+
+
+def _calculate_sweep(
+    request: SweepRequest, progress: Callable[[int, int], None] | None = None
+) -> SweepResult:
+    """A sweep for one complete request; ``progress`` is not part of the key.
+
+    This is deliberately not an ``st.cache_resource`` function. ``progress``
+    updates a Streamlit element created outside the call, and Streamlit cannot
+    replay such an element on a cache hit, so every repeat of a sweep failed.
+    """
+
+    store = _sweep_store()
+    cached = store.get(request)
+    if cached is not None:
+        return cached
+    result = run_sweep(request, progress=progress)
+    store.put(request, result)
+    return result
 
 
 #: Shown on Overview before the first result: what to do first.
