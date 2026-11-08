@@ -592,6 +592,15 @@ def calculate_compressibility_roots(
     return filter_physical_compressibility_roots(all_real_roots, B)
 
 
+#: Root validations that have already succeeded, keyed by the exact bit
+#: patterns of (Z, A, B) (proposal P9). The validation is a pure function of
+#: those three floats; the same check is repeated once per component in every
+#: fugacity evaluation. Only plain ``float`` arguments are cached, and failures
+#: never are.
+_VALIDATED_ROOTS: dict[tuple[str, str, str], None] = {}
+_VALIDATED_ROOT_LIMIT: Final = 4096
+
+
 def validate_compressibility_root(
     compressibility_factor: float,
     A: float,
@@ -603,6 +612,25 @@ def validate_compressibility_root(
     not require mechanical or global thermodynamic stability.
     """
 
+    if not (
+        type(compressibility_factor) is float and type(A) is float and type(B) is float
+    ):
+        _validate_compressibility_root_uncached(compressibility_factor, A, B)
+        return
+    key = (compressibility_factor.hex(), A.hex(), B.hex())
+    if key in _VALIDATED_ROOTS:
+        return
+    _validate_compressibility_root_uncached(compressibility_factor, A, B)
+    if len(_VALIDATED_ROOTS) >= _VALIDATED_ROOT_LIMIT:
+        _VALIDATED_ROOTS.clear()
+    _VALIDATED_ROOTS[key] = None
+
+
+def _validate_compressibility_root_uncached(
+    compressibility_factor: float,
+    A: float,
+    B: float,
+) -> None:
     _require_finite(compressibility_factor, "compressibility_factor")
     _require_non_negative(A, "A")
     _require_non_negative(B, "B")
