@@ -182,6 +182,25 @@ def test_a_single_phase_result_uses_the_feed() -> None:
     assert [row["Phase"] for row in rows] == ["Single phase"]
 
 
+def test_a_component_without_a_shift_is_reported_not_raised(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shown: list[str] = []
+    _, result = _flash()
+    monkeypatch.setattr(view, "volume_translation_enabled", lambda: True)
+    monkeypatch.setattr(view.st, "info", shown.append)
+    monkeypatch.setattr(
+        view,
+        "translated_molar_volume",
+        lambda *args: vt.translated_molar_volume(*args, shifts={}),
+    )
+    view.render_translated_volumes(result)
+    assert shown == [
+        "Volume translation is unavailable for this result: no volume shift is "
+        "available for Methane."
+    ]
+
+
 def test_no_engine_module_uses_volume_translation() -> None:
     engine = ROOT / "src" / "pvt_phase_simulator"
     users = [

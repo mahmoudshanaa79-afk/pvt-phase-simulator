@@ -94,7 +94,11 @@ def render_translated_volumes(result: TwoPhaseFlashResult) -> None:
 
     if not volume_translation_enabled():
         return
-    rows = phase_volume_rows(result)
+    try:
+        rows = phase_volume_rows(result)
+    except ValueError as error:
+        st.info(f"Volume translation is unavailable for this result: {error}")
+        return
     if not rows:
         return
     st.markdown("**Phase volumes with volume translation**")
