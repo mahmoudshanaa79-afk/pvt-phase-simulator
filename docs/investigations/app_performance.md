@@ -108,4 +108,47 @@ parameters inside every pair calculation (4.6 million
 `_validate_single_component_parameter` calls, 200 million `require_finite`
 calls). The engine is frozen, so this is written up as **P9** in
 `docs/ENGINE_CHANGE_PROPOSALS.md` for the owner to decide; nothing in the
-engine was changed.
+engine was changed at the time. P9 was later approved and applied; see the
+section below.
+
+## After the engine speed-up (P9, 8 November 2026)
+
+P9 (owner-approved on 8 November 2026, on the condition that every result
+stays byte-identical) stops the engine from repeating validations that already
+succeeded for the very same immutable inputs. `tools/engine_fingerprint.py`
+hashes the complete canonical form of 801 results; all 801 are identical to
+master, and the full test suite passes with no test edited.
+
+**Machine:** Intel Xeon @ 2.10 GHz, 4 logical CPUs, Linux 6.18, Python 3.12.3.
+This is a different container from the tables above, so master was measured
+again on this machine before the change (`app_performance_before_p9.csv`) and
+the result after it (`app_performance_after_p9.csv`). Median of 3 runs, caches
+cleared before each run.
+
+| Action | Case | Master (s) | After P9 (s) |
+|---|---|---:|---:|
+| RUN PHASE ENVELOPE, first run | Default two-phase case | 82.13 | **34.64** |
+| RUN PHASE ENVELOPE, first run | Single-phase case, 20 MPa | 77.70 | **37.84** |
+| RUN PHASE ENVELOPE, first run | Critical-solver seed | 106.94 | **48.43** |
+| RUN PHASE ENVELOPE, repeated (warm cache) | Default two-phase case | 0.10 | 0.10 |
+| RUN FLASH | Default two-phase case | 0.24 | 0.14 |
+| RUN CRITICAL SOLVER | Default two-phase case | 1.36 | 0.49 |
+| RUN CRITICALITY MAP | Default two-phase case | 0.51 | 0.22 |
+| RUN SWEEP (21 points) | Default two-phase case | 2.10 | 0.86 |
+| Import the app modules (fresh process) | – | 1.17 | 1.07 |
+
+| Engine call (direct, no Streamlit) | Master (s) | After P9 (s) |
+|---|---:|---:|
+| Phase envelope | 68.86 | 30.53 |
+| Extended overlay | 4.87 | 1.80 |
+| Bubble and dew at the operating temperature | 4.71 | 2.09 |
+| Critical point | 1.13 | 0.35 |
+| Criticality map | 0.45 | 0.13 |
+| Sweep (21 points) | 1.94 | 0.73 |
+
+The first envelope of a case is now about **2.1 to 2.4 times faster**: about
+half a minute to a minute here instead of 1.3 to 1.8 minutes. The public server
+is shared and slower, so it will take longer there. The remaining time is the
+cubic-root arithmetic itself, which P9 does not change. Two further speed-ups
+that would change recorded results were measured on a scratch copy and are
+written up as **P10** in `docs/ENGINE_CHANGE_PROPOSALS.md` for the owner.
