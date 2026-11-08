@@ -289,8 +289,10 @@ envelope, extended overlay, saturation pair, critical point and criticality
 map). All 801 are byte-identical to master, and the full test suite, the golden
 master and the Module 17 pins pass with no test edited.
 
-**Effect.** The app's phase envelopes run about 1.9 times faster (see the after
-table in `docs/investigations/app_performance.md`). The remaining time is the
+**Effect.** Measured on one machine before and after (median of 3), the app's
+first phase envelope takes 34.6 s instead of 82.1 s for the default example and
+48.4 s instead of 106.9 s for the critical-solver seed (2.1 to 2.4 times
+faster; `docs/investigations/app_performance.md`). The remaining time is the
 cubic-root arithmetic itself.
 
 The original proposal follows.

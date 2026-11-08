@@ -384,11 +384,14 @@ START_HERE: Final = (
     "more calculations. Turn on Learn mode for explanations, exercises and "
     "the teaching labs."
 )
-#: The envelope's first run is engine time: about 2-3 minutes on a 2.8 GHz
-#: machine (docs/investigations/app_performance.md), longer on a shared server.
+#: The envelope's first run is engine time: 35-48 s for the shipped examples
+#: after P9 (78-107 s before; median of 3 on a 2.1 GHz machine,
+#: docs/investigations/app_performance_after_p9.csv), longer on a shared server.
+#: tests/test_app_usability.py checks the note against that file.
 ENVELOPE_TIME_NOTE: Final = (
-    "The first run of a case can take a few minutes; running the same case again "
-    "is answered from the cache at once."
+    "The first run of a case takes about half a minute to a minute (longer on a "
+    "busy shared server); running the same case again is answered from the cache "
+    "at once."
 )
 
 

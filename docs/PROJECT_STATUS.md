@@ -92,6 +92,20 @@ key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-08, web (engine speed-up P9, owner approval A):**
+  - Done: `tools/engine_fingerprint.py` hashes the complete canonical form of
+    801 results (all 40 May states both ways, with and without Newton and kij;
+    synthetic binaries and ternaries; flash; stability; the app's envelope,
+    overlay, saturation pair, critical point and map). P9 as applied: a
+    validation that already succeeded for the very same immutable row, row
+    tuple, interaction mapping or (Z, A, B) root is not repeated; every call
+    path and every public check is unchanged. 801 of 801 results identical,
+    full suite green with no test edited. First envelope 82 -> 35 s (default
+    example), 107 -> 48 s (critical seed), same machine. App time note
+    updated and pinned to the measured CSV. P10 (result-changing speed-ups)
+    measured and written up for the owner.
+  - Next: final polish, butanes draft PR, final docs.
+
 - **2026-11-08, desktop (repeated sweep bug):**
   - Done: an independent review of PR 39 found that repeating a sweep with the
     same inputs failed ("stopped unexpectedly") and removed the earlier result:

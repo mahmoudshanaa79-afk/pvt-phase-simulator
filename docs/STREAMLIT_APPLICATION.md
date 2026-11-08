@@ -349,8 +349,8 @@ Then check, in this order (about five minutes):
   range and the validation source (May et al. (2015), via NIST ThermoML).
 - Choose the example **Default two-phase-oriented case** and press **RUN
   FLASH**: Overview shows "Two phase" and "Solver status: Converged".
-- **Phase Envelope → RUN PHASE ENVELOPE** finishes (the first run takes a few
-  minutes) and lists the bubble and dew pressure at the operating temperature.
+- **Phase Envelope → RUN PHASE ENVELOPE** finishes (the first run takes about
+  half a minute to a minute, longer on the shared server) and lists the bubble and dew pressure at the operating temperature.
   Pressing it again answers at once.
 - **Validation → GENERATE VALIDATION FIGURES** shows the figures.
 - On a phone, the sidebar starts closed and the page does not scroll sideways.

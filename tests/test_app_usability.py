@@ -200,3 +200,23 @@ def test_learn_mode_links_every_teaching_lab() -> None:
     assert re.match(
         r"https://github\.com/[\w-]+/[\w-]+/blob/master/docs/", LAB_BASE_URL
     )
+
+
+def test_the_envelope_time_note_matches_the_measured_first_run() -> None:
+    """The note says "about half a minute to a minute"; the committed profile
+    (median of 3 runs per shipped example) must support that."""
+
+    import csv
+
+    path = ROOT / "docs" / "investigations" / "app_performance_after_p9.csv"
+    with path.open(encoding="utf-8", newline="") as stream:
+        first_runs = [
+            float(row["median_s"])
+            for row in csv.DictReader(stream)
+            if row["group"] == "action (AppTest)"
+            and row["label"] == "RUN PHASE ENVELOPE"
+        ]
+    assert len(first_runs) == 3
+    assert all(20.0 <= seconds <= 60.0 for seconds in first_runs), first_runs
+    assert "about half a minute to a minute" in views.ENVELOPE_TIME_NOTE
+    assert "few minutes" not in views.ENVELOPE_TIME_NOTE
