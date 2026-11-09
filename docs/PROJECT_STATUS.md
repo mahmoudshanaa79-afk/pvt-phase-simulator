@@ -1,7 +1,7 @@
 # Project status
 
-Last updated: 9 November 2026 (v1.6.0 published; v1.7.0 is prepared in the
-release PR and waits for the owner's approval).
+Last updated: 9 November 2026 (v1.7.0 approved by the owner and released from
+this PR's merge commit, tag `v1.7.0`).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -81,8 +81,6 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 | Item | Where | Effect |
 |---|---|---|
-| Release v1.6.0 | published on 9 November 2026, tag `v1.6.0` at `34ac3e5` | Release record for v1.6 |
-| Release v1.7.0 | PR "Release v1.7.0 (awaiting owner approval)" and `docs/release_notes/v1.7.0.md` | Not merged, released or tagged until approved |
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
@@ -90,8 +88,9 @@ instructor key whose numbers are recomputed from the engine by the tests.
 ## Not implemented (by design, for now)
 
 - Three-phase or multiphase flash.
-- Volume translation (approved as an optional module; not yet built). Liquid
-  densities are not quantitative.
+- Volume translation in the solvers or in exports. The optional Péneloux table
+  on Overview is display-only and fitted to pure saturated liquids, so liquid
+  densities of mixtures are still not quantitative.
 - Components beyond C1–C3 (butanes waiting for verified constants; CO2 and N2
   not started).
 - Fitted kij as a default: kij is optional and user-supplied, never applied
@@ -100,19 +99,27 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. Publish v1.7.0 after the owner's review.
-2. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
+1. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
    draft PR (validation only).
-3. Decide on P10 (b).
-4. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
+2. Decide on P10 (b).
+3. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
    verified.
-5. A second experimental source for methane + propane, to test kij beyond one
+4. A second experimental source for methane + propane, to test kij beyond one
    laboratory.
 
 ## Session log
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-09, desktop (v1.7.0 released, owner-approved):**
+  - Done: the owner approved publishing v1.7.0. Dropped the "awaiting approval"
+    wording from the changelog and this page, then merged the release PR; the
+    tag `v1.7.0` and the GitHub release come from its merge commit once master
+    CI passes. Also corrected "volume translation not yet built" here.
+  - Open PRs: 47 (butanes draft, Table 5 values).
+  - Next: the owner supplies the six Table 5 values, then the butanes consumer
+    updates; the owner decides P10.
 
 - **2026-11-09, desktop (volume translation table was hidden):**
   - Done: flipping "Show volume-translated densities" changed nothing visible,
