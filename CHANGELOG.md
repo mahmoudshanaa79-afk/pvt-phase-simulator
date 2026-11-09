@@ -22,7 +22,6 @@ Full notes: [`docs/release_notes/v1.7.0.md`](docs/release_notes/v1.7.0.md).
   translated phase volumes and densities to Overview. The shifts are fitted
   at T_r = 0.7 to the pure-component reference file; there is no
   mixture-density validation (`docs/VOLUME_TRANSLATION.md`).
-- **Sweep fix.** Repeating the same sweep no longer fails on the cache hit.
 - **Polish.** The operating point is marked on the envelope plot. Every
   download is named `openphase-…`. The Validation direction labels are
   capitalised. A test checks that every file the docs mention exists.
@@ -32,7 +31,7 @@ Full notes: [`docs/release_notes/v1.7.0.md`](docs/release_notes/v1.7.0.md).
 - **Docs.** A new README, a user guide (`docs/USER_GUIDE.md`), a documentation
   index that separates current from historical documents, and this changelog.
 
-## 1.6.0 (version on `master` since 8 November 2026; not yet tagged)
+## 1.6.0 (9 November 2026)
 
 Full notes: [`docs/release_notes/v1.6.0.md`](docs/release_notes/v1.6.0.md).
 

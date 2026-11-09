@@ -1,7 +1,7 @@
 # Project status
 
-Last updated: 8 November 2026 (v1.6.0 merged in PR #36 but not yet tagged;
-v1.7.0 is prepared in the release PR and waits for the owner's approval).
+Last updated: 9 November 2026 (v1.6.0 published; v1.7.0 is prepared in the
+release PR and waits for the owner's approval).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -81,7 +81,7 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 | Item | Where | Effect |
 |---|---|---|
-| Release v1.6.0 | merged in PR #36; tag `v1.6.0` and GitHub release not yet published | Release record for v1.6 |
+| Release v1.6.0 | published on 9 November 2026, tag `v1.6.0` at `34ac3e5` | Release record for v1.6 |
 | Release v1.7.0 | PR "Release v1.7.0 (awaiting owner approval)" and `docs/release_notes/v1.7.0.md` | Not merged, released or tagged until approved |
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
@@ -100,12 +100,12 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. Publish v1.6.0 and, after review, v1.7.0.
+1. Publish v1.7.0 after the owner's review.
 2. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
    draft PR (validation only).
 3. Decide on P10 (b).
-4. Volume translation as an optional module, then a CO2/N2 plan with measured
-   VLE data.
+4. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
+   verified.
 5. A second experimental source for methane + propane, to test kij beyond one
    laboratory.
 
@@ -113,6 +113,18 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-09, desktop (v1.6.0 published; review of the finalize session):**
+  - Done: published v1.6.0 at `34ac3e5` (owner-approved; the fix for repeated
+    sweeps went in first). Independently checked the finalize session: the P9
+    caches give identical results serially and in 8 threads; a separate script
+    reproduces the volume-translation density errors; a real-browser walk of
+    every page shows no errors, and the public app runs current master.
+  - Fixed: the app said the first envelope takes "half a minute to a minute".
+    Timed from click to plot it takes 103 s on the public app and 115-162 s on
+    a laptop, so the note now says one to three minutes.
+  - Open PRs: 51 (release v1.7.0, owner), 47 (butanes draft, Table 5 values).
+  - Next: owner decides v1.7.0, P10 and P11 defaults.
 
 - **2026-11-08, web (release v1.7.0 prepared, not merged):**
   - Done: on fresh master (after PRs 43, 44, 46, 48, 49, 50) the full suite,
