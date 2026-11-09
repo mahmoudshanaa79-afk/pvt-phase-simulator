@@ -24,6 +24,10 @@ from pvt_phase_simulator.eos.pseudo_arclength import (
     PseudoArclengthSettings,
     trace_pseudo_arclength_branch,
 )
+from pvt_phase_simulator.experimental_validation import (
+    BUTANE_SYSTEMS,
+    butanes_admitted,
+)
 from pvt_phase_simulator.fluid_models import (
     ETHANE,
     METHANE,
@@ -57,6 +61,12 @@ from pvt_phase_simulator.plotting import (
 )
 
 VALIDATION_PATH = Path("docs/validation/module17_vle_validation.csv")
+# 40 methane-ethane and methane-propane points; the 36 butane points join the
+# record once the butanes are admitted (docs/BUTANES_ADMISSION_PLAN.md).
+_RECORDED_POINT_COUNT = 40 + (36 if butanes_admitted() else 0)
+_RECORDED_SYSTEMS = {"ch4_c2", "ch4_c3"} | (
+    set(BUTANE_SYSTEMS) if butanes_admitted() else set()
+)
 
 
 def _ch4_c3() -> FluidMixture:
@@ -323,8 +333,8 @@ class TestExperimentalValidationFigures:
     def test_canonical_artifact_loads_once_with_expected_count(
         self, validation_records
     ) -> None:
-        assert len(validation_records) == 40
-        assert {item.system_id for item in validation_records} == {"ch4_c2", "ch4_c3"}
+        assert len(validation_records) == _RECORDED_POINT_COUNT
+        assert {item.system_id for item in validation_records} == _RECORDED_SYSTEMS
 
     def test_parity_contains_only_production_predictions_and_dynamic_identity(
         self, validation_records
@@ -401,7 +411,7 @@ class TestExperimentalValidationFigures:
         before = frame.copy(deep=True)
         records = validation_plot_records_from_dataframe(frame)
         pd.testing.assert_frame_equal(frame, before)
-        assert len(records) == 40
+        assert len(records) == _RECORDED_POINT_COUNT
 
 
 class TestCriticalityAndCriticalSolverFigures:

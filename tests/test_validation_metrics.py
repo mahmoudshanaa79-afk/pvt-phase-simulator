@@ -11,6 +11,10 @@ from pathlib import Path
 
 import pytest
 
+from pvt_phase_simulator.experimental_validation import (
+    BUTANE_SYSTEMS,
+    REQUIRED_SYSTEMS,
+)
 from pvt_phase_simulator_validation import (
     METRIC_POLICY,
     Agreement,
@@ -579,7 +583,15 @@ def test_module17_all_fields_match_protected_summary_exactly(module_cases):
     )
     summary = aggregate_experimental_accuracy(module_cases)
     assert len(summary.accuracy_aggregates) == 8
-    for system in protected["systems"]:
+    # The adaptation covers the required methane-ethane and methane-propane
+    # source; admitted butane systems (their own data file) are summarized in
+    # the record only.
+    in_scope = [s for s in protected["systems"] if s["system_id"] in REQUIRED_SYSTEMS]
+    assert {s["system_id"] for s in protected["systems"]} - set(
+        REQUIRED_SYSTEMS
+    ) <= set(BUTANE_SYSTEMS)
+    assert [s["system_id"] for s in in_scope] == list(REQUIRED_SYSTEMS)
+    for system in in_scope:
         for direction, capability in [("bubble", C.BUBBLE_POINT), ("dew", C.DEW_POINT)]:
             group = tuple(
                 c

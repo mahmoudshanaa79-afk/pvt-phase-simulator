@@ -38,6 +38,7 @@ from pvt_phase_simulator.eos.saturation_pressure import (
     SaturationStatus,
     calculate_saturation_pressure,
 )
+from pvt_phase_simulator.experimental_validation import butanes_admitted
 from pvt_phase_simulator.fluid_models import (
     ETHANE,
     METHANE,
@@ -112,7 +113,7 @@ def test_default_database_loads_all_components_in_stable_order() -> None:
         "methane",
         "ethane",
         "propane",
-    )
+    ) + (("isobutane", "n_butane") if butanes_admitted() else ())
     assert database.records == load_component_database().records
 
 

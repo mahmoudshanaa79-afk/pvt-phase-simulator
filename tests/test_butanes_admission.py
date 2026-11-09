@@ -10,7 +10,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -46,10 +45,18 @@ def test_the_main_dataset_is_unchanged() -> None:
     assert len(dataset.points) == 40
 
 
-def test_butanes_are_not_admitted_on_this_branch() -> None:
-    # The verified-provenance gate keeps provisional rows out of the shared
-    # database; only the final step adds them.
-    assert butanes_admitted() is False
+def test_admission_state_is_consistent() -> None:
+    # On the draft branch nothing is admitted: the verified-provenance gate
+    # keeps provisional rows out of the shared database, and only the final
+    # step adds them. After the final step all three move together.
+    text = (ROOT / admit_butanes.RECORD).read_text(encoding="utf-8")
+    _, _, butane_rows = admit_butanes._rows_by_system(text)
+    database = (ROOT / admit_butanes.DATABASE_FILES[0]).read_text(encoding="utf-8")
+    in_database = {
+        row["component_id"] for row in csv.DictReader(io.StringIO(database))
+    } >= set(admit_butanes.COMPONENTS)
+    assert butanes_admitted() is in_database
+    assert len(butane_rows) == (36 if in_database else 0)
 
 
 def _provisional() -> dict:
@@ -76,6 +83,15 @@ def test_a_final_values_file_needs_who_read_it_and_the_original_source(
     path.write_text(json.dumps(values), encoding="utf-8")
     with pytest.raises(admit_butanes.AdmissionError, match="original_source"):
         admit_butanes.read_values(path, provisional=False)
+    for entry in values["components"].values():
+        entry["original_source_as_printed"] = "DIPPR"
+    path.write_text(json.dumps(values), encoding="utf-8")
+    with pytest.raises(admit_butanes.AdmissionError, match="expects REFPROP"):
+        admit_butanes.read_values(path, provisional=False)
+    for entry in values["components"].values():
+        entry["original_source_as_printed"] = "REFPROP"
+    path.write_text(json.dumps(values), encoding="utf-8")
+    assert admit_butanes.read_values(path, provisional=False)["status"] == "table5"
     values["components"]["isobutane"]["acentric_factor"] = -1
     path.write_text(json.dumps(values), encoding="utf-8")
     with pytest.raises(admit_butanes.AdmissionError, match="positive number"):
@@ -99,23 +115,28 @@ def test_provisional_rows_never_claim_verification() -> None:
 def test_final_rows_use_the_wording_the_provenance_gate_expects() -> None:
     values = _provisional() | {"read_by": "Owner", "read_on": "2026-11-09"}
     for entry in values["components"].values():
-        entry["original_source_as_printed"] = "NIST REFPROP 10.0"
+        entry["original_source_as_printed"] = "REFPROP"
     rows = admit_butanes.database_rows(values, provisional=False)
     for row in rows:
         assert row["source_status"] == "verified"
         assert row["property_source_identity"].startswith(
             "Yang & Richter (2025) Table 5; "
         )
-        assert (
-            "originally taken from NIST REFPROP 10.0" in row["property_source_identity"]
-        )
-        assert "no direct NIST REFPROP 10.0 query was made." in row["notes"]
+        assert "originally taken from REFPROP" in row["property_source_identity"]
+        assert "no direct REFPROP query was made." in row["notes"]
 
 
 def test_rows_append_once_and_keep_the_header(tmp_path: Path) -> None:
     target = tmp_path / "component_properties.csv"
-    shutil.copyfile(ROOT / admit_butanes.DATABASE_FILES[0], target)
-    before = target.read_text(encoding="utf-8")
+    # Start from the C1-C3 rows, whether or not the butanes are admitted.
+    source = (ROOT / admit_butanes.DATABASE_FILES[0]).read_text(encoding="utf-8")
+    lines = source.splitlines(keepends=True)
+    before = lines[0] + "".join(
+        line
+        for line in lines[1:]
+        if next(csv.reader([line]))[0] not in admit_butanes.COMPONENTS
+    )
+    target.write_text(before, encoding="utf-8", newline="")
     rows = admit_butanes.database_rows(_provisional(), provisional=True)
     admit_butanes.append_rows(target, rows)
     after = target.read_text(encoding="utf-8")
@@ -147,4 +168,4 @@ def test_the_committed_record_splits_into_c1_c3_rows_only() -> None:
     header, core, butanes = admit_butanes._rows_by_system(text)
     assert header.startswith("source_point_id,system_id,")
     assert len(core) == 40
-    assert butanes == []
+    assert len(butanes) == (36 if butanes_admitted() else 0)

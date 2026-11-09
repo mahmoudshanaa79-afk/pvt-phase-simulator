@@ -44,6 +44,14 @@ RETROSPECTIVE_DIAGNOSTIC_KIND = "RETROSPECTIVE_DIAGNOSTIC"
 
 _SOURCE_RELATIVE_PATH = Path("data/experimental/may_2015_ch4_c2_ch4_c3_vle.csv")
 _MANIFEST_RELATIVE_PATH = Path("data/experimental/may_2015_source_manifest.json")
+# Optional second data file (docs/BUTANES_ADMISSION_PLAN.md). Its rows can appear
+# in the record once the butanes are admitted; this adaptation keeps to the
+# methane-ethane and methane-propane source above and only proves that every
+# other record row belongs to the hash-verified butane data file.
+_BUTANE_SOURCE_RELATIVE_PATH = Path("data/experimental/may_2015_butanes_vle.csv")
+_BUTANE_MANIFEST_RELATIVE_PATH = Path(
+    "data/experimental/may_2015_butanes_manifest.json"
+)
 _RESULT_RELATIVE_PATH = Path("docs/validation/module17_vle_validation.csv")
 _SUMMARY_RELATIVE_PATH = Path("docs/validation/module17_vle_validation_summary.json")
 _CAPABILITIES = (
@@ -587,6 +595,28 @@ def _identity(
     )
 
 
+def _butane_source_ids(root: Path, legacy_by_id: dict[str, dict[str, str]]) -> set[str]:
+    """IDs of the hash-verified butane data file, if its rows match the record."""
+
+    manifest_path = root / _BUTANE_MANIFEST_RELATIVE_PATH
+    source_path = root / _BUTANE_SOURCE_RELATIVE_PATH
+    if not manifest_path.is_file() or not source_path.is_file():
+        return set()
+    manifest = _read_json_object(manifest_path)
+    verify_sha256(
+        source_path.read_bytes(),
+        _manifest_text(manifest["normalized_csv_sha256"], "normalized_csv_sha256"),
+    )
+    ids: set[str] = set()
+    for row in _read_csv_rows(source_path):
+        legacy_row = legacy_by_id.get(row["source_point_id"])
+        if legacy_row is None:
+            return set()
+        _reference_match(row, legacy_row)
+        ids.add(row["source_point_id"])
+    return ids
+
+
 def load_module17_validation_evidence(
     repository_root: str | Path,
 ) -> Module17Adaptation:
@@ -612,6 +642,15 @@ def load_module17_validation_evidence(
         )
     if len(legacy_by_id) != len(legacy_rows):
         raise ValueError("legacy evidence contains duplicate source_point_id values")
+    extra_ids = legacy_by_id.keys() - source_by_id.keys()
+    if extra_ids:
+        if extra_ids != _butane_source_ids(root, legacy_by_id):
+            raise ValueError(
+                "experimental and legacy evidence source_point_id sets differ"
+            )
+        legacy_by_id = {
+            key: row for key, row in legacy_by_id.items() if key in source_by_id
+        }
     if source_by_id.keys() != legacy_by_id.keys():
         raise ValueError("experimental and legacy evidence source_point_id sets differ")
 

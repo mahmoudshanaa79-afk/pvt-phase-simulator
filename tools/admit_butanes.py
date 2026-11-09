@@ -133,6 +133,17 @@ def read_values(path: Path, provisional: bool) -> dict[str, Any]:
                 )
         if not provisional and not entry.get("original_source_as_printed"):
             raise AdmissionError(f"{component_id} needs original_source_as_printed.")
+        if not provisional and entry["original_source_as_printed"] != "REFPROP":
+            # tests/test_component_database.py requires every verified row to
+            # say "originally taken from REFPROP", as the C1-C3 rows do. Another
+            # original source is an owner decision about that gate, not
+            # something this command may work around.
+            raise AdmissionError(
+                f"{component_id}: Table 5 names "
+                f"{entry['original_source_as_printed']!r} as the original source; "
+                "the verified-provenance test expects REFPROP. Ask the owner "
+                "before changing that test."
+            )
     return values
 
 

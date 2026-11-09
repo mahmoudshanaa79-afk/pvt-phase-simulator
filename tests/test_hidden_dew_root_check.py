@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from pvt_phase_simulator.experimental_validation import REQUIRED_SYSTEMS
 from pvt_phase_simulator.fluid_models import METHANE, FluidMixture, MixtureComponent
 from tools import run_hidden_dew_root_check as tool
 
@@ -45,6 +46,9 @@ def test_the_check_covers_exactly_the_hidden_root_states() -> None:
             row["source_point_id"]
             for row in csv.DictReader(stream)
             if "HIDDEN_SATURATION_ROOT" in json.loads(row["dew_diagnostic_codes"])
+            # The check covers the required systems; admitted butane systems
+            # get their own check (docs/BUTANES_ADMISSION_PLAN.md, step 6).
+            and row["system_id"] in REQUIRED_SYSTEMS
         }
     assert set(_rows()) == hidden
     assert set(P8_STATES) <= hidden
