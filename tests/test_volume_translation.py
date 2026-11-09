@@ -239,6 +239,14 @@ def test_the_app_option_is_off_by_default_and_display_only() -> None:
     assert view.VOLUME_TRANSLATION_CAPTION in [str(c.value) for c in app.caption]
     assert len(app.dataframe) == frames + 1
     assert repr(app.session_state["results"]["flash"]) == stored
+    # Visible when switched on: not inside a collapsed section of the page.
+    # (AppTest lists an expander that has an icon under ``status``.)
+    collapsed = [*app.main.expander, *app.main.status]
+    assert "Technical details" in [section.label for section in collapsed]
+    for section in collapsed:
+        assert "**Phase volumes with volume translation**" not in [
+            str(item.value) for item in section.markdown
+        ], section.label
 
     app = app.toggle(key=view.VOLUME_TRANSLATION_KEY).set_value(False).run()
     assert "**Phase volumes with volume translation**" not in _markdown(app)
