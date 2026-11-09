@@ -114,6 +114,14 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-09, desktop (volume translation table was hidden):**
+  - Done: flipping "Show volume-translated densities" changed nothing visible,
+    because the table sat inside the collapsed "Technical details" section.
+    AppTest reads collapsed content, so the tests passed. It now follows the
+    phase compositions on Overview; an AppTest check (which fails on the old
+    code) and a browser step guard it.
+  - Next: merge master into PR 51; the owner decides v1.7.0.
+
 - **2026-11-09, desktop (v1.6.0 published; review of the finalize session):**
   - Done: published v1.6.0 at `34ac3e5` (owner-approved; the fix for repeated
     sweeps went in first). Independently checked the finalize session: the P9

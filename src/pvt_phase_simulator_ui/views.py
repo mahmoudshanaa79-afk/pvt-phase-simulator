@@ -638,7 +638,6 @@ def _flash_details(result: TwoPhaseFlashResult) -> None:
             )
     if phase_rows:
         st.dataframe(pd.DataFrame(phase_rows), hide_index=True, width="stretch")
-    render_translated_volumes(result)
 
 
 @st.cache_data(show_spinner=False, max_entries=1)
@@ -814,6 +813,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         )
     st.subheader("Source-provided phase compositions")
     _composition_table(result)
+    render_translated_volumes(result)
     envelope = cast(PhaseEnvelopeResult | None, get_result(session(), "envelope"))
     if result_is_stale(session(), "envelope", inputs):
         envelope = None

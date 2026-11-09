@@ -257,6 +257,16 @@ def test_primary_workflows_do_not_crash_in_a_real_browser(
     _assert_healthy_ui(page)
     _screenshot(page, evidence_directory, "02-overview-flash")
 
+    # The optional volume-translation table must be visible once switched on.
+    translated = page.get_by_text("Phase volumes with volume translation", exact=True)
+    expect(translated).to_have_count(0)
+    page.get_by_text("Advanced: volume translation", exact=False).click()
+    page.get_by_text("Show volume-translated densities", exact=True).click()
+    expect(translated).to_be_visible()
+    _assert_healthy_ui(page)
+    page.get_by_text("Show volume-translated densities", exact=True).click()
+    expect(translated).to_have_count(0)
+
     _open_page(page, "Phase Envelope", "Phase envelope")
     _click_button(page, "RUN PHASE ENVELOPE")
     page.get_by_text("Envelope trace complete", exact=False).wait_for(timeout=180_000)
