@@ -9,9 +9,11 @@ values: see `docs/investigations/butanes_admission_dry_run.md`. Still needed:
 1. The six Yang & Richter (2025) Table 5 values: T_c, p_c and ω for
    n-butane and isobutane (doi:10.1021/acs.jced.5c00110), entered in
    `data/butanes_table5_values.json`.
-2. The consumer changes listed in the dry-run note (validation adapter,
-   report, plots, kij study, expected component lists), so that the suite is
-   green after admission.
+2. Nothing else: the consumer changes listed in the dry-run note are made on
+   the branch, and after the final step the suite is expected to pass. If
+   Table 5 names an original source other than REFPROP, the command stops,
+   because the verified-provenance test expects REFPROP; that is the owner's
+   decision.
 
 The sections below are the original plan. Every step is written so it can be done
 mechanically once the values and the approval arrive. The evidence for adding

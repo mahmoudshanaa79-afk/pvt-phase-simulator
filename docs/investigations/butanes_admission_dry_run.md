@@ -70,20 +70,30 @@ This matches the known dew behaviour of the C1–C3 systems
 
 ## Test suite after admission (in the copy)
 
-`uv run pytest -q -n auto` in the admitted copy: 1791 passed, 20 failed and
-22 errors. Most of them are expected, because several consumers assume a
-single data file and two systems:
+First run (8 November): 1791 passed, 20 failed and 22 errors. Several
+consumers assumed a single data file and two systems. They were changed on
+this branch (9 November) so that they work both before and after admission:
 
-| Group | Tests | Cause | What the final step still needs |
-|---|---|---|---|
-| Provenance gate | `test_every_property_exposes_exact_verified_source_provenance` | provisional rows are not verified | none: the final run writes verified Table 5 rows and extends the test's source tables |
-| Component list | `test_default_database_loads_all_components_in_stable_order`, `test_model_scope_reads_recorded_component_and_validation_provenance` | the expected component list has three names | add the two butanes to the expected lists |
-| Validation adapter and report | 9 in `test_validation_module17_adapter.py`, 22 errors and 1 failure in `test_validation_report.py` and `test_validation_metrics.py` | `pvt_phase_simulator_validation/module17_adapter.py` reads one manifest and requires the record's point IDs to equal that file's | let the adapter read the second dataset and manifest when the butanes are admitted, with its own provenance block |
-| Point counts | 2 in `test_experimental_validation.py`, 2 in `test_plotting.py` | the tests load only the main dataset (40 points; the record now has 76) | load both datasets when admitted |
-| Hidden dew roots | `test_the_check_covers_exactly_the_hidden_root_states` | the butane dew states join the hidden-root set | rerun `tools/run_hidden_dew_root_check.py` with butane entries (plan step 6) |
-| kij study report | `test_the_report_renders_from_the_committed_files` | a butane system with no dew results gives `None` metrics that the report formats as numbers | render undefined metrics as "undefined" |
+| Consumer | Change |
+|---|---|
+| `pvt_phase_simulator_validation/module17_adapter.py` | Keeps to the required C1–C3 source. Any other record rows must all belong to the hash-verified butane data file and match it exactly, or the adapter refuses as before. |
+| Point, system and component counts in the tests | Follow `butanes_admitted()`: 40 or 76 points, 2 or 4 systems, 3 or 5 database components. |
+| `tests/test_validation_metrics.py` summary check | Compares the required systems, and proves that every other system is a butane system. |
+| `tools/kij_study_report.py` reproduction table | Stays on the required systems; the study ran the butanes only on provisional constants. |
+| `tests/test_hidden_dew_root_check.py` | Stays on the required systems; a butane check is plan step 6. |
+| `tests/test_experimental_validation.py` | Accounts for both data files; a system with no converged state must report undefined (None) metrics, not 0. |
 
-So the command does its job (rows, record, identity, pins), but **a fully green
-suite after admission needs the consumer changes in the right-hand column
-first**. They can be built and tested on the provisional values in a later
-session, on this same draft branch.
+Second dry run (9 November, fresh copy of the branch): same result hashes as
+the first, and the full suite in the admitted copy gave **1860 passed, 1
+failed**. The one failure is the expected
+`test_every_property_exposes_exact_verified_source_provenance`, because
+provisional rows are not verified.
+
+**Mechanics check of the final mode** (throwaway copy, placeholder values,
+nothing committed). The rows `tools/admit_butanes.py` writes in final mode,
+with `original_source_as_printed` = `REFPROP`, plus its extension of the
+test's source tables, make that test pass. The command now refuses any other
+original source. The test expects "originally taken from REFPROP", like the
+C1–C3 rows, and changing that expectation is the owner's decision.
+
+On the branch itself, with nothing admitted, the full suite passes (1861).
