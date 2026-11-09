@@ -16,8 +16,11 @@ import pytest
 
 from pvt_phase_simulator.experimental_validation import (
     NORMALIZED_FIELDS,
+    REQUIRED_SYSTEMS,
     RESULT_FIELDS,
     ExperimentalVLEDataset,
+    ExperimentalVLEPoint,
+    butanes_admitted,
     load_experimental_vle_dataset,
     validate_experimental_dataset,
     validation_results_to_csv,
@@ -29,10 +32,24 @@ DATA_PATH = ROOT / "data/experimental/may_2015_ch4_c2_ch4_c3_vle.csv"
 MANIFEST_PATH = ROOT / "data/experimental/may_2015_source_manifest.json"
 RESULT_PATH = ROOT / "docs/validation/module17_vle_validation.csv"
 SUMMARY_PATH = ROOT / "docs/validation/module17_vle_validation_summary.json"
+BUTANE_DATA_PATH = ROOT / "data/experimental/may_2015_butanes_vle.csv"
+BUTANE_MANIFEST_PATH = ROOT / "data/experimental/may_2015_butanes_manifest.json"
 
 
 def _dataset() -> ExperimentalVLEDataset:
     return load_experimental_vle_dataset(DATA_PATH, MANIFEST_PATH)
+
+
+def _recorded_points() -> tuple[ExperimentalVLEPoint, ...]:
+    """Every point the record must hold: the main data file, plus the butane
+    data file once the butanes are admitted (docs/BUTANES_ADMISSION_PLAN.md)."""
+
+    points = _dataset().points
+    if butanes_admitted():
+        points += load_experimental_vle_dataset(
+            BUTANE_DATA_PATH, BUTANE_MANIFEST_PATH
+        ).points
+    return points
 
 
 def _result_rows() -> list[dict[str, str]]:
@@ -244,14 +261,14 @@ def test_extractor_rejects_ambiguous_and_unpairable_points(
 
 
 def test_result_artifact_accounts_for_every_point_and_metrics_are_reproducible():
-    dataset = _dataset()
+    points = _recorded_points()
     with RESULT_PATH.open(newline="", encoding="utf-8") as stream:
         reader = csv.DictReader(stream)
         assert tuple(reader.fieldnames or ()) == RESULT_FIELDS
         rows = list(reader)
-    assert len(rows) == len(dataset.points)
+    assert len(rows) == len(points)
     assert {row["source_point_id"] for row in rows} == {
-        point.source_point_id for point in dataset.points
+        point.source_point_id for point in points
     }
     summary = json.loads(SUMMARY_PATH.read_text(encoding="utf-8"))
     for system_summary in summary["systems"]:
@@ -269,6 +286,11 @@ def test_result_artifact_accounts_for_every_point_and_metrics_are_reproducible()
             assert metrics["source_count"] == len(system_rows)
             assert metrics["success_count"] == len(successful)
             assert metrics["failure_count"] == len(system_rows) - len(successful)
+            if not relative_errors:
+                # No converged state (the butane dew states): undefined, not 0.
+                assert metrics["pressure_aard_percent"] is None
+                assert metrics["pressure_rms_relative_percent"] is None
+                continue
             assert metrics["pressure_aard_percent"] == pytest.approx(
                 100.0 * fsum(map(abs, relative_errors)) / len(relative_errors)
             )
@@ -330,6 +352,7 @@ def test_branch_artifact_reproduces_root_and_failure_accounting() -> None:
         row["source_point_id"]
         for row in rows
         if row["dew_failure_classification"] == "NO_PR_ROOT_FOUND_IN_DIAGNOSTIC_SCAN"
+        and row["system_id"] in REQUIRED_SYSTEMS
     }
     assert no_root_ids == {"may2015_ch4_c3_020", "may2015_ch4_c3_021"}
     c2_failed = [

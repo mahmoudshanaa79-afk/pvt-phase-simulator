@@ -114,6 +114,19 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-09, web (butanes DRAFT, owner approval B, not merged):**
+  - Done: draft PR "Butanes: DRAFT, do not merge until Table 5 values
+    arrive". Second data file and manifest (36 May 2015 points), optional
+    butane systems, and `tools/admit_butanes.py`, the one final-step
+    command. Consumers (validation adapter, kij report, count tests) now work
+    before and after admission. Dry run on provisional CoolProp values: C1-C3
+    rows byte-identical to master, golden master unchanged. Suite after
+    admission: 1860 passed; the only failure is the provenance gate for
+    provisional rows, which final-mode rows pass. Provisional bubble AARD
+    3.45 % (C1+iC4) and 3.56 % (C1+nC4); all 36 dew states stop with the
+    engine's own reason. See `docs/investigations/butanes_admission_dry_run.md`.
+  - Next: the owner enters the Table 5 values and runs the final step.
+
 - **2026-11-09, desktop (volume translation table was hidden):**
   - Done: flipping "Show volume-translated densities" changed nothing visible,
     because the table sat inside the collapsed "Technical details" section.

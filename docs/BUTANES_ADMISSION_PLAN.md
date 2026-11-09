@@ -1,12 +1,21 @@
 # Butanes admission plan (isobutane and n-butane)
 
-**Status: plan only, waiting for two things from the owner.**
+**Status (8 November 2026): prepared on the draft branch `admit-butanes`,
+not merged.** With the owner's approval B, steps 1 to 4 have been built as a
+second data file, optional butane systems and one final-step command
+(`tools/admit_butanes.py`). The command was dry-run on provisional CoolProp
+values: see `docs/investigations/butanes_admission_dry_run.md`. Still needed:
 
 1. The six Yang & Richter (2025) Table 5 values: T_c, p_c and ω for
-   n-butane and isobutane (doi:10.1021/acs.jced.5c00110).
-2. Approval to edit the frozen paths listed in step 1 to step 4 below.
+   n-butane and isobutane (doi:10.1021/acs.jced.5c00110), entered in
+   `data/butanes_table5_values.json`.
+2. Nothing else: the consumer changes listed in the dry-run note are made on
+   the branch, and after the final step the suite is expected to pass. If
+   Table 5 names an original source other than REFPROP, the command stops,
+   because the verified-provenance test expects REFPROP; that is the owner's
+   decision.
 
-Nothing in this plan has been applied. Every step is written so it can be done
+The sections below are the original plan. Every step is written so it can be done
 mechanically once the values and the approval arrive. The evidence for adding
 the butanes is in `docs/NEW_COMPONENTS_PROPOSAL.md`. Its butane preview ran on
 provisional CoolProp constants and on the solver before P7 and P8, so all of its

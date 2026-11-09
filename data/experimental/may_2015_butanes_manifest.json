@@ -1,0 +1,72 @@
+{
+  "source_id": "may_et_al_2015_thermoml_butanes",
+  "citation": "E. F. May, J. Y. Guo, J. H. Oakley, T. J. Hughes, B. F. Graham, K. N. Marsh, and S. H. Huang, Reference Quality Vapor-Liquid Equilibrium Data for the Binary Systems Methane + Ethane, + Propane, + Butane and, + 2-Methylpropane, at Temperatures from (203 to 273) K and Pressures to 9 MPa, J. Chem. Eng. Data 2015, 60(12), 3606-3620.",
+  "doi": "10.1021/acs.jced.5b00610",
+  "archive_name": "NIST ThermoML",
+  "thermoml_page_url": "https://trc.nist.gov/ThermoML/10.1021/acs.jced.5b00610.html",
+  "thermoml_json_url": "https://trc.nist.gov/ThermoML/10.1021/acs.jced.5b00610.json",
+  "access_date": "2026-08-22",
+  "raw_json_sha256": "77630E90DB70BB6AABFDFA520F61F14CEE5076ECE0265754140A25F771659662",
+  "raw_snapshot_retained": false,
+  "raw_snapshot_policy": "The NIST JSON was inspected and hashed but is not redistributed because the archive page does not state a redistribution license. The normalized numerical facts, exact URL and SHA-256, pairing provenance, and deterministic extractor are retained. Ordinary validation is fully offline.",
+  "pressure_measurement_method": "Closed cell (Static) method",
+  "vapor_composition_measurement_method": "Chromatography",
+  "confidence_level_percent": 95.0,
+  "source_pressure_unit": "kPa",
+  "canonical_pressure_unit": "Pa",
+  "pressure_conversion": "1 kPa = 1000 Pa",
+  "normalized_csv_sha256": "1FBC16D977DE21254FF33667689C7ED51158072B681343BB31A8E10EC1D70450",
+  "normalized_point_counts": {
+    "ch4_ic4": 17,
+    "ch4_nc4": 19
+  },
+  "thermoml_compound_mapping": [
+    {
+      "thermoml_number": 1,
+      "name": "methane",
+      "formula": "CH4",
+      "inchikey": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+      "cas_available_in_thermoml": false,
+      "production_cross_reference_cas": "74-82-8"
+    },
+    {
+      "thermoml_number": 4,
+      "name": "2-methylpropane",
+      "formula": "C4H10",
+      "inchikey": "NNPPMTNAJDCUHE-UHFFFAOYSA-N",
+      "cas_available_in_thermoml": false,
+      "production_cross_reference_cas": "75-28-5"
+    },
+    {
+      "thermoml_number": 5,
+      "name": "butane",
+      "formula": "C4H10",
+      "inchikey": "IJDNQMDRQITEOD-UHFFFAOYSA-N",
+      "cas_available_in_thermoml": false,
+      "production_cross_reference_cas": "106-97-8"
+    }
+  ],
+  "selected_datasets": [
+    {
+      "system_id": "ch4_ic4",
+      "pressure_dataset_number": 5,
+      "vapor_dataset_number": 6,
+      "point_count": 17,
+      "source_row_count": 18
+    },
+    {
+      "system_id": "ch4_nc4",
+      "pressure_dataset_number": 7,
+      "vapor_dataset_number": 8,
+      "point_count": 19,
+      "source_row_count": 20
+    }
+  ],
+  "skipped_identical_repeats": {
+    "policy": "Each butane binary lists one measurement twice, identical in T, x, P and y; the extractor's skip_identical_duplicates keeps the first copy. A repeated key with any differing value is still rejected.",
+    "ch4_ic4": "243.6 K, x_CH4 = 0.5523",
+    "ch4_nc4": "244.52 K, x_CH4 = 0.4601"
+  },
+  "extraction": "Rows extracted by tools/extract_may_2015_thermoml.py (BUTANE_SYSTEMS, BUTANE_COMPOUNDS, skip_identical_duplicates=True) from the NIST ThermoML JSON whose SHA-256 matched raw_json_sha256, on 1 November 2026 (PR 27, docs/investigations/butane_preview_points.csv, byte-identical). Re-extract with: uv run python tools/extract_may_2015_thermoml.py --input RECORD.json --output data/experimental/may_2015_butanes_vle.csv --butanes",
+  "status": "Validation data only; the butane components are admitted once verified Yang & Richter (2025) Table 5 constants are entered (docs/BUTANES_ADMISSION_PLAN.md)."
+}

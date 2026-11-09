@@ -17,6 +17,7 @@ from streamlit.testing.v1 import AppTest
 import pvt_phase_simulator_ui
 import pvt_phase_simulator_ui.styles
 from pvt_phase_simulator.eos.flash import FlashConvergenceStatus
+from pvt_phase_simulator.experimental_validation import butanes_admitted
 from pvt_phase_simulator_ui import app as ui_app
 from pvt_phase_simulator_ui import views
 from pvt_phase_simulator_ui.adapters import (
@@ -268,14 +269,19 @@ def test_overview_exposes_repository_backed_model_and_limitations_panel() -> Non
 def test_model_scope_reads_recorded_component_and_validation_provenance() -> None:
     scope = load_model_scope(ROOT)
 
+    # The butanes are admitted for validation only (plan option b): they join
+    # the validation record, not the app's calculation components.
+    admitted = butanes_admitted()
     assert scope.verified_component_names == ("Methane", "Ethane", "Propane")
-    assert scope.validation_state_count == 40
+    assert scope.validation_state_count == (76 if admitted else 40)
     assert scope.validation_system_names == (
         "Methane + Ethane",
         "Methane + Propane",
-    )
+    ) + (("Methane + Isobutane", "Methane + n-Butane") if admitted else ())
     assert scope.validation_temperature_range_k == (203.22, 283.38)
-    assert scope.validation_pressure_range_mpa == (0.891, 8.32)
+    assert scope.validation_pressure_range_mpa == (
+        (0.891, 10.132) if admitted else (0.891, 8.32)
+    )
     assert {source.doi for source in scope.property_sources} == {
         "10.1021/acs.jced.5c00110"
     }

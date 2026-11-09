@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from pvt_phase_simulator.experimental_validation import REQUIRED_SYSTEMS
 from tools import kij_study_text as text
 
 SUMMARY_FILE = "docs/investigations/kij_study.csv"
@@ -197,6 +198,10 @@ def reproduction_table(rows: list[dict[str, str]], module17: dict[str, Any]) -> 
     ]
     for system in module17["systems"]:
         system_id = system["system_id"]
+        if system_id not in REQUIRED_SYSTEMS:
+            # Admitted butane systems: the study ran them only on provisional
+            # constants, so there is no production run to reproduce.
+            continue
         for kind in ("bubble", "dew"):
             record = system[f"production_selected_{kind}_metrics"]
             study = row_for(rows, system_id, 0.0, kind)
