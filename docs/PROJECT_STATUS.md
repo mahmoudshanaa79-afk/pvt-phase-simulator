@@ -114,6 +114,18 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-09, desktop (v1.6.0 published; review of the finalize session):**
+  - Done: published v1.6.0 at `34ac3e5` (owner-approved; the fix for repeated
+    sweeps went in first). Independently checked the finalize session: the P9
+    caches give identical results serially and in 8 threads; a separate script
+    reproduces the volume-translation density errors; a real-browser walk of
+    every page shows no errors, and the public app runs current master.
+  - Fixed: the app said the first envelope takes "half a minute to a minute".
+    Timed from click to plot it takes 103 s on the public app and 115-162 s on
+    a laptop, so the note now says one to three minutes.
+  - Open PRs: 51 (release v1.7.0, owner), 47 (butanes draft, Table 5 values).
+  - Next: owner decides v1.7.0, P10 and P11 defaults.
+
 - **2026-11-08, web (CO2/N2 plan, owner approval D, docs only):**
   - Done: `docs/CO2_N2_ADMISSION_PLAN.md`: why CO2 and N2 are harder (kij,
     solid CO2, supercritical N2), property sources, provisional CoolProp
