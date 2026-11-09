@@ -152,3 +152,17 @@ is shared and slower, so it will take longer there. The remaining time is the
 cubic-root arithmetic itself, which P9 does not change. Two further speed-ups
 that would change recorded results were measured on a scratch copy and are
 written up as **P10** in `docs/ENGINE_CHANGE_PROPOSALS.md` for the owner.
+
+### What users actually wait (desktop session, 9 November 2026)
+
+The table above is one fast machine. Timed in real Chromium from the click until
+the plot appears, on a fresh case (not in the cache), with P9 applied:
+
+| Where | Case | First envelope |
+|---|---|---:|
+| Public app (Streamlit Community Cloud) | 50/50 C1/C3, 303 K, 5 MPa | 103 s |
+| Windows laptop, local app | 50/50 C1/C3, 300 K, 5 MPa | 115 s (to the "complete" line; the plot follows about 5 s later) |
+| Windows laptop, local app | 50/50 C1/C3, 301 K, 5 MPa | 162 s |
+
+These are single runs. The app's note therefore says "about one to three
+minutes". Opening the public app after it has gone to sleep adds about 47 s.

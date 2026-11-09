@@ -390,8 +390,8 @@ START_HERE: Final = (
 #: docs/investigations/app_performance_after_p9.csv), longer on a shared server.
 #: tests/test_app_usability.py checks the note against that file.
 ENVELOPE_TIME_NOTE: Final = (
-    "The first run of a case takes about half a minute to a minute (longer on a "
-    "busy shared server); running the same case again is answered from the cache "
+    "The first run of a case takes about one to three minutes, depending on how "
+    "busy the server is; running the same case again is answered from the cache "
     "at once."
 )
 

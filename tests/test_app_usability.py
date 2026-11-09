@@ -290,8 +290,8 @@ def test_every_download_name_uses_the_openphase_prefix() -> None:
 
 
 def test_the_envelope_time_note_matches_the_measured_first_run() -> None:
-    """The note says "about half a minute to a minute"; the committed profile
-    (median of 3 runs per shipped example) must support that."""
+    """The committed profile (median of 3 runs per shipped example) stays the
+    fast end of what the note says; slower machines set its upper end."""
 
     import csv
 
@@ -305,5 +305,7 @@ def test_the_envelope_time_note_matches_the_measured_first_run() -> None:
         ]
     assert len(first_runs) == 3
     assert all(20.0 <= seconds <= 60.0 for seconds in first_runs), first_runs
-    assert "about half a minute to a minute" in views.ENVELOPE_TIME_NOTE
+    # The note quotes what users wait for on the public server and a laptop
+    # (103 s and 115-160 s, app_performance.md), not the faster profiling machine.
+    assert "about one to three minutes" in views.ENVELOPE_TIME_NOTE
     assert "few minutes" not in views.ENVELOPE_TIME_NOTE
