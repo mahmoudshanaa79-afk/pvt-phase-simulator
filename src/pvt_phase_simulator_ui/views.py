@@ -130,6 +130,7 @@ from pvt_phase_simulator_ui.units import (
     temperature_from_k,
 )
 from pvt_phase_simulator_ui.validation_evidence import render_further_evidence
+from pvt_phase_simulator_ui.volume_translation_view import render_translated_volumes
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGGER = logging.getLogger(__name__)
@@ -389,8 +390,8 @@ START_HERE: Final = (
 #: docs/investigations/app_performance_after_p9.csv), longer on a shared server.
 #: tests/test_app_usability.py checks the note against that file.
 ENVELOPE_TIME_NOTE: Final = (
-    "The first run of a case takes about half a minute to a minute (longer on a "
-    "busy shared server); running the same case again is answered from the cache "
+    "The first run of a case takes about one to three minutes, depending on how "
+    "busy the server is; running the same case again is answered from the cache "
     "at once."
 )
 
@@ -812,6 +813,7 @@ def render_overview(inputs: ScientificInputs | None) -> None:
         )
     st.subheader("Source-provided phase compositions")
     _composition_table(result)
+    render_translated_volumes(result)
     envelope = cast(PhaseEnvelopeResult | None, get_result(session(), "envelope"))
     if result_is_stale(session(), "envelope", inputs):
         envelope = None

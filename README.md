@@ -1,340 +1,162 @@
 # OpenPhase
 
-*An open phase-behavior simulator, built on the Peng–Robinson equation of state.*
+*An open phase-behaviour simulator built on the Peng–Robinson equation of state.*
 
-OpenPhase (distribution name `pvt-phase-simulator`) is a Python 3.12 educational and portfolio project for
-building auditable petroleum-fluid thermodynamics calculations. The current
-work implements the Peng–Robinson equation of state for pure fluids,
-fixed-composition mixtures, phase-stability trials, a stability-gated
-two-phase flash foundation, fixed-temperature saturation pressures, and
-natural-temperature phase-envelope branch continuation, an opt-in
-pseudo-arclength continuation mode with turning-point diagnostics, local
-mixture-criticality derivatives, and a safeguarded fixed-composition mixture
-critical-point solver. It
-emphasizes explicit units, immutable inputs, traceable assumptions, numerical
-conditioning, and independently specified
-regression cases.
+OpenPhase (repository and distribution name `pvt-phase-simulator`) calculates
+the phase behaviour of light-hydrocarbon mixtures. It is an educational and
+portfolio project: every result states its status and the engine's own reason,
+and every number shown to students is recomputed from the engine by a test.
 
-Where the project stands, what is waiting on a decision, and what comes next:
-[`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+- **Public app:** <https://pvt-phase-simulator-wpykmumyxwefbv3prht7gv.streamlit.app/>
+  (Streamlit Community Cloud, served from `master`; it can take a minute to
+  wake up).
+- **Where the project stands:** [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+- **How to use the app:** [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
+- **All documentation:** [`docs/README.md`](docs/README.md).
+- **Changes by version:** [`CHANGELOG.md`](CHANGELOG.md).
 
-## Implemented functionality
+## What OpenPhase is
 
-- Pure-component Peng–Robinson parameters: reduced temperature, kappa, alpha,
-  `a`, `b`, `A`, and `B`.
-- Scale-aware solution and validation of the Peng–Robinson compressibility
-  cubic, including conditioned handling of near-repeated roots.
-- Local mechanical classification of roots as stable, unstable, or marginal.
-- Pure-fluid fugacity coefficients and lowest-fugacity stable-root selection.
-- Immutable fixed-composition fluid mixtures.
-- Classical quadratic attraction and linear co-volume mixing rules.
-- Symmetric binary interaction coefficients with explicit missing-data policy.
-- Component fugacity coefficients at an already selected genuine mixture root.
-- Non-blocking numerical-conditioning, model-applicability, and data-quality
-  diagnostics.
-- A shifted `w = Z - 1` formulation for accurate low-pressure fugacity.
-- A Michelsen-style, two-trial tangent-plane-distance stability-analysis
-  foundation with Wilson initialization, conditional deterministic fallback,
-  and explicit inconclusive outcomes.
-- A stability-gated isothermal-isobaric two-phase flash with bracketed
-  Rachford–Rice solution, PR fugacity-ratio updates, material-balance checks,
-  and immutable iteration history.
-- Fixed-temperature bubble- and dew-pressure solvers with Wilson search
-  estimates, self-consistent incipient compositions, logarithmic pressure
-  bracketing, explicit PR root policies, and immutable failure evidence.
-- Fixed-composition bubble/dew branch tracing with continuation-seeded log-K
-  correction, secant prediction, adaptive temperature steps, local pressure
-  searches, branch-identity checks, and near-critical warning termination.
-- Opt-in pseudo-arclength bubble/dew continuation using a dimensionless
-  composition/`ln(P)`/`ln(T)` state, SVD tangents, a safeguarded augmented
-  Newton corrector, adaptive arclength steps, and geometric turning indicators.
-- Local mixture-criticality derivative analysis using orthonormal
-  composition-tangent Gibbs curvature, a unique soft eigenmode, and a
-  safeguarded fixed-direction cubic derivative. This evaluates specified
-  states; it does not locate critical points.
-- A fixed-composition mixture critical-point solver in `ln(T)`/`ln(P)` using
-  signed Gibbs soft-mode residuals, numerically converged and root-branch-
-  continuous Richardson Jacobians, bounded Newton steps, backtracking, and
-  fresh final certification.
-- Reusable Plotly visualizations for phase envelopes, phase compositions,
-  pseudo-arclength traces, experimental validation, criticality residuals, and
-  nonlinear-solver diagnostics, with explicit status and unit semantics.
-- Experimental validation against 40 reference-quality methane/ethane and
-  methane/propane VLE states, including explicit solver-coverage and
-  multiple-dew-branch diagnostics with no fitting.
+- A Peng–Robinson model with classical mixing rules for **methane, ethane and
+  propane**, whose critical constants and acentric factors are verified
+  against Yang & Richter (2025), doi:10.1021/acs.jced.5c00110.
+- Phase-stability tests (tangent-plane distance), a two-phase flash, bubble
+  and dew pressures, phase-envelope tracing (with an optional extension
+  towards the critical region) and a certified mixture critical-point solver.
+- Compared, without any fitting, with 40 measured methane + ethane and
+  methane + propane states from May et al. (2015).
+- A Streamlit app with a Learn mode and four teaching labs.
 
-The equations and their implementation mapping are documented in
-[`docs/EQUATIONS.md`](docs/EQUATIONS.md).
-The first experimental comparison and its limitations are documented in
-[`docs/EXPERIMENTAL_VALIDATION.md`](docs/EXPERIMENTAL_VALIDATION.md).
-A follow-up investigation in [`docs/DEW_INVESTIGATION.md`](docs/DEW_INVESTIGATION.md)
-finds that most of the CH4+C3 dew-pressure error comes from an ill-posed dew
-question near PR's maximum vapour composition, not from model error. It also
-traces early `phase_role_lost` envelope stops to the cubic root-count continuity
-rule. No engine change has been made.
+## What OpenPhase is not
 
-## Streamlit application
+- **Not commercial PVT software**, and not a substitute for engineering
+  review.
+- Not a reservoir-fluid characterisation tool: no C7+ or pseudo-components,
+  no CCE/CVD, separators or depletion, and no EOS tuning.
+- Not a three-phase or multiphase flash.
+- Not a density tool. Plain PR saturated-liquid densities are off by up to about 13 %.
+  An optional, display-only volume translation narrows the average error for
+  pure saturated liquids, but no mixture density has been validated
+  ([`docs/VOLUME_TRANSLATION.md`](docs/VOLUME_TRANSLATION.md)).
 
-An optional Streamlit frontend now provides Overview, Phase Envelope, Critical
-Point, Engineering Sweeps, Validation, and Diagnostics views for the verified
-methane, ethane, and propane scope. It calls the existing scientific APIs and
-Module 21 Plotly figures without changing the v1.0 engine.
+## Quick start
 
-```powershell
+You need Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
+
+```bash
+uv sync --locked
+```
+
+```bash
 uv run streamlit run streamlit_app.py
 ```
 
-The UI is installed as the separate `pvt_phase_simulator_ui` package. The
-compatibility command `uv run streamlit run app/streamlit_app.py` also works
-from a clean shell without `PYTHONPATH` configuration.
+The app opens in your browser. Pick an example in the sidebar, press
+**RUN FLASH**, then open the other pages. The
+[user guide](docs/USER_GUIDE.md) walks through each one.
 
-Prerequisites are Python 3.12 or newer and [uv](https://docs.astral.sh/uv/); no
-other tooling, service, or account is required. `uv sync --locked` installs the
-exact dependency graph recorded in `uv.lock`.
+## App pages
 
-For a bounded localhost startup and HTTP health check, run:
+| Page | What it does |
+|---|---|
+| Overview | The flash result for the submitted case: phases, fractions, compositions, model scope, downloads |
+| Phase Envelope | Bubble and dew curves, the optional extended trace towards the critical region, and the operating point |
+| Critical Point | The certified critical-point solver and a criticality map |
+| Engineering Sweeps | Flash results over a pressure or temperature range; failed points stay failed |
+| Validation | The protected comparison with measured data, plus further evidence tabs |
+| Diagnostics | Solver codes and engine messages in plain language |
 
-```powershell
-uv run python tools/streamlit_smoke.py
+The sidebar also holds **Learn mode** (explanations and "Try this"
+exercises), **Save or load case**, and the collapsed **Advanced: binary
+interaction (kij)** inputs. kij = 0 unless you set a value; a non-zero kij is
+labelled as user-supplied in every result and export. The collapsed
+**Advanced: volume translation (Péneloux)** switch, off by default, adds
+translated phase volumes and densities to Overview without changing any
+result.
+
+## Teaching labs
+
+- [Lab 1: methane–propane phase behaviour](docs/teaching/LAB_01_METHANE_PROPANE.md)
+- [Lab 2: methane–ethane bubble pressures and the P–x–y diagram](docs/teaching/LAB_02_METHANE_ETHANE.md)
+- [Lab 3: how composition moves the phase envelope](docs/teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
+- [Lab 4: what kij does](docs/teaching/LAB_04_BINARY_INTERACTION.md)
+
+## Evidence
+
+From the protected validation record
+([`docs/EXPERIMENTAL_VALIDATION.md`](docs/EXPERIMENTAL_VALIDATION.md)),
+at kij = 0:
+
+| System | Bubble pressure | Unique dew pressure found |
+|---|---|---|
+| methane + ethane | 1.02 % AARD, 17 of 17 states | 8 of 17 states |
+| methane + propane | 1.01 % AARD, 23 of 23 states | 1 of 23 states |
+
+Most dew failures are not solver crashes. At those states PR itself has two
+dew pressures, and the engine reports *inconclusive* instead of picking one
+([`docs/DEW_INVESTIGATION.md`](docs/DEW_INVESTIGATION.md)). Further evidence:
+
+- the kij study: [`docs/investigations/kij_study.md`](docs/investigations/kij_study.md);
+- a pure-component check against reference equations of state:
+  [`docs/PURE_COMPONENT_SATURATION.md`](docs/PURE_COMPONENT_SATURATION.md);
+- the equations and where each is implemented:
+  [`docs/EQUATIONS.md`](docs/EQUATIONS.md).
+
+## Known limits
+
+- **One experimental source.** Every validation state comes from May et al.
+  (2015).
+- **Dew pressures** are often not unique in PR near the maximum vapour
+  composition. The app then reports none, by design.
+- **Three components only.** Isobutane and n-butane are prepared on a draft
+  branch but wait for the owner's check of the published constants
+  ([`docs/BUTANES_ADMISSION_PLAN.md`](docs/BUTANES_ADMISSION_PLAN.md)).
+- **Near a critical point**, the stability test can wrongly call a state
+  stable. Treat near-critical classifications with caution.
+- **The first phase envelope of a case is slow** (the page states the expected
+  time). Running the same case again is answered from a cache.
+- The extended envelope can stop early. When it does, it shows the engine's
+  reason and the envelope is not called closed.
+
+## Development
+
+```bash
+uv sync
 ```
 
-It selects a free loopback port, runs Streamlit headless, checks the health
-endpoint, and always terminates the server it started.
+```bash
+uv run ruff check . && uv run ruff format --check .
+```
 
-The app uses kij = 0 unless the user opens the collapsed *Advanced: binary
-interaction (kij)* inputs and sets a value for a pair in the mixture (owner-
-approved Option 2 of proposal P6, `docs/investigations/kij_study.md`). A
-non-zero kij is shown with a *user-supplied kij* badge and stated in every
-result, export, report and saved case; the Validation page always shows the
-kij = 0 record.
+```bash
+uv run mypy
+```
 
-Input validation, explicit calculation actions, stale-result handling, failure
-semantics, supported views, and limitations are documented in
-[`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md).
+```bash
+uv run pytest -q -n auto
+```
 
-### Continuous verification and deployment status
+CI ([`.github/workflows/quality.yml`](.github/workflows/quality.yml)) runs
+the lockfile check, Ruff, formatting, mypy, the full test suite, a
+real-browser test and a Streamlit health check on every push. It never
+deploys. The scientific engine (`src/pvt_phase_simulator/`), the property data
+(`data/`), the validation record (`docs/validation/`) and the golden master
+(`tests/golden_master/`) change only with the owner's explicit approval
+([`docs/ENGINE_CHANGE_PROPOSALS.md`](docs/ENGINE_CHANGE_PROPOSALS.md)).
 
-[`.github/workflows/quality.yml`](.github/workflows/quality.yml) reproduces the
-authoritative gates on a clean Ubuntu runner with Python 3.12, installing from
-the locked dependency graph: lockfile check, Ruff, Ruff formatting, mypy,
-`compileall`, application import smoke, the full test suite, and the localhost
-Streamlit health smoke. It requires no secret and has read-only repository
-permissions.
-
-**Public deployment (v1.6):**
-<https://pvt-phase-simulator-wpykmumyxwefbv3prht7gv.streamlit.app/>
-
-It is hosted on Streamlit Community Cloud from the `master` branch of
-`mahmoudshanaa79-afk/pvt-phase-simulator`, with `streamlit_app.py` as the entry
-point, Python 3.12, and `uv.lock` as the dependency source. **No secrets are
-stored or required.** It serves the released application from `master`, which is
-v1.6 once Streamlit Community Cloud has picked it up, and remains subject to
-every applicability limit recorded in the application itself.
-
-Deployment is not automated. It was a deliberate, separate, human-authorized
-step, and no release automation configures or republishes it.
-`.github/workflows/quality.yml` verifies only and never deploys. See
-[`docs/STREAMLIT_APPLICATION.md`](docs/STREAMLIT_APPLICATION.md) for the hosted
-deployment's recorded observations.
-
-## Package structure
+Package layout:
 
 ```text
-src/pvt_phase_simulator/
-├── component_models.py          # Immutable component and provenance models
-├── component_database.py        # Strict ordered CSV loader and lookup API
-├── data/
-│   └── component_properties.csv # Packaged runtime property resource
-├── fluid_models.py              # Mixtures and database-backed compatibility objects
-├── physical_constants.py        # SI gas constant
-├── unit_conversions.py          # Explicitly unsupported conversion boundary
-├── plotting.py                  # Pure Plotly scientific visualizations
-└── eos/
-    ├── peng_robinson.py         # Pure-fluid parameters, roots, and fugacity
-    ├── mixing_rules.py          # Fixed-composition classical mixing rules
-    ├── mixture_fugacity.py      # Component fugacity at a supplied mixture root
-    ├── diagnostics.py           # Advisory, non-blocking EOS diagnostics
-    ├── phase_stability.py       # TPD trials and conditional fallback starts
-    ├── flash.py                 # Stability-gated two-phase flash foundation
-    ├── saturation_pressure.py   # Fixed-temperature bubble/dew pressure
-    ├── phase_envelope.py        # Natural-temperature branch continuation
-    ├── pseudo_arclength.py      # Opt-in geometric branch continuation
-    ├── criticality.py           # Local mixture criticality derivatives
-    └── critical_point.py        # Safeguarded fixed-composition critical solve
-tests/                           # Independent references and validation tests
-docs/                            # Scientific documentation
-data/
-└── component_properties.csv     # Human-review/source-tree property mirror
-notebooks/                       # Exploration scaffold
-src/pvt_phase_simulator_ui/      # Installed Streamlit application layer
-streamlit_app.py                 # Stable Streamlit entrypoint
+src/pvt_phase_simulator/        # scientific engine (frozen)
+  eos/                          # PR roots, mixing, fugacity, stability, flash,
+                                # saturation, envelope, criticality
+src/pvt_phase_simulator_ui/     # Streamlit app
+src/pvt_phase_simulator_validation/  # validation framework and reports
+streamlit_app.py                # app entry point
+tests/                          # tests, including the golden master
+tools/                          # generators, studies, smoke checks
+docs/                           # documentation (see docs/README.md)
 ```
 
-The package includes a `py.typed` marker and exposes inline type information.
-The packaged CSV is the runtime resource; the root CSV is its human-review
-source-tree mirror. Their byte identity is tested. This duplication is an
-intentional current packaging compromise. The nine production Tc/Pc/omega
-records have verified source metadata; this traceability status is not a claim
-of absolute experimental truth.
-
-## Calculation flow
-
-1. Define immutable `Component` objects and a normalized `FluidMixture`.
-2. Calculate pure-component temperature-dependent parameters.
-3. Apply the chosen binary-interaction policy and classical mixing rules.
-4. Form dimensionless mixture `A_mix` and `B_mix`.
-5. Solve the PR cubic and retain roots satisfying `Z > B_mix`.
-6. Optionally classify local mechanical stability.
-7. Evaluate component fugacity coefficients at a validated cubic root.
-8. Evaluate advisory diagnostics separately; diagnostics never modify results.
-9. For phase-stability analysis, run distinct vapor-like and liquid-like TPD
-   Wilson trials, using bounded deterministic starts only for an inconclusive
-   character. This does not calculate phase fractions or equilibrium
-   compositions.
-10. Only for a conclusively unstable feed, solve the two-phase material balance
-    and iterate liquid/vapor PR fugacity equality. Stable and inconclusive feeds
-    do not enter the two-phase iteration.
-11. At fixed temperature, independently solve a bubble- or dew-pressure
-    boundary by coupling an incipient-composition iteration to a bracketed
-    pressure root solve. This is a single boundary calculation, not envelope
-    tracing.
-12. Trace neighboring saturation states in temperature using the previous
-    pressure and log-K state, then correct through narrow Module 8 pressure
-    searches. Rejected steps and termination evidence remain explicit.
-13. When explicitly requested, trace the same saturation manifold with an SVD
-    tangent and weighted pseudo-arclength constraint while preserving the
-    existing phase-role, triviality, fixed-root, and near-critical safeguards.
-14. At a specified mixture state and explicit or stable parent root, optionally
-    evaluate the orthonormal Gibbs-stability Hessian, soft composition mode,
-    and fixed-direction cubic derivative. No temperature/pressure solve occurs.
-15. For an explicitly seeded fixed mixture, optionally solve the simultaneous
-    signed soft-curvature and cubic conditions in `ln(T)` and `ln(P)`, with
-    bounds, orientation continuity, backtracking, and final revalidation.
-16. Convert precomputed phase behavior, validation, criticality, and nonlinear-
-    solver results into reusable Plotly figures without changing thermodynamics.
-
-The mixture fugacity API deliberately accepts stable, unstable, or marginal
-genuine roots. It does not choose a globally stable mixture phase.
-
-## Reference components and provenance
-
-The built-in reference objects are methane, ethane, and propane. Their critical
-properties and acentric factors are sourced from Yang and Richter (2025), DOI
-`10.1021/acs.jced.5c00110`, whose supporting table identifies REFPROP as the
-original data source. Their property-level metadata is marked `verified` after
-exact value, provenance, and pressure-conversion checks.
-The strict UTF-8 CSV database stores one row and one provenance record per
-property, with stable IDs, deliberate aliases, explicit units, and deterministic
-ordering. See the [component-property database design](docs/COMPONENT_PROPERTY_DATABASE_DESIGN.md).
-
-## Units
-
-All calculation APIs currently require SI units:
-
-- temperature: K
-- pressure and fugacity: Pa
-- molar co-volume: m³/mol
-- attraction parameter: Pa·m⁶/mol²
-- compressibility factor, reduced temperature, kappa, alpha, `A`, `B`, mole
-  fractions, acentric factors, and fugacity coefficients: dimensionless
-
-No automatic runtime unit conversion is currently performed. Primary-source
-pressure conversion evidence (kPa → Pa) is retained in the property database.
-
-## Root validation and classification
-
-Supplied roots must be finite, satisfy `Z > B`, meet a scale-aware cubic
-residual tolerance, and lie near a computed admissible root. Root solving uses
-residual verification and conditioning-aware deduplication.
-
-Mechanical classification uses the sign of the fixed-temperature pressure
-derivative. A float64 cancellation band is reported as `marginal`; it is not
-forced into stable or unstable. Mechanical stability is local and is not the
-same as global mixture thermodynamic stability.
-
-## Binary-interaction policies
-
-- `DEFAULT_ZERO` preserves the educational default `k_ij = 0` for omitted
-  pairs and records every defaulted pair as a data-quality assumption.
-- `REQUIRE_ALL_PAIRS` requires every unique off-diagonal pair. Explicit zero
-  values count as supplied data.
-
-Names are exact and case-sensitive, diagonal interactions must be exactly
-zero, and off-diagonal mappings must be symmetric. Stored interaction and
-policy provenance is immutable and is exposed by high-level mixture results.
-Defaulting `k_ij` to zero is an approximation, not a universal physical fact.
-
-## Diagnostics
-
-Diagnostics are immutable advisory records with a code, severity, category,
-message, and optional numerical value. Current checks cover nominal critical
-region sensitivity, the alpha-correlation turning region, and defaulted binary
-interactions. Diagnostics do not clamp inputs, reject mathematically valid
-states, select phases, or alter scientific results.
-
-## Development and verification
-
-Install from the repository root with `uv`:
-
-```powershell
-uv sync --locked
-uv run pytest --durations=25
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src
-uv run python -m compileall src
-```
-
-The test suite covers ordinary, critical,
-near-critical, three-root, spinodal/marginal, zero-pressure, and very-low-
-pressure states; pure-component reduction; binary and ternary independent
-references; Euler/Gibbs–Duhem invariants; provenance forgery; interaction
-policies; and diagnostic non-interference.
-
-## Current limitations
-
-The project does **not** yet implement:
-
-- three-phase or multiphase flash calculations
-- accelerated, damped, or globally convergent flash algorithms
-- exhaustive/global phase-stability certification beyond the bounded
-  Wilson-plus-fallback Michelsen-style trials
-- critical-locus continuation or a supported-fluid temperature-fold
-  regression (the pseudo-arclength core has generic-fold and CH4/C3
-  pressure-turning evidence)
-- reservoir depletion
-- Péneloux volume translation or another EOS
-- experimental authentication and uncertainty quantification beyond the
-  verified bibliographic traceability of component-property values
-- engineering unit conversion functions
-
-Near a mixture critical point, the bounded stability trials can collapse to the
-trivial solution and falsely classify a state as stable. In the independently
-audited 50/50 methane/propane regression at `P = Pc`, this produced an observed
-false-stable band of approximately 7.86 K below that mixture's audited critical
-temperature; this width is specific to that audited example and must not be
-generalized to other fluids, compositions, or pressures, so near-critical
-stability classifications require caution.
-
-The current flash and saturation inner solves use undamped successive
-substitution. Saturation calculations search only the requested finite pressure
-interval and can return `NOT_FOUND` or `INCONCLUSIVE`; they do not establish a
-globally complete phase diagram. Envelope tracing defaults to natural
-temperature continuation. The opt-in pseudo-arclength mode can cross regular
-geometric turns but still terminates at root-role loss or indistinguishable
-phase states; near-critical diagnostics are not exact critical points. Pure-fluid stable-root
-selection must not be generalized to multicomponent global phase stability.
-The local criticality API is restricted to fixed, differentiable cubic-root
-branches and the active open simplex; it reports root ambiguity, mode
-degeneracy, excessive Hessian antisymmetry, and unavailable symmetric
-perturbations instead of crossing them.
-The critical-point solver inherits those local restrictions, requires an
-explicit seed and finite bounds, and currently has physical regression evidence
-only for the verified methane/propane binary with default-zero interactions. A
-positive quartic regularity diagnostic and global basin certification remain
-outside the current result.
-
-Passing tests demonstrates consistency with the documented equations and
-regression cases; it does not replace experimental validation, calibrated
-binary-interaction data, uncertainty analysis, or peer review for engineering
-decisions.
+All engine APIs take SI units (K, Pa, mol). The app converts field units only
+at its inputs and outputs.

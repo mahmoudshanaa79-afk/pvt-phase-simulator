@@ -128,6 +128,56 @@ work and added in that task's PR. Sessions read only the latest few entries.
     dry-run note.
   - Next: owner enters Table 5 values; consumer changes on the same draft.
 
+- **2026-11-09, desktop (volume translation table was hidden):**
+  - Done: flipping "Show volume-translated densities" changed nothing visible,
+    because the table sat inside the collapsed "Technical details" section.
+    AppTest reads collapsed content, so the tests passed. It now follows the
+    phase compositions on Overview; an AppTest check (which fails on the old
+    code) and a browser step guard it.
+  - Next: merge master into PR 51; the owner decides v1.7.0.
+
+- **2026-11-09, desktop (v1.6.0 published; review of the finalize session):**
+  - Done: published v1.6.0 at `34ac3e5` (owner-approved; the fix for repeated
+    sweeps went in first). Independently checked the finalize session: the P9
+    caches give identical results serially and in 8 threads; a separate script
+    reproduces the volume-translation density errors; a real-browser walk of
+    every page shows no errors, and the public app runs current master.
+  - Fixed: the app said the first envelope takes "half a minute to a minute".
+    Timed from click to plot it takes 103 s on the public app and 115-162 s on
+    a laptop, so the note now says one to three minutes.
+  - Open PRs: 51 (release v1.7.0, owner), 47 (butanes draft, Table 5 values).
+  - Next: owner decides v1.7.0, P10 and P11 defaults.
+
+- **2026-11-08, web (CO2/N2 plan, owner approval D, docs only):**
+  - Done: `docs/CO2_N2_ADMISSION_PLAN.md`: why CO2 and N2 are harder (kij,
+    solid CO2, supercritical N2), property sources, provisional CoolProp
+    6.6.0 constants run in the session, candidate VLE datasets (all marked
+    not verified: ThermoML, doi.org and publishers did not resolve from the
+    web session), steps and owner decisions. Nothing in data/, engine or app.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
+- **2026-11-08, web (volume translation P11, owner approval C):**
+  - Done: optional Péneloux module `eos/volume_translation.py`, off by
+    default and called by no solver (engine fingerprint unchanged). App
+    switch "Advanced: volume translation (Péneloux)" adds one Overview table.
+    Shifts fitted at T_r = 0.7 against the accepted pure-component reference
+    file. Held-out liquid-density AARD 8.74/6.51/5.51 % falls to
+    2.64/2.69/2.76 % (C1/C2/C3). The worst error, at T_r = 0.98, gets slightly
+    worse. No mixture-density validation. See `docs/VOLUME_TRANSLATION.md`.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
+- **2026-11-08, web (final docs):**
+  - Done: new README (what OpenPhase is and is not, quick start, public app,
+    pages, labs, evidence, known limits); `docs/USER_GUIDE.md`;
+    `docs/README.md` index split into current, design and historical
+    documents; `CHANGELOG.md` from the GitHub releases and release notes. The
+    README evidence table is checked against the record by
+    `tests/test_validation_claims.py`.
+  - Open PRs: butanes draft (do not merge).
+  - Next: release v1.7.0 PR (awaiting owner approval).
+
 - **2026-11-08, web (final polish):**
   - Done: rewrote the top of this page (what exists, decided items incl.
     P6-P9, waiting items, not implemented, next steps); parallel CI and the
