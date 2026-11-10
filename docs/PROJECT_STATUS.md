@@ -112,6 +112,27 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-10, web (v1.7.0 tag blocked; Lab 5):**
+  - v1.7.0: master CI on `923d492` passed, but this web session could not
+    push the annotated tag `v1.7.0` (the git proxy refused the tag push four
+    times) and has no tool to create a GitHub release. Neither the tag nor
+    the release exists yet. The desktop runs `git tag -a v1.7.0 923d492` and
+    `git push origin v1.7.0`, then the `gh release create v1.7.0 ...` command
+    from the owner's instructions.
+  - Second CH4+C3 source and measured mixture densities: not done.
+    trc.nist.gov (ThermoML), doi.org and the publishers are blocked by this
+    session's network proxy (403), so nothing was downloaded or parsed and no
+    dataset is called verified.
+  - Done: Lab 5, liquid density and volume translation
+    (`docs/teaching/LAB_05_LIQUID_DENSITY.md`, with an instructor key). It
+    covers pure propane by hand, the saturation-curve errors before and after
+    the shift, and a two-phase C1/C3 mixture. Every number is recomputed by
+    `tests/test_teaching_lab_05.py`. Linked from Learn mode, the README, the
+    user guide and the docs index.
+  - Open PRs: 47 (butanes draft, Table 5 values).
+  - Next: tag and release v1.7.0 (desktop). Allow trc.nist.gov in the web
+    environment to run the second-source and mixture-density studies.
+
 - **2026-11-09, desktop (v1.7.0 released, owner-approved):**
   - Done: the owner approved publishing v1.7.0. Dropped the "awaiting approval"
     wording from the changelog and this page, then merged the release PR; the

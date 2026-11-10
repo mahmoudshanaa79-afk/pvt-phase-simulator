@@ -431,7 +431,7 @@ each page:
   stability, reading a P-T envelope, the two critical-point conditions, sweeps,
   verification versus validation, diagnostics);
 - "Try this" exercises on the shipped default case;
-- links to the four teaching labs in `docs/teaching/`.
+- links to the five teaching labs in `docs/teaching/`.
 
 Learn mode is off by default. It never runs a calculation, changes an input or
 alters a result. Every number an exercise quotes was produced with the unchanged

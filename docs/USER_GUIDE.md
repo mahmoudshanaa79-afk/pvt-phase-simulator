@@ -68,7 +68,7 @@ the answer to the new inputs.
 ## 5. Options
 
 - **Learn mode** (sidebar switch) adds a short explanation and "Try this"
-  exercises to each page, and links to the four teaching labs. It never
+  exercises to each page, and links to the five teaching labs. It never
   changes a result.
 - **Advanced: binary interaction (kij).** kij = 0 unless you enter a value for
   a pair in the mixture. A non-zero kij carries a *user-supplied kij* badge
@@ -102,3 +102,4 @@ number in the keys is recomputed from the engine by the tests.
 - [Lab 2: methane–ethane bubble pressures](teaching/LAB_02_METHANE_ETHANE.md)
 - [Lab 3: composition and the envelope](teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
 - [Lab 4: what kij does](teaching/LAB_04_BINARY_INTERACTION.md)
+- [Lab 5: liquid density and volume translation](teaching/LAB_05_LIQUID_DENSITY.md)

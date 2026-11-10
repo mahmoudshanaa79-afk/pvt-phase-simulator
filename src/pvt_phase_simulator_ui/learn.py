@@ -51,6 +51,10 @@ LABS: Final = (
         "LAB_03_COMPOSITION_AND_THE_ENVELOPE.md",
     ),
     ("Lab 4: What kij does (methane + propane)", "LAB_04_BINARY_INTERACTION.md"),
+    (
+        "Lab 5: Liquid density and volume translation (propane, methane + propane)",
+        "LAB_05_LIQUID_DENSITY.md",
+    ),
 )
 
 

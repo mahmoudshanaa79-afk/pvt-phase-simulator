@@ -25,7 +25,7 @@ and every number shown to students is recomputed from the engine by a test.
   towards the critical region) and a certified mixture critical-point solver.
 - Compared, without any fitting, with 40 measured methane + ethane and
   methane + propane states from May et al. (2015).
-- A Streamlit app with a Learn mode and four teaching labs.
+- A Streamlit app with a Learn mode and five teaching labs.
 
 ## What OpenPhase is not
 
@@ -80,6 +80,7 @@ result.
 - [Lab 2: methane–ethane bubble pressures and the P–x–y diagram](docs/teaching/LAB_02_METHANE_ETHANE.md)
 - [Lab 3: how composition moves the phase envelope](docs/teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
 - [Lab 4: what kij does](docs/teaching/LAB_04_BINARY_INTERACTION.md)
+- [Lab 5: liquid density and volume translation](docs/teaching/LAB_05_LIQUID_DENSITY.md)
 
 ## Evidence
 

@@ -25,6 +25,7 @@ run it.
 - [Lab 2: methane–ethane bubble pressures and the P–x–y diagram](teaching/LAB_02_METHANE_ETHANE.md)
 - [Lab 3: how composition moves the phase envelope](teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
 - [Lab 4: what kij does (methane + propane)](teaching/LAB_04_BINARY_INTERACTION.md)
+- [Lab 5: liquid density and volume translation](teaching/LAB_05_LIQUID_DENSITY.md)
 
 ### Investigations (evidence behind decisions)
 
