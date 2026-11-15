@@ -116,6 +116,15 @@ recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (visible keyboard focus):**
+  - Done: a keyboard probe of the real page found that a focused sidebar page
+    link got only a 15 % background tint and a focused number field no ring at
+    all. `styles.FOCUS_STYLE` adds a solid focus ring in the theme's link
+    colour (sidebar links, number fields, inputs, selects); nothing else in the
+    theme changes. `tests/test_app_keyboard_focus.py` (Chromium, keyboard
+    Tab) fails on the old code and passes now.
+  - Next: mutation-testing results, draft v1.8.0.
+
 - **2026-11-15, web (offline data tools for a second source):**
   - Done: `tools/compare_thermoml_vle.py` reads a ThermoML JSON record, pairs
     P and y by (T, x) and runs the frozen engine's bubble and dew at kij = 0
