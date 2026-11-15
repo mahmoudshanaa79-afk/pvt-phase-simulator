@@ -1,0 +1,17 @@
+case,methane_pct,ethane_pct,propane_pct,temperature_k,seconds_on,seconds_off,bubble_points_on,bubble_points_off,bubble_values_identical,bubble_records_identical,bubble_max_abs_temperature_diff_k,bubble_max_rel_pressure_diff,bubble_reason_on,bubble_reason_off,bubble_fallback_points_on,bubble_fallback_tries_on,bubble_rejected_on,bubble_rejected_off,dew_points_on,dew_points_off,dew_values_identical,dew_records_identical,dew_max_abs_temperature_diff_k,dew_max_rel_pressure_diff,dew_reason_on,dew_reason_off,dew_fallback_points_on,dew_fallback_tries_on,dew_rejected_on,dew_rejected_off
+shipped: Default two-phase-oriented case,50.0,0.0,50.0,300.0,26.6,19.9,15,15,True,True,0.0,0.0,maximum_points,maximum_points,0,0,0,0,11,11,True,True,0.0,0.0,near_critical,near_critical,0,3,23,20
+shipped: Known single-phase case at 300 K and 20 MPa,50.0,0.0,50.0,300.0,26.9,20.9,15,15,True,True,0.0,0.0,maximum_points,maximum_points,0,0,0,0,11,11,True,True,0.0,0.0,near_critical,near_critical,0,3,23,20
+shipped: Audited critical-solver seed,50.0,0.0,50.0,321.5829183194,36.1,26.7,15,15,True,True,0.0,0.0,maximum_points,maximum_points,0,0,0,0,10,10,True,True,0.0,0.0,near_critical,near_critical,0,5,37,32
+"C1/C3 50/50, warm start",50.0,0.0,50.0,330.0,44.5,32.4,14,14,True,True,0.0,0.0,near_critical,near_critical,0,2,14,12,9,9,True,True,0.0,0.0,near_critical,near_critical,0,5,37,32
+C1/C3 10/90,10.0,0.0,90.0,330.0,4.2,4.4,9,9,True,True,0.0,0.0,target_reached,target_reached,0,0,0,0,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,1,1
+C1/C3 30/70,30.0,0.0,70.0,310.0,20.3,17.2,14,14,True,True,0.0,0.0,target_reached,target_reached,0,2,14,12,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,2,2
+C1/C3 70/30,70.0,0.0,30.0,270.0,9.5,12.5,15,15,True,True,0.0,0.0,maximum_points,maximum_points,0,0,0,0,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,2,2
+C1/C3 90/10,90.0,0.0,10.0,230.0,29.3,22.1,12,12,True,True,0.0,0.0,near_critical,near_critical,0,2,15,13,11,11,True,True,0.0,0.0,near_critical,near_critical,0,5,40,35
+C2/C3 30/70,0.0,30.0,70.0,315.5,2.5,2.5,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,1,1,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,1,1
+C2/C3 70/30,0.0,70.0,30.0,300.0,6.6,6.6,13,13,True,True,0.0,0.0,near_critical,near_critical,0,4,29,25,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,2,2
+C1/C2 50/50,50.0,50.0,0.0,250.0,35.3,30.3,13,13,True,True,0.0,0.0,near_critical,near_critical,0,4,29,25,9,9,True,True,0.0,0.0,near_critical,near_critical,0,5,37,32
+C1/C2/C3 40/30/30,40.0,30.0,30.0,290.0,52.5,38.9,15,15,True,True,0.0,0.0,maximum_points,maximum_points,0,3,21,18,11,11,True,True,0.0,0.0,near_critical,near_critical,0,5,37,32
+C1/C3 20/80,20.0,0.0,80.0,320.0,4.7,4.6,9,9,True,True,0.0,0.0,target_reached,target_reached,0,0,0,0,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,1,1
+C2/C3 50/50,0.0,50.0,50.0,310.0,3.3,3.4,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,1,1,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,1,1
+C1/C2/C3 30/40/30,30.0,40.0,30.0,300.0,37.1,24.6,10,10,True,True,0.0,0.0,near_critical,near_critical,0,3,21,18,9,9,True,True,0.0,0.0,near_critical,near_critical,0,5,37,32
+C1/C3 80/20,80.0,0.0,20.0,250.0,7.3,7.9,15,15,True,True,0.0,0.0,maximum_points,maximum_points,0,0,0,0,10,10,True,True,0.0,0.0,target_reached,target_reached,0,0,2,2

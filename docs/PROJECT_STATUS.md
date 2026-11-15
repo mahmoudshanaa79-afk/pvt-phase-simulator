@@ -86,7 +86,7 @@ recomputed from the engine by the tests.
 | Item | Where | Effect |
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
-| P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
+| P10 (b): turn off the app envelope's global fallback | `docs/ENGINE_CHANGE_PROPOSALS.md`, `docs/investigations/p10_survey.md` | Survey of 16 cases (15 Nov): identical envelope points and termination reasons on all 32 branches; the fallback never rescued a step; 20.7 % less envelope time. Recommended: approve as a one-line app setting change. |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -105,8 +105,8 @@ recomputed from the engine by the tests.
 
 1. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
    draft PR 47 (validation only); its description lists the owner's steps.
-2. P10: the owner asked for the wider survey of option (b) only, with no
-   engine change.
+2. P10 (b): decide, using `docs/investigations/p10_survey.md`. The survey
+   supports it; adopting it is a one-line app setting change plus a test.
 3. From the desktop, download the ThermoML candidates in
    `docs/SECOND_SOURCE_PLAN.md` and run `tools/compare_thermoml_vle.py` and
    `tools/compare_liquid_density.py`. This is the first test of the record
@@ -122,6 +122,18 @@ recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (P10 survey, investigation only):**
+  - Done: `tools/run_p10_survey.py` ran the app's envelope with and without
+    the global fallback on the 16 survey cases. All 32 branches have identical
+    accepted points and termination reasons; the fallback was tried 56 times
+    and never rescued a step; the envelope time is 20.7 % lower without it.
+    `docs/investigations/p10_survey.md` and its CSV, with a test that
+    recomputes every number. No setting changed; P10 still waits for the
+    owner.
+  - Open PRs: 47 (butanes draft), 68 (P12 (b)), 69 (second-source plan) and
+    this one.
+  - Next: owner decides P10 (b); adapters mutation run.
 
 - **2026-11-15, web (second-source plan: desktop findings recorded):**
   - Done: `docs/SECOND_SOURCE_PLAN.md` records the desktop's attempt: the

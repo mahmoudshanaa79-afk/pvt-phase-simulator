@@ -334,7 +334,26 @@ after tables) and the golden-master suite.
 
 ## P10. Faster envelope continuation that changes recorded results
 
-**Status: proposed (web session, 8 November 2026). Awaiting owner decision.**
+**Status: proposed (web session, 8 November 2026). Wider survey of option (b)
+done on 15 November 2026, at the owner's request; no engine or app setting was
+changed. Awaiting owner decision.**
+
+**Survey result (15 November 2026,** `docs/investigations/p10_survey.md`**).**
+On the 16 cases of `tools/run_envelope_survey.py`:
+- the app's envelope with and without the global fallback has identical
+  accepted points (values and complete records) and identical termination
+  reasons on all 32 branches;
+- the fallback was tried 56 times and never produced an accepted point, so
+  turning it off removes only those 56 failed attempts from the
+  rejected-attempt records;
+- the total envelope time is 20.7 % lower (346.7 s → 274.9 s), all of the
+  saving in the 10 cases where the fallback was tried.
+
+**Recommendation:** approve (b) as a one-line change to the app's envelope
+settings, with a test that pins the survey's identity. A state where the
+fallback rescues a step cannot be ruled out in general. If one exists, the
+envelope would stop early with the engine's own reason rather than give a
+wrong point. (a) stays not recommended.
 Nothing in the engine has been changed. Both options below change the result
 objects, so they were outside the byte-identical speed-up (P9) and were measured
 only on a scratch copy, by replacing the engine function or setting at run time.
