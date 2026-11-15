@@ -6,6 +6,8 @@ run it.
 ## Current: read these first
 
 - [Project status, open decisions and session log](PROJECT_STATUS.md)
+- [State of OpenPhase: a short summary for a faculty reader](STATE_OF_OPENPHASE.md)
+- [Maintainer guide: commands, CI, tests, proposals, releases, troubleshooting](MAINTAINER_GUIDE.md)
 - [User guide](USER_GUIDE.md)
 - [Streamlit application: pages, behaviour, deployment](STREAMLIT_APPLICATION.md)
 - [Experimental VLE validation (Module 17)](EXPERIMENTAL_VALIDATION.md)
