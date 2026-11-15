@@ -404,3 +404,62 @@ the same day as a new optional module, off by default.**
   `docs/VOLUME_TRANSLATION.md`: the liquid-density AARD falls by a factor of 2
   to 3, but the worst near-critical error gets slightly worse.
 - **Not validated.** There is no mixture-density validation.
+
+
+## P12. Near-critical false "stable" verdicts: extra stability starts near the feed
+
+**Status: proposed (web session, 15 November 2026). Awaiting owner decision.**
+Nothing in the engine has been changed. Reproducer:
+`tools/reproduce_near_critical_false_stable.py` (read-only; its evidence is
+checked by `tests/test_reproduce_near_critical_false_stable.py`).
+
+**Question.** The README already warns that near a critical point the bounded
+stability test can call a two-phase state stable. Can this be shown on a
+specific state and fixed without changing results elsewhere?
+
+**Evidence.** 50/50 methane/propane at 8.534 MPa, just below the certified
+critical point (321.58 K, 8.534 MPa):
+
+| T (K) | Production flash | Both trials trivial | Extended-envelope bubble pressure (MPa) | Inside the envelope | Extra start near the feed |
+|---:|---|---|---:|---|---|
+| 312.0 | two-phase, unstable | no | 8.7984 | yes | TPD -0.001334 (x_C1 = 0.6) |
+| 314.0 | single-phase, **stable** | yes | 8.7601 | yes | **TPD -0.000868 (x_C1 = 0.6)** |
+| 316.0 | single-phase, **stable** | yes | 8.7218 | yes | no extra trial converged |
+| 318.0 | single-phase, **stable** | yes | 8.6835 | yes | no extra trial converged |
+| 320.0 | single-phase, **stable** | yes | 8.6185 | yes | no extra trial converged |
+
+From 314 K to 320 K, both production trials (the Wilson starts and the
+bounded fallback starts) return the trivial solution. The engine then reports
+*stable*, yet the extended envelope puts every one of these states inside the
+two-phase region. At 314 K a single extra start at x_C1 = 0.6, through the
+engine's own public `run_phase_stability_trial`, converges to a negative
+tangent-plane distance, so the state is demonstrably unstable. From 316 K to
+320 K the extra starts do not converge; the tangent plane is nearly flat
+there.
+
+**Suggested change (two parts; part (b) alone changes no number).**
+
+(a) When both production trials return the trivial solution, run a few more
+starts on a small composition grid around the feed (for example
+z ± 0.05, ± 0.1 and ± 0.15 in each component direction, renormalized). Report
+*unstable* if any converges to a non-trivial negative tangent-plane distance.
+
+(b) When the verdict still rests only on trivial trials, add a diagnostic
+(for example `STABILITY_TRIVIAL_TRIALS_ONLY`) to the stability result, so the
+app can say that "stable" here means "no instability found" rather than
+"proven stable".
+
+**Effect.**
+- (a) changes the flash verdict at near-critical states such as 314 K above,
+  and possibly some golden-master stability or flash cases near critical
+  points, so it needs the golden-master check and the owner's approval. The
+  Module 17 validation record uses the saturation solver, not the flash, and
+  should be unchanged; this must be confirmed with
+  `tools/run_module17_validation.py`.
+- (b) adds a diagnostic only. The app's code glossary
+  (`tests/test_code_glossary.py`) would then require an explanation for it.
+
+**Not proposed:** reporting *inconclusive* whenever both trials are trivial.
+That would also flag ordinary compressed liquids and vapours far from any
+critical point (for example 50/50 at 300 K and 20 MPa, where both trials are
+trivial and the feed is genuinely single-phase).
