@@ -90,9 +90,11 @@ from pvt_phase_simulator_ui.learn import render_learn_panel
 from pvt_phase_simulator_ui.model_scope import ModelScope, load_model_scope
 from pvt_phase_simulator_ui.reports import export_engineering_report_html
 from pvt_phase_simulator_ui.solver_codes import (
+    CODE_GLOSSARY,
     EXPLAINED_CODES,
     explain_codes,
     explanation_text,
+    glossary_rows,
     record_solver_outcomes,
 )
 from pvt_phase_simulator_ui.state import (
@@ -376,6 +378,12 @@ def _calculate_sweep(
     return result
 
 
+#: Above the glossary table on the Diagnostics page.
+DIAGNOSTIC_GLOSSARY_CAPTION: Final = (
+    "Every diagnostic code the engine can report, in plain language. The code "
+    "and the engine's own message are always shown verbatim; this table only "
+    "explains them."
+)
 #: Shown on Overview before the first result: what to do first.
 START_HERE: Final = (
     "**Start here.** 1. In the sidebar, choose an **Example case** or enter a "
@@ -1658,6 +1666,7 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
                         "Severity": _value(item.severity),
                         "Category": _value(item.category),
                         "Message": item.message,
+                        "Meaning": CODE_GLOSSARY.get(item.code, ""),
                         "Value": item.value,
                     }
                     for item in result.diagnostics
@@ -1764,6 +1773,9 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
         and saturation_raw is None
     ):
         st.info("Run a calculation to populate diagnostics.")
+    st.subheader("What the diagnostic codes mean")
+    st.caption(DIAGNOSTIC_GLOSSARY_CAPTION)
+    st.dataframe(pd.DataFrame(glossary_rows()), hide_index=True, width="stretch")
     if st.toggle("Show advanced raw public objects", key="diagnostics_raw"):
         if flash_raw is not None:
             st.json(asdict(cast(TwoPhaseFlashResult, flash_raw)))
