@@ -5,7 +5,7 @@ v1.0–v1.5, and `docs/release_notes/` from v1.6 on. Every version keeps the sam
 Peng–Robinson model (classical mixing, kij = 0 by default); engine changes are
 made only with the owner's approval and are named below.
 
-## 1.8.0 (prepared 15 November 2026; awaiting the owner's approval, not tagged)
+## 1.8.0 (15 November 2026)
 
 Full notes: [`docs/release_notes/v1.8.0.md`](docs/release_notes/v1.8.0.md).
 
