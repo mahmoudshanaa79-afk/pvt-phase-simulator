@@ -182,6 +182,17 @@ owner's remaining steps:
 
 The plan is `docs/BUTANES_ADMISSION_PLAN.md`.
 
+## Running the data studies once ThermoML is reachable
+
+The web sessions cannot download from trc.nist.gov. From the desktop, follow
+`docs/SECOND_SOURCE_PLAN.md`: download a candidate's ThermoML JSON into a new
+folder and record its SHA-256. Then run
+`tools/compare_thermoml_vle.py` (VLE) or `tools/compare_liquid_density.py`
+(liquid densities with and without the Péneloux shift). Commit the outputs with
+a test that recomputes every quoted number. Admitting a source into `data/`
+needs the owner's approval; the design is in
+`docs/SECOND_SOURCE_FRAMEWORK_DESIGN.md`.
+
 ## Troubleshooting
 
 - **"Access is denied" or a locked file in `.venv` on Windows/OneDrive.**

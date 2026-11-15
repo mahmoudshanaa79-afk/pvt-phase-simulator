@@ -19,6 +19,8 @@ run it.
 - [Next components: butanes proposal](NEW_COMPONENTS_PROPOSAL.md) and
   [butanes admission plan](BUTANES_ADMISSION_PLAN.md)
 - [CO2 and N2 admission plan (documentation only)](CO2_N2_ADMISSION_PLAN.md)
+- [Second experimental source: plan and ready-to-run tools](SECOND_SOURCE_PLAN.md) and
+  [framework design for a second source](SECOND_SOURCE_FRAMEWORK_DESIGN.md)
 - [Changelog](../CHANGELOG.md) and [release notes](release_notes/)
 
 ### Teaching
