@@ -23,6 +23,11 @@ fails on the old code. The engine is frozen and was only read and called.
 | 2.6 Stale wording | 3 stale lines | "Last updated 9 November", "Four labs", an untested test count in `PROJECT_STATUS.md` | Fixed in PR 56 |
 | 2.6 Document references | Pass | `tests/test_docs_references.py` | `docs/README.md` now indexes every current document (PR 56) |
 | 2.7 v1.7.0 release | Recorded | Tag `v1.7.0` → `923d492`; GitHub release published 15 Nov 2026 | Session log (PR 55) |
+| 4.1 Property-based tests | Pass | `tests/test_app_properties.py`: 17 tests, derandomized, about 2 s | Added (PR 57) |
+| 4.2 Engine invariants | Pass, no engine defect | `tests/test_engine_invariants.py`: 171 checks over 25 two-phase flashes, 29 stable feeds and 7 bubble or dew points | Added (PR 60) |
+| Engine finding | Near-critical false "stable" | 50/50 C1/C3 at 8.534 MPa: "stable" at 314–320 K while inside the envelope | Reproducer and proposal P12 (PR 61); engine unchanged |
+| 5.1 Keyboard focus | Gap | A focused sidebar page link had only a 15 % tint; a focused number field had no ring | Fixed (PR 64), browser test fails on the old code |
+| 4.3 Mutation testing | Before → after, below | cosmic-ray 8.4.6, time-boxed | Tests that kill the meaningful survivors (this PR) |
 
 ## 2.2 Coverage
 
@@ -115,3 +120,65 @@ reason; `tests/test_app_robustness*.py` already checks this for every action.
   example "11 → 17") describes the record before an approved engine change.
   It is history and cannot be recomputed from the current record; only the
   "after" side is checked.
+
+## 4.3 Mutation testing
+
+**Tool and set-up.** cosmic-ray 8.4.6 on `src/pvt_phase_simulator_ui/units.py`,
+`case_files.py` and `adapters.py`, each in its own throwaway worktree of
+`master` at `d0f2396`.
+
+**Test commands.**
+- **Before:** a fast subset, `tests/test_app_adapters.py`,
+  `tests/test_app_case_files.py` and `tests/test_app_sweeps.py`, with `-x`.
+- **After:** the same plus the new `tests/test_app_properties.py`,
+  `tests/test_units_known_values.py`, `tests/test_case_files_edges.py` and
+  `tests/test_adapters_boundaries.py`. Only the survivors were re-run;
+  killed mutants stay killed.
+
+The scores are relative to these test commands, not to the whole suite.
+
+**Annotation-only mutants.** The modules use `from __future__ import
+annotations`, so a mutant that changes the `|` in a type annotation such as
+`PressureUnit | str` can never change behaviour. Scores are shown both raw and
+without these.
+
+| Module | Mutants | Before (raw) | After (raw) | Before (no annotation mutants) | After (no annotation mutants) |
+|---|---:|---:|---:|---:|---:|
+| `units.py` | 309 | 167 (54.0 %) | 189 (61.2 %) | 167 / 199 (83.9 %) | 189 / 199 (95.0 %) |
+| `case_files.py` | 189 | 136 (72.0 %) | 159 (84.1 %) | 136 / 178 (76.4 %) | 159 / 178 (89.3 %) |
+| `adapters.py` (time-boxed: 475 of 872 mutants run) | 475 | 217 (45.7 %) | 301 (63.4 %) | 217 / 399 (54.4 %) | 301 / 399 (75.4 %) |
+
+**What the new tests caught.**
+- **Units:**
+  - K → °C written as `value % 273.15`, which agrees between 273 K and 546 K;
+  - a negated "same unit" shortcut;
+  - the unknown-unit messages;
+  - mutable `UnitPreferences`.
+- **Case files:**
+  - a version 1.1.0 file losing its kij on load;
+  - `true` accepted as a number or an integer;
+  - schema names compared with `<`/`>`;
+  - the restored sweep widgets;
+  - escaping and key order of the saved bytes;
+  - text and invalid UTF-8 input;
+  - the temperature-unit refusal.
+- **Adapters:** the kij pair-presence logic, the exact range edges and the
+  composition checks.
+
+**What is left.**
+- **`units.py`:** every remaining non-annotation survivor is equivalent:
+  `is` → `==` or `<=` on string enums whose values make the comparisons agree.
+- **`case_files.py`:** every remaining non-annotation survivor is equivalent:
+  - a length check that the earlier missing- and duplicate-component checks
+    make unreachable;
+  - `int()` of a value already checked to be an int;
+  - `strict=` on zips of equal length;
+  - `allow_nan` when non-finite values are refused earlier;
+  - `args[-1]` vs `args[0]` of one-argument exceptions;
+  - string comparisons that agree for the two allowed values;
+  - the supported-range check, which the sweep validation repeats.
+- **`adapters.py`:** the time box ended with 397 mutants not run. The survivors
+  among the 475 that were run lie mostly in the envelope operating-point
+  bracketing and percent-error helpers, which the fast subset does not
+  exercise. Next step: rerun with those helpers' own tests in the command.
+

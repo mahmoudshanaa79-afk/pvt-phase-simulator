@@ -7,13 +7,42 @@ made only with the owner's approval and are named below.
 
 ## Unreleased (on `master`, after v1.7.0)
 
+**App and teaching**
 - **Lab 5: liquid density and volume translation**
-  (`docs/teaching/LAB_05_LIQUID_DENSITY.md`), linked from Learn mode; every
-  number is recomputed by its test.
-- **Handover documents.** `docs/MAINTAINER_GUIDE.md` (daily commands, CI,
-  tests, engine proposals, the release procedure, troubleshooting) and
-  `docs/STATE_OF_OPENPHASE.md` (a short summary for a faculty reader, with
-  every number checked by `tests/test_state_of_openphase.py`).
+  (`docs/teaching/LAB_05_LIQUID_DENSITY.md`).
+- **Lab 6: phase stability and the flash** and **Lab 7: the critical point,
+  the envelope and retrograde condensation**, with instructor keys. Both teach
+  honestly where the near-critical stability test misses a two-phase state.
+  One new Learn-mode exercise each for Labs 5–7. Every number is recomputed
+  by a test.
+- **Plain-language glossary of every engine diagnostic code** on the
+  Diagnostics page, and a "Meaning" column in the flash diagnostics table. A
+  test reads the codes from the engine, so a new code cannot go unexplained.
+- **Clearer error messages.** A refused case file says how to get a valid
+  one, and an all-zero composition says what to enter.
+- **Visible keyboard focus.** A solid focus ring on sidebar page links and
+  input fields.
+
+**Engine findings (proposals only; the engine is unchanged)**
+- **P12: near-critical false "stable" verdicts**, with a reproducer
+  (`tools/reproduce_near_critical_false_stable.py`).
+
+**Evidence and robustness**
+- **Health check** (`docs/investigations/health_check_2026_11.md`), with a
+  rerunnable real-browser walk of every page (`tools/browser_walk.py`).
+- **Tests:**
+  - property-based tests of the app layer;
+  - independent engine-invariant checks (flash, stability, bubble and dew);
+  - tests from mutation testing of `units.py`, `case_files.py` and
+    `adapters.py`;
+  - claims tests for the status page, the guides and the faculty summary.
+- **Offline data tools for a second experimental source**, ready for the
+  desktop: `tools/compare_thermoml_vle.py` and
+  `tools/compare_liquid_density.py`, the plan `docs/SECOND_SOURCE_PLAN.md`
+  (every candidate not yet verified) and a framework design note.
+
+**Documentation**
+- `docs/MAINTAINER_GUIDE.md` and `docs/STATE_OF_OPENPHASE.md`.
 
 ## 1.7.0 (9 November 2026; tagged and published 15 November 2026)
 
