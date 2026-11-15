@@ -42,6 +42,7 @@ from pvt_phase_simulator_ui.state import (
     store_result_action_failure,
     synchronize_unit_inputs,
 )
+from pvt_phase_simulator_ui.styles import apply_focus_styles
 from pvt_phase_simulator_ui.units import (
     PRESSURE_UNITS,
     TEMPERATURE_UNITS,
@@ -351,6 +352,7 @@ def run_app() -> None:
         # Expanded on a desktop, collapsed on a phone where it would cover the page.
         initial_sidebar_state="auto",
     )
+    apply_focus_styles()
     try:
         initialize_session(session())
         inputs, run_flash = _input_form()
