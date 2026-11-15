@@ -1,7 +1,8 @@
 # Project status
 
-Last updated: 9 November 2026 (v1.7.0 approved by the owner and released from
-this PR's merge commit, tag `v1.7.0`).
+Last updated: 15 November 2026. v1.7.0 is tagged and published (merge commit
+`923d492`). For a short overview see [STATE_OF_OPENPHASE.md](STATE_OF_OPENPHASE.md);
+for how to work on the project see [MAINTAINER_GUIDE.md](MAINTAINER_GUIDE.md).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -40,13 +41,14 @@ waits on a decision. Details live in the linked documents.
 - A supported input range of 50–1000 K and 1 Pa–1 GPa, checked before any
   engine call.
 
-**Teaching.** Four labs in [docs/teaching](teaching/) (methane–propane,
-methane–ethane, composition and the envelope, what kij does), each with an
-instructor key whose numbers are recomputed from the engine by the tests.
+**Teaching.** Five labs in [docs/teaching](teaching/) (methane–propane,
+methane–ethane, composition and the envelope, what kij does, liquid density
+and volume translation), each with an instructor key whose numbers are
+recomputed from the engine by the tests.
 
 ## Evidence
 
-- About 1,800 test cases. CI runs lint, types, the full suite in parallel, a
+- A large automated test suite. CI runs lint, types, the full suite in parallel, a
   real-browser test, a localhost health check and a run with only the deployed
   dependencies on every push.
 - Experimental bubble pressures (record regenerated after P7 and P8):
@@ -122,6 +124,51 @@ work and added in that task's PR. Sessions read only the latest few entries.
     and 7 converged bubble/dew points. Every invariant holds, so no engine
     proposal was needed.
   - Next: mutation testing, Labs 6-7, offline data tools.
+
+- **2026-11-15, web (health check and browser walk):**
+  - Done: `docs/investigations/health_check_2026_11.md`. On fresh master:
+    - every gate passed; full suite 1861 passed in 245 s; coverage 89.1 %
+      (app 93.1 %);
+    - the deployed-only environment passed;
+    - the bad-input probe found two weak messages (fixed in PR 55);
+    - only 4 of 42 diagnostic codes were explained (fixed in PR 58).
+    New `tools/browser_walk.py` runs every action twice, parses every
+    download, does save/reload/load, kij, volume translation and 390 px
+    checks: 31 of 31 passed. New `tests/test_status_claims.py` checks the
+    status page's and the guides' current-state numbers.
+  - Next: engine invariants, mutation testing, Labs 6-7, offline data tools.
+
+- **2026-11-15, web (plain-language glossary of every engine code):**
+  - Done: the app explained 4 of the engine's 42 diagnostic codes. The
+    Diagnostics page now shows a glossary table of all 42, and the flash
+    diagnostics table has a "Meaning" column. `tests/test_code_glossary.py`
+    reads the codes from the engine source, so a new code without an entry
+    (or an entry for a removed code) fails the test. Codes and engine
+    messages are still shown verbatim.
+  - Next: engine invariants and mutation testing.
+
+- **2026-11-15, web (property-based tests for the app layer):**
+  - Done: `tests/test_app_properties.py` (hypothesis, derandomized, about 2 s)
+    covers several properties: every unit conversion round-trips; inputs
+    inside 50-1000 K and 1 Pa-1 GPa are accepted unchanged and those outside
+    are refused with the limits in the message; compositions not totalling
+    100 mol % and out-of-range kij are refused; save-then-load gives the same
+    case; arbitrary bytes and corrupted fields give a case-file error; every
+    export parses and contains its inputs; the report shows the inputs and
+    the engine's status; sweep requests are accepted exactly when the range
+    and point count are valid.
+  - Next: diagnostic-code glossary, engine invariants, mutation testing.
+
+- **2026-11-15, web (handover documents):**
+  - Done: `docs/MAINTAINER_GUIDE.md` covers setup, daily commands, what CI
+    runs, adding a test, the frozen-engine rule and proposals, the release
+    procedure (tags and `gh release` from the desktop) and troubleshooting.
+    `docs/STATE_OF_OPENPHASE.md` is a short faculty-facing summary with
+    recommendations for each open decision; every number in it is checked by
+    `tests/test_state_of_openphase.py`. Also a CHANGELOG "Unreleased" section,
+    the docs index, and stale status lines (five labs; v1.7.0 published).
+  - Open PRs: 47 (butanes draft, Table 5 values).
+  - Next: the health-check report and the browser walk.
 
 - **2026-11-15, web (error messages say how to fix them):**
   - Recorded: the desktop tagged and published v1.7.0 on 15 Nov 2026 at

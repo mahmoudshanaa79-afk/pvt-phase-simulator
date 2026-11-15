@@ -6,6 +6,8 @@ run it.
 ## Current: read these first
 
 - [Project status, open decisions and session log](PROJECT_STATUS.md)
+- [State of OpenPhase: a short summary for a faculty reader](STATE_OF_OPENPHASE.md)
+- [Maintainer guide: commands, CI, tests, proposals, releases, troubleshooting](MAINTAINER_GUIDE.md)
 - [User guide](USER_GUIDE.md)
 - [Streamlit application: pages, behaviour, deployment](STREAMLIT_APPLICATION.md)
 - [Experimental VLE validation (Module 17)](EXPERIMENTAL_VALIDATION.md)
@@ -34,6 +36,7 @@ run it.
 - [Validation with and without Newton refinement (P4)](investigations/validation_newton_comparison.md)
 - [App performance, before and after P9](investigations/app_performance.md)
 - [Usability review](investigations/usability_review.md)
+- [Health check, November 2026](investigations/health_check_2026_11.md)
 - The CSV and JSON files next to them are the data each study reads.
 
 ## Design references (describe the current engine)
