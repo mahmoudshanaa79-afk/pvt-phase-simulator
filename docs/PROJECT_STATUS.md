@@ -112,6 +112,18 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (property-based tests for the app layer):**
+  - Done: `tests/test_app_properties.py` (hypothesis, derandomized, about 2 s)
+    covers several properties: every unit conversion round-trips; inputs
+    inside 50-1000 K and 1 Pa-1 GPa are accepted unchanged and those outside
+    are refused with the limits in the message; compositions not totalling
+    100 mol % and out-of-range kij are refused; save-then-load gives the same
+    case; arbitrary bytes and corrupted fields give a case-file error; every
+    export parses and contains its inputs; the report shows the inputs and
+    the engine's status; sweep requests are accepted exactly when the range
+    and point count are valid.
+  - Next: diagnostic-code glossary, engine invariants, mutation testing.
+
 - **2026-11-10, web (v1.7.0 tag blocked; Lab 5):**
   - v1.7.0: master CI on `923d492` passed, but this web session could not
     push the annotated tag `v1.7.0` (the git proxy refused the tag push four
