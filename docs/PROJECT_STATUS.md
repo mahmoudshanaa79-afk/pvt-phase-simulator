@@ -112,6 +112,15 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (plain-language glossary of every engine code):**
+  - Done: the app explained 4 of the engine's 42 diagnostic codes. The
+    Diagnostics page now shows a glossary table of all 42, and the flash
+    diagnostics table has a "Meaning" column. `tests/test_code_glossary.py`
+    reads the codes from the engine source, so a new code without an entry
+    (or an entry for a removed code) fails the test. Codes and engine
+    messages are still shown verbatim.
+  - Next: engine invariants and mutation testing.
+
 - **2026-11-10, web (v1.7.0 tag blocked; Lab 5):**
   - v1.7.0: master CI on `923d492` passed, but this web session could not
     push the annotated tag `v1.7.0` (the git proxy refused the tag push four
