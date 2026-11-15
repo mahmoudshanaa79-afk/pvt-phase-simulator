@@ -41,9 +41,10 @@ waits on a decision. Details live in the linked documents.
 - A supported input range of 50–1000 K and 1 Pa–1 GPa, checked before any
   engine call.
 
-**Teaching.** Five labs in [docs/teaching](teaching/) (methane–propane,
+**Teaching.** Seven labs in [docs/teaching](teaching/) (methane–propane,
 methane–ethane, composition and the envelope, what kij does, liquid density
-and volume translation), each with an instructor key whose numbers are
+and volume translation, phase stability and the flash, the critical point and
+retrograde condensation), each with an instructor key whose numbers are
 recomputed from the engine by the tests.
 
 ## Evidence
@@ -114,6 +115,19 @@ recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (Labs 6 and 7):**
+  - Done: Lab 6, phase stability and the flash: TPD at four pressures,
+    Rachford-Rice by hand, Wilson vs converged K-values, and a near-critical
+    "stable" verdict that the envelope contradicts. Lab 7, the critical point,
+    the envelope and retrograde condensation: certified critical point from
+    two seeds, cricondenbar and cricondentherm, a retrograde isotherm at
+    327 K, and the states just inside the dew curve that the flash calls
+    single phase (both tie to proposal P12). Every number is recomputed by
+    `tests/test_teaching_lab_06.py` and `tests/test_teaching_lab_07.py`. One
+    Learn-mode exercise each for Labs 5-7 (`tests/test_learn_labs_5_7.py`).
+    Linked from Learn mode, README, user guide and docs index.
+  - Next: mutation testing results, offline data tools, draft v1.8.0.
 
 - **2026-11-15, web (engine finding: proposal P12):**
   - Done: `tools/reproduce_near_critical_false_stable.py` and proposal P12 in
