@@ -36,6 +36,7 @@ run it.
 - [Validation with and without Newton refinement (P4)](investigations/validation_newton_comparison.md)
 - [App performance, before and after P9](investigations/app_performance.md)
 - [Usability review](investigations/usability_review.md)
+- [Health check, November 2026](investigations/health_check_2026_11.md)
 - The CSV and JSON files next to them are the data each study reads.
 
 ## Design references (describe the current engine)
