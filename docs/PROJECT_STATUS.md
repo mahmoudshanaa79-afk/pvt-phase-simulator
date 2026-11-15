@@ -123,6 +123,17 @@ recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (second-source plan: desktop findings recorded):**
+  - Done: `docs/SECOND_SOURCE_PLAN.md` records the desktop's attempt: the
+    ThermoML search API returned 503; four candidate DOIs have no ThermoML
+    record (404), including the new Int. J. Thermophys. (2026) methane +
+    propane paper; the VLE tool reproduces the record on the real May (2015)
+    file (SHA-256 recorded; a test recomputes the numbers from the record).
+    Every candidate is still NOT VERIFIED. A "next attempt" checklist for the
+    desktop is added.
+  - Open PRs: 47 (butanes draft), 68 (P12 (b)) and this one.
+  - Next: P10 survey; adapters mutation run.
+
 - **2026-11-15, web (v1.8.0 merged; P12 (b) implemented, owner-approved):**
   - Done: merged PR 66 (v1.8.0) with merge commit `5ed8aeb` for the desktop
     to tag. P12 (b): a stable verdict that rests only on trivial trials now

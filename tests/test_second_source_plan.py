@@ -33,6 +33,40 @@ def test_the_ch4_c3_numbers() -> None:
     assert f"({min(temperatures):g}–{max(temperatures):g} K)" in PLAN
 
 
+def test_the_real_file_reproduction_equals_the_record() -> None:
+    """The desktop's run on the real May (2015) file gives the record's metrics."""
+
+    with RECORD.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    assert len(rows) == 40
+    for direction in ("bubble", "dew"):
+        converged = [row for row in rows if row[f"{direction}_status"] == "converged"]
+        errors = [
+            float(row[f"{direction}_pressure_percent_error"]) for row in converged
+        ]
+        aard = sum(abs(error) for error in errors) / len(errors)
+        largest = max(abs(error) for error in errors)
+        quoted = (
+            f"{direction}: {len(converged)} of {len(rows)} converged"
+            if direction == "bubble"
+            else f"{direction}: {len(converged)} of {len(rows)} converged ("
+            f"{sum(row['system_id'] == 'ch4_c2' for row in converged)} CH4+C2, "
+            f"{sum(row['system_id'] == 'ch4_c3' for row in converged)} CH4+C3)"
+        )
+        assert quoted in PLAN, quoted
+        assert f"AARD {aard:.3f} %, maximum" in PLAN
+        assert f"maximum {largest:.3f} %" in PLAN
+        if direction == "bubble":
+            bias = sum(errors) / len(errors)
+            assert f"bias {bias:.3f} %".replace("-", "−") in PLAN
+    statuses = [row["dew_status"] for row in rows]
+    inconclusive, not_found = (
+        statuses.count("inconclusive"),
+        statuses.count("not_found"),
+    )
+    assert f"{inconclusive} inconclusive and {not_found} not found" in PLAN
+
+
 def test_every_candidate_is_marked_not_verified() -> None:
     rows = [
         line
