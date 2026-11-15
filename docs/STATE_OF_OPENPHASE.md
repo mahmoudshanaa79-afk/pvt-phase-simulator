@@ -74,6 +74,6 @@ alter results.
 |---|---|
 | Supply the six Yang & Richter (2025) Table 5 values for the butanes | **Do it.** Admission is one command, already dry-run on provisional values with the methane–ethane and methane–propane results unchanged (draft PR 47). |
 | P10: faster envelope options that change result objects | **Approve option (b) only after a wider survey** shows no lost envelope points. Reject (a): it loses a branch and the hidden-root safety net. |
-| A second experimental source | **Fetch NIST ThermoML data from the desktop** (the web sessions' proxy blocks trc.nist.gov) and compare it with the engine at kij = 0. It is the most useful next piece of evidence. |
+| A second experimental source | **Fetch NIST ThermoML data from the desktop** (the web sessions' proxy blocks trc.nist.gov) and run the ready tools in `docs/SECOND_SOURCE_PLAN.md`. It is the most useful next piece of evidence. |
 | Volume translation default | **Keep it off** until measured mixture liquid densities are compared. |
 | Faculty review of the dew interpretation and the evidence | **Ask for it.** It is the main scientific claim a reviewer should check. |

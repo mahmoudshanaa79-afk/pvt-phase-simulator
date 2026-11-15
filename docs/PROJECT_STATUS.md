@@ -116,6 +116,18 @@ recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (offline data tools for a second source):**
+  - Done: `tools/compare_thermoml_vle.py` reads a ThermoML JSON record, pairs
+    P and y by (T, x) and runs the frozen engine's bubble and dew at kij = 0
+    (or `--kij`). On a fixture built from committed May (2015) rows it
+    reproduces the validation record's statuses, pressures, reasons and
+    codes. `tools/compare_liquid_density.py` compares measured liquid
+    densities with PR with and without the shipped Péneloux shift. Also
+    `docs/SECOND_SOURCE_PLAN.md`, with every candidate NOT VERIFIED and the
+    exact desktop commands, and `docs/SECOND_SOURCE_FRAMEWORK_DESIGN.md`
+    (design only; the adapter is untouched).
+  - Next: the desktop downloads candidates and runs the tools; draft v1.8.0.
+
 - **2026-11-15, web (Labs 6 and 7):**
   - Done: Lab 6, phase stability and the flash: TPD at four pressures,
     Rachford-Rice by hand, Wilson vs converged K-values, and a near-critical
