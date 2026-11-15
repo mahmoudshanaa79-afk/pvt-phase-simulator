@@ -587,16 +587,16 @@ class Walk:
         self.wait_idle()
         self.screenshot("trivial-trials-note")
         self.open_page("Diagnostics", "Diagnostics")
+        # The flash diagnostics table is a canvas grid; its cells are kept in
+        # the page for assistive technology, not drawn, so "attached" is the
+        # check: row 1 (after DEFAULTED_BINARY_INTERACTIONS), column 0 (Code).
         expect(
-            self.page.get_by_text("STABILITY_TRIVIAL_TRIALS_ONLY", exact=False).first
-        ).to_be_visible()
+            self.page.locator(
+                '[data-testid="glide-cell-0-1"]',
+                has_text="STABILITY_TRIVIAL_TRIALS_ONLY",
+            )
+        ).to_have_count(1)
         self.open_page("Overview", "Overview")
-        example = self.page.get_by_role("combobox", name="Example case")
-        example.click()
-        self.page.get_by_text(
-            "Default two-phase-oriented case", exact=True
-        ).last.click()
-        self.wait_idle()
         return ""
 
     def phone(self) -> str:
