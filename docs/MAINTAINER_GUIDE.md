@@ -89,7 +89,12 @@ CI never deploys and needs no secrets.
   set inputs, press buttons and check that no generic failure message or
   logged error appeared.
 - **Real-browser tests** use Playwright's waiting `expect(...)`, never a fixed
-  sleep followed by a read.
+  sleep followed by a read. Before a release, also run the full browser walk,
+  which runs every action twice, parses every download and checks the phone
+  width (a few minutes):
+  ```bash
+  uv run python tools/browser_walk.py --output walk-evidence
+  ```
 - Tests run in parallel, so never write into the repository from a test. Use
   `tmp_path`.
 - **For a bug fix**, first show the new test failing on the old code, then

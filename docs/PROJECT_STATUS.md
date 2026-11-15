@@ -114,6 +114,19 @@ recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (health check and browser walk):**
+  - Done: `docs/investigations/health_check_2026_11.md`. On fresh master:
+    - every gate passed; full suite 1861 passed in 245 s; coverage 89.1 %
+      (app 93.1 %);
+    - the deployed-only environment passed;
+    - the bad-input probe found two weak messages (fixed in PR 55);
+    - only 4 of 42 diagnostic codes were explained (fixed in PR 58).
+    New `tools/browser_walk.py` runs every action twice, parses every
+    download, does save/reload/load, kij, volume translation and 390 px
+    checks: 31 of 31 passed. New `tests/test_status_claims.py` checks the
+    status page's and the guides' current-state numbers.
+  - Next: engine invariants, mutation testing, Labs 6-7, offline data tools.
+
 - **2026-11-15, web (plain-language glossary of every engine code):**
   - Done: the app explained 4 of the engine's 42 diagnostic codes. The
     Diagnostics page now shows a glossary table of all 42, and the flash
