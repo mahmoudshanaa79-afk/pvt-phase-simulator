@@ -112,16 +112,23 @@ recomputed from the engine by the tests.
    `tools/compare_liquid_density.py`. This is the first test of the record
    against a second laboratory and the first mixture-density check of the
    volume translation.
-4. Rerun the mutation testing of `adapters.py` with the envelope-helper tests
-   in the test command. The run of 15 November was time-boxed at 475 of 872
-   mutants (`docs/investigations/health_check_2026_11.md`).
-5. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
+4. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
    verified.
 
 ## Session log
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (adapters.py mutation testing completed):**
+  - Done: cosmic-ray ran all 884 mutants of `adapters.py`. Excluding the 165
+    annotation-only mutants, the score went from 75.9 % to 95.0 % with two
+    new test files (envelope-location, error, kij, refusal and view helpers).
+    The 36 survivors are listed and explained in
+    `docs/investigations/health_check_2026_11.md`: 34 are equivalent, and 2
+    change the kij widget's step constant.
+  - Open PRs: 47 (butanes draft) and this one.
+  - Next: recheck master; draft v1.9.0; handoff.
 
 - **2026-11-15, web (P10 survey, investigation only):**
   - Done: `tools/run_p10_survey.py` ran the app's envelope with and without

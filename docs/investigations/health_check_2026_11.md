@@ -27,7 +27,7 @@ fails on the old code. The engine is frozen and was only read and called.
 | 4.2 Engine invariants | Pass, no engine defect | `tests/test_engine_invariants.py`: 171 checks over 25 two-phase flashes, 29 stable feeds and 7 bubble or dew points | Added (PR 60) |
 | Engine finding | Near-critical false "stable" | 50/50 C1/C3 at 8.534 MPa: "stable" at 314–320 K while inside the envelope | Reproducer and proposal P12 (PR 61); engine unchanged |
 | 5.1 Keyboard focus | Gap | A focused sidebar page link had only a 15 % tint; a focused number field had no ring | Fixed (PR 64), browser test fails on the old code |
-| 4.3 Mutation testing | Before → after, below | cosmic-ray 8.4.6, time-boxed | Tests that kill the meaningful survivors (this PR) |
+| 4.3 Mutation testing | Before → after, below | cosmic-ray 8.4.6; `adapters.py` completed on all 884 mutants on 15 Nov | Tests that kill the meaningful survivors (PR 65 and the adapters follow-up) |
 
 ## 2.2 Coverage
 
@@ -146,7 +146,25 @@ without these.
 |---|---:|---:|---:|---:|---:|
 | `units.py` | 309 | 167 (54.0 %) | 189 (61.2 %) | 167 / 199 (83.9 %) | 189 / 199 (95.0 %) |
 | `case_files.py` | 189 | 136 (72.0 %) | 159 (84.1 %) | 136 / 178 (76.4 %) | 159 / 178 (89.3 %) |
-| `adapters.py` (time-boxed: 475 of 872 mutants run) | 475 | 217 (45.7 %) | 301 (63.4 %) | 217 / 399 (54.4 %) | 301 / 399 (75.4 %) |
+| `adapters.py`, first run (time-boxed: 475 of 872 mutants run) | 475 | 217 (45.7 %) | 301 (63.4 %) | 217 / 399 (54.4 %) | 301 / 399 (75.4 %) |
+| `adapters.py` (all 884 mutants) | 884 | 546 (61.8 %) | 683 (77.3 %) | 546 / 719 (75.9 %) | 683 / 719 (95.0 %) |
+
+**The complete `adapters.py` run (15 November 2026, later the same day).**
+- **Set-up:** master at `b4430bf` (the P12 (b) branch, whose `adapters.py`
+  equals master `da23ee0`), with three cosmic-ray HTTP workers, each in its
+  own worktree. The module had 884 mutants by then: the 872 above plus 12 in
+  the new P12 note helper.
+- **Before:** the first run's "after" command (the seven files listed
+  above), plus `tests/test_app_kij_input.py` (without its two slow page tests)
+  and `tests/test_stability_trivial_trials_diagnostic.py`, with `-x`. The
+  tests in `tests/test_app_envelope_extension.py` exercise
+  `envelope_extension.py`, not `adapters.py`, so they were left out.
+- **After:** the same plus the new `tests/test_adapters_envelope_helpers.py`
+  and `tests/test_adapters_inputs_and_views.py`. Only the survivors were re-run,
+  as before.
+- **Annotation-only mutants** are found from the module's syntax tree: the
+  mutated position lies inside an argument, return or variable annotation.
+  There are 165 of them.
 
 **What the new tests caught.**
 - **Units:**
@@ -162,8 +180,20 @@ without these.
   - escaping and key order of the saved bytes;
   - text and invalid UTF-8 input;
   - the temperature-unit refusal.
-- **Adapters:** the kij pair-presence logic, the exact range edges and the
-  composition checks.
+- **Adapters (first run):** the kij pair-presence logic, the exact range
+  edges and the composition checks.
+- **Adapters (complete run):**
+  - the envelope interpolation: temperature order on a retrograde branch,
+    the endpoints, a wide bracket, repeated temperatures, ignored
+    non-converged points, and no extrapolation below or above the branch;
+  - every branch of the operating-point message;
+  - the unrounded percent error and its refusals;
+  - a kij that is only negative;
+  - each kij reaching its own component pair;
+  - the refusal messages and the range text per unit;
+  - keyword-only options;
+  - immutable views;
+  - critical-point values shown only when certified.
 
 **What is left.**
 - **`units.py`:** every remaining non-annotation survivor is equivalent:
@@ -177,8 +207,28 @@ without these.
   - `args[-1]` vs `args[0]` of one-argument exceptions;
   - string comparisons that agree for the two allowed values;
   - the supported-range check, which the sweep validation repeats.
-- **`adapters.py`:** the time box ended with 397 mutants not run. The survivors
-  among the 475 that were run lie mostly in the envelope operating-point
-  bracketing and percent-error helpers, which the fast subset does not
-  exercise. Next step: rerun with those helpers' own tests in the command.
+- **`adapters.py`:** all 884 mutants have been run. Of the 36 surviving
+  non-annotation mutants, 34 are equivalent:
+  - `> 0` → `!= 0` in the kij pair-presence test (6), because fractions are
+    checked non-negative first;
+  - `strict=True` → `False` on zips of equal-length tuples (4);
+  - unit checks: `is` → `==` on enum members, and an ordering that holds only
+    for the kelvin and pascal values (3);
+  - `is not` on small integers, which CPython caches (2);
+  - `total <= 0` → `== 0`, because negative values are refused first (1);
+  - `>` → `>=` on the 1e-8 composition tolerance, which differs only at a sum
+    exactly 1e-8 from 100 (1);
+  - the result-styling comparisons (10): `is` on interned strings, and
+    orderings that agree for every combination of statuses the engine can
+    return (a single phase is reported only after a stable verdict and no
+    flash attempt);
+  - `is` → `==` for the certified critical status (1);
+  - the point-status filter (2), which no real status value sorts before;
+  - the interpolation bracket's right end and its equal-temperature guard
+    (2), because the next pair or the exact-match fallback gives the same
+    pressure;
+  - the location comparisons after the earlier checks (2).
+
+  The remaining 2 change `KIJ_STEP`, the kij input's arrow step. It is a
+  display constant of the input widget, deliberately not pinned by a test.
 
