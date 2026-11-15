@@ -58,6 +58,7 @@ FALLBACK_START_EQUIVALENCE_TOLERANCE: Final = 1e-12
 MAXIMUM_FALLBACK_STARTS: Final = 10
 ROOT_SWITCH_COMPARISON_TOLERANCE: Final = 1e-8
 ROOT_SWITCH_RELATIVE_JUMP_TOLERANCE: Final = 5e-2
+STABILITY_TRIVIAL_TRIALS_ONLY: Final = "STABILITY_TRIVIAL_TRIALS_ONLY"
 _LOG_FLOAT_MAX: Final = log(float_info.max)
 _LOG_FLOAT_MIN: Final = log(float_info.min)
 
@@ -194,6 +195,10 @@ class MixturePhaseStabilityResult:
     binary_interactions: CanonicalBinaryInteractions
     supplied_binary_interaction_pairs: CanonicalBinaryInteractionPairs
     defaulted_binary_interaction_pairs: CanonicalBinaryInteractionPairs
+    # Diagnostics about the verdict itself (proposal P12 (b)). They are kept
+    # apart from the feed-reference and trial-character diagnostics, so those,
+    # and every result built from them, are unchanged.
+    verdict_diagnostics: tuple[EOSDiagnostic, ...] = ()
 
 
 def _require_composition(
@@ -1352,6 +1357,40 @@ def classify_phase_stability_trials(
     return PhaseStabilityStatus.INCONCLUSIVE
 
 
+def stability_verdict_diagnostics(
+    status: PhaseStabilityStatus,
+    vapor_like_trial: PhaseStabilityTrialResult,
+    liquid_like_trial: PhaseStabilityTrialResult,
+) -> tuple[EOSDiagnostic, ...]:
+    """Warn when a stable verdict rests only on trivial trial solutions.
+
+    A trivial trial converged back to the feed: it found no instability, but it
+    also tested no distinct phase. Near a mixture critical point both trials can
+    do this inside the two-phase region (proposal P12). The verdict itself is
+    not changed.
+    """
+
+    if (
+        status is PhaseStabilityStatus.STABLE
+        and vapor_like_trial.trivial_solution
+        and liquid_like_trial.trivial_solution
+    ):
+        return (
+            EOSDiagnostic(
+                code=STABILITY_TRIVIAL_TRIALS_ONLY,
+                severity=DiagnosticSeverity.WARNING,
+                category=DiagnosticCategory.NUMERICAL_CONDITIONING,
+                message=(
+                    "Stable here means no instability was found: both stability "
+                    "trials returned the trivial solution (the feed itself). "
+                    "Near a critical point, check this state against the phase "
+                    "envelope."
+                ),
+            ),
+        )
+    return ()
+
+
 def analyze_mixture_phase_stability(
     mixture: FluidMixture,
     temperature_k: float,
@@ -1452,5 +1491,8 @@ def analyze_mixture_phase_stability(
         ),
         defaulted_binary_interaction_pairs=(
             feed_reference.defaulted_binary_interaction_pairs
+        ),
+        verdict_diagnostics=stability_verdict_diagnostics(
+            status, vapor_trial, liquid_trial
         ),
     )

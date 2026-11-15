@@ -66,6 +66,7 @@ from pvt_phase_simulator_ui.adapters import (
     flash_presentation_kind,
     load_module17_records,
     location_relative_to_envelope,
+    stability_verdict_note,
     status_text,
     validation_pressure_error_summary,
 )
@@ -781,6 +782,9 @@ def render_overview(inputs: ScientificInputs | None) -> None:
                 f"Selected single-phase Z = {_full_precision(view.single_phase_z)}.",
                 icon=":material/info:",
             )
+            verdict_note = stability_verdict_note(result)
+            if verdict_note is not None:
+                st.caption(verdict_note)
         else:
             st.error(
                 f"Solver status: {status_text(view.convergence_status)} · "
@@ -1658,7 +1662,9 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
             ]
         )
         _flash_details(result)
-        if result.diagnostics:
+        # The flash diagnostics, then any about the stability verdict (P12 b).
+        listed = (*result.diagnostics, *result.phase_stability.verdict_diagnostics)
+        if listed:
             st.dataframe(
                 pd.DataFrame(
                     {
@@ -1669,7 +1675,7 @@ def render_diagnostics(inputs: ScientificInputs | None) -> None:
                         "Meaning": CODE_GLOSSARY.get(item.code, ""),
                         "Value": item.value,
                     }
-                    for item in result.diagnostics
+                    for item in listed
                 ),
                 hide_index=True,
                 width="stretch",

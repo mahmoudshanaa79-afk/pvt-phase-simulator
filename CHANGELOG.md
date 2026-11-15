@@ -5,6 +5,23 @@ v1.0–v1.5, and `docs/release_notes/` from v1.6 on. Every version keeps the sam
 Peng–Robinson model (classical mixing, kij = 0 by default); engine changes are
 made only with the owner's approval and are named below.
 
+## Unreleased (on `master`, after v1.8.0)
+
+**Engine (owner-approved 15 November 2026: P12, part (b) only)**
+- **A stable verdict that rests only on trivial trials is labelled.** When the
+  stability verdict is *stable* and both production trials returned the
+  trivial solution, the stability result carries the diagnostic
+  `STABILITY_TRIVIAL_TRIALS_ONLY` in a new field, `verdict_diagnostics`. The
+  verdict is unchanged. Every pre-existing field of every result is
+  byte-identical: the engine fingerprint (801 cases, new field left out of the
+  comparison), the golden master and the Module 17 validation record all match.
+  Part (a) of P12, extra trial starts near the feed, is not approved.
+
+**App and teaching**
+- When the diagnostic is present, the Overview shows one short note under the
+  single-phase message, and the Diagnostics page lists the code with its
+  glossary meaning. Labs 6 and 7 say what the note means.
+
 ## 1.8.0 (15 November 2026)
 
 Full notes: [`docs/release_notes/v1.8.0.md`](docs/release_notes/v1.8.0.md).

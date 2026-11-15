@@ -53,6 +53,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from pvt_phase_simulator_ui import app as ui_app  # noqa: E402
 from pvt_phase_simulator_ui import views  # noqa: E402
+from pvt_phase_simulator_ui.adapters import TRIVIAL_TRIALS_NOTE  # noqa: E402
 from pvt_phase_simulator_ui.learn import LAB_BASE_URL, LABS, TOPICS  # noqa: E402
 
 GENERIC_FAILURES = (
@@ -323,6 +324,9 @@ class Walk:
         )
         self.check("a refused case file says how to fix it", self.bad_case_file)
         self.check("an all-zero composition says what to enter", self.zero_composition)
+        self.check(
+            "a stable verdict on trivial trials shows its note", self.trivial_trials
+        )
         self.check("no sideways scroll at 390 px on any page", self.phone)
         blocking = [
             text
@@ -555,6 +559,38 @@ class Walk:
         self.click("RUN FLASH")
         message = self.page.get_by_text("Submission unavailable", exact=False).first
         expect(message).to_contain_text("Enter a positive mol % for at least one")
+        example = self.page.get_by_role("combobox", name="Example case")
+        example.click()
+        self.page.get_by_text(
+            "Default two-phase-oriented case", exact=True
+        ).last.click()
+        self.wait_idle()
+        return ""
+
+    def trivial_trials(self) -> str:
+        """P12 (b): 50/50 methane/propane at 316 K and 8.534 MPa."""
+
+        values = {
+            "Methane (mol %)": "50",
+            "Ethane (mol %)": "0",
+            "Propane (mol %)": "50",
+            "Temperature (K)": "316",
+            "Pressure (MPa)": "8.534",
+        }
+        for label, value in values.items():
+            field_ = self.page.get_by_role("spinbutton", name=label, exact=True)
+            field_.fill(value)
+            field_.press("Tab")
+        self.click("RUN FLASH")
+        note = self.page.get_by_text(TRIVIAL_TRIALS_NOTE, exact=True)
+        note.wait_for(timeout=LONG)
+        self.wait_idle()
+        self.screenshot("trivial-trials-note")
+        self.open_page("Diagnostics", "Diagnostics")
+        expect(
+            self.page.get_by_text("STABILITY_TRIVIAL_TRIALS_ONLY", exact=False).first
+        ).to_be_visible()
+        self.open_page("Overview", "Overview")
         example = self.page.get_by_role("combobox", name="Example case")
         example.click()
         self.page.get_by_text(

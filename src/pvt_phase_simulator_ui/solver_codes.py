@@ -75,6 +75,11 @@ CODE_GLOSSARY: Final[dict[str, str]] = {
         "The standard Wilson starting guess for a stability trial was "
         "inconclusive, so a small fixed set of extra starting guesses was tried."
     ),
+    "STABILITY_TRIVIAL_TRIALS_ONLY": (
+        "The verdict is stable only because both stability trials returned the "
+        "feed itself. That is normal for a clear single phase; near a critical "
+        "point, check the state against the phase envelope."
+    ),
     "NO_RELIABLE_PHASE_STABILITY_TRIAL": (
         "Neither the standard nor the fallback stability trials gave a reliable "
         "answer, so stability is reported as inconclusive."

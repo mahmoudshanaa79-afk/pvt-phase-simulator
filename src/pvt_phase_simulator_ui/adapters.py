@@ -18,6 +18,7 @@ from pvt_phase_simulator.eos.phase_envelope import (
     PhaseEnvelopePoint,
     PhaseEnvelopeResult,
 )
+from pvt_phase_simulator.eos.phase_stability import STABILITY_TRIVIAL_TRIALS_ONLY
 from pvt_phase_simulator.fluid_models import (
     ETHANE,
     METHANE,
@@ -388,6 +389,20 @@ def adapt_flash_result(result: TwoPhaseFlashResult) -> FlashView:
         len(result.iteration_history),
         result.failure_reason,
     )
+
+
+TRIVIAL_TRIALS_NOTE: Final = (
+    "Stable here means no instability was found: both stability trials "
+    "returned the feed itself. That is normal for a clear single phase. Near a "
+    "critical point, check this state against the phase envelope."
+)
+
+
+def stability_verdict_note(result: TwoPhaseFlashResult) -> str | None:
+    """A plain note when a stable verdict rests only on trivial trials (P12 b)."""
+
+    codes = {item.code for item in result.phase_stability.verdict_diagnostics}
+    return TRIVIAL_TRIALS_NOTE if STABILITY_TRIVIAL_TRIALS_ONLY in codes else None
 
 
 def flash_presentation_kind(
