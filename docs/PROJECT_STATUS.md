@@ -116,6 +116,20 @@ recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (mutation testing and the tests it called for):**
+  - Done: cosmic-ray on `units.py`, `case_files.py` and `adapters.py`.
+    Without annotation-only mutants:
+    - units 83.9 % -> 95.0 %;
+    - case files 76.4 % -> 89.3 %;
+    - adapters (time-boxed, 475 of 872 mutants) 54.4 % -> 75.4 %.
+    New tests: `tests/test_units_known_values.py`,
+    `tests/test_case_files_edges.py` and `tests/test_adapters_boundaries.py`
+    (for example a 1.1.0 case file losing its kij, and `true` accepted as a
+    number). Results in `docs/investigations/health_check_2026_11.md`. The
+    CHANGELOG "Unreleased" section now lists everything since v1.7.0.
+  - Next: rerun the adapters mutants with the envelope-helper tests; draft
+    v1.8.0.
+
 - **2026-11-15, web (visible keyboard focus):**
   - Done: a keyboard probe of the real page found that a focused sidebar page
     link got only a 15 % background tint and a focused number field no ring at

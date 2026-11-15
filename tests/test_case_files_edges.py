@@ -84,11 +84,16 @@ def test_booleans_are_not_numbers_or_integers() -> None:
         _load(document)
 
 
-def test_an_unknown_presentation_unit_is_a_case_file_error() -> None:
+@pytest.mark.parametrize(
+    ("field", "unit"), (("pressure", "furlong"), ("temperature", "R"))
+)
+def test_an_unknown_presentation_unit_is_a_case_file_error(
+    field: str, unit: str
+) -> None:
     document = _document()
-    document["presentation_units"]["pressure"] = "furlong"
+    document["presentation_units"][field] = unit
     with pytest.raises(
-        CaseFileError, match="presentation_units.pressure must be one of"
+        CaseFileError, match=f"presentation_units.{field} must be one of"
     ):
         _load(document)
 
