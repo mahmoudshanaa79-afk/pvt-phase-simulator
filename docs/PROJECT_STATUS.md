@@ -114,6 +114,17 @@ recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (engine invariants, read-only):**
+  - Done: `tests/test_engine_invariants.py` (171 checks, about 5 s) recomputes
+    from the engine's public functions, with the engine's own tolerances:
+    flash material balance, normalized phases, equal fugacities and
+    K = y/x; each trial's tangent-plane distance and the verdict that
+    follows; bubble/dew K-values and equal fugacities at the reported
+    pressure. The grid covers 25 converged two-phase flashes, 29 stable feeds
+    and 7 converged bubble/dew points. Every invariant holds, so no engine
+    proposal was needed.
+  - Next: mutation testing, Labs 6-7, offline data tools.
+
 - **2026-11-15, web (health check and browser walk):**
   - Done: `docs/investigations/health_check_2026_11.md`. On fresh master:
     - every gate passed; full suite 1861 passed in 245 s; coverage 89.1 %
