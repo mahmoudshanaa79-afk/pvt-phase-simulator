@@ -112,6 +112,18 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (error messages say how to fix them):**
+  - Recorded: the desktop tagged and published v1.7.0 on 15 Nov 2026 at
+    `923d492` (GitHub release "OpenPhase v1.7") and checked the live app: it
+    woke in 31 s and a flash ran with no errors.
+  - Done: a refused case file now adds "Choose a .json file made with Save
+    case in OpenPhase, or enter the inputs in the form instead", and an
+    all-zero composition says to enter a positive mol % for at least one
+    component. Found in the 2026-11 health check;
+    `tests/test_error_hints.py` fails on the old code and passes now.
+  - Open PRs: 47 (butanes draft, Table 5 values).
+  - Next: the rest of the health check (browser walk, docs truth).
+
 - **2026-11-10, web (v1.7.0 tag blocked; Lab 5):**
   - v1.7.0: master CI on `923d492` passed, but this web session could not
     push the annotated tag `v1.7.0` (the git proxy refused the tag push four
