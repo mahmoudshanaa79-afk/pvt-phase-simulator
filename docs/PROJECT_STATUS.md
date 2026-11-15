@@ -112,6 +112,17 @@ instructor key whose numbers are recomputed from the engine by the tests.
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
 
+- **2026-11-15, web (engine invariants, read-only):**
+  - Done: `tests/test_engine_invariants.py` (171 checks, about 5 s) recomputes
+    from the engine's public functions, with the engine's own tolerances:
+    flash material balance, normalized phases, equal fugacities and
+    K = y/x; each trial's tangent-plane distance and the verdict that
+    follows; bubble/dew K-values and equal fugacities at the reported
+    pressure. The grid covers 25 converged two-phase flashes, 29 stable feeds
+    and 7 converged bubble/dew points. Every invariant holds, so no engine
+    proposal was needed.
+  - Next: mutation testing, Labs 6-7, offline data tools.
+
 - **2026-11-15, web (error messages say how to fix them):**
   - Recorded: the desktop tagged and published v1.7.0 on 15 Nov 2026 at
     `923d492` (GitHub release "OpenPhase v1.7") and checked the live app: it
