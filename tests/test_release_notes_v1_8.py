@@ -15,10 +15,14 @@ NOTES = " ".join(
     (ROOT / "docs/release_notes/v1.8.0.md").read_text(encoding="utf-8").split()
 )
 WORDS = {6: "six", 7: "seven", 8: "eight"}
+# Codes the engine gained after v1.8.0. The v1.8.0 notes describe v1.8.0.
+CODES_ADDED_AFTER_V1_8 = frozenset({"STABILITY_TRIVIAL_TRIALS_ONLY"})
 
 
 def test_glossary_and_lab_counts() -> None:
-    assert f"lists all {len(CODE_GLOSSARY)} codes" in NOTES
+    assert CODES_ADDED_AFTER_V1_8 <= set(CODE_GLOSSARY)
+    v1_8_codes = set(CODE_GLOSSARY) - CODES_ADDED_AFTER_V1_8
+    assert f"lists all {len(v1_8_codes)} codes" in NOTES
     assert f"links {WORDS[len(LABS)]} teaching labs" in NOTES
 
 

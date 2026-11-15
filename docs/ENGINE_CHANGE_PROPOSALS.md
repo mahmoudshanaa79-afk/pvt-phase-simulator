@@ -408,8 +408,16 @@ the same day as a new optional module, off by default.**
 
 ## P12. Near-critical false "stable" verdicts: extra stability starts near the feed
 
-**Status: proposed (web session, 15 November 2026). Awaiting owner decision.**
-Nothing in the engine has been changed. Reproducer:
+**Status: (b) implemented, owner-approved 15 Nov 2026; (a) not approved.**
+Part (b) adds the diagnostic `STABILITY_TRIVIAL_TRIALS_ONLY` to a new field,
+`MixturePhaseStabilityResult.verdict_diagnostics`, when the verdict is stable
+and both production trials are trivial. The verdict does not change, and
+every pre-existing result field is byte-identical (engine fingerprint, golden
+master and Module 17 record; see the implementing pull request). The app shows
+a short note on the Overview, and Labs 6 and 7 explain it. Part (a), extra
+trial starts near the feed, is not approved, so the 314–320 K verdicts below
+are still *stable*. Proposed by the web session on 15 November 2026.
+Reproducer:
 `tools/reproduce_near_critical_false_stable.py` (read-only; its evidence is
 checked by `tests/test_reproduce_near_critical_false_stable.py`).
 

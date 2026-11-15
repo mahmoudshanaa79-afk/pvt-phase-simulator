@@ -76,6 +76,7 @@ recomputed from the engine by the tests.
 | P6: non-zero kij | Option 2, owner-approved (2 Nov 2026): kij = 0 stays the default and the validation reference; the app offers an optional, labelled kij input (PR #32). Study: `docs/investigations/kij_study.md` (CH4+C3 fitted kij +0.0021). |
 | P7: refine boundaries when the scan finds no root | Done, owner-approved (1 Nov 2026). All nine `not_found` bubble states of the record now converge (CH4+C2 bubble 11 → 17, CH4+C3 20 → 23); 7 agree with the Newton option to 1e-8 and 250 K agrees with the independent envelope reference to 5e-14. |
 | P8: check past a failed walk step | Done, owner-approved (1 Nov 2026). CH4+C2 dew 008, 009, 013 and 017 have an upper root the solver missed and are now ambiguous; CH4+C2 dew 12 states at 5.34 % → 8 states at 2.07 %. Lab 2 updated. |
+| P12: near-critical false "stable" verdicts | Owner decision of 15 Nov 2026: (b) implemented, (a) not approved. A stable verdict that rests only on trivial trials now carries `STABILITY_TRIVIAL_TRIALS_ONLY` in a new field; the verdict and every pre-existing result field are byte-identical. The Overview shows a short note. |
 | P9: skip repeated validation of the same inputs | Owner-approved (8 Nov 2026) on the condition that every result stays byte-identical; see PR #43 and `tools/engine_fingerprint.py`. |
 | Parallel CI | Accepted default: the full suite runs with pytest-xdist (`-n auto --dist loadfile`); every test still runs once. |
 | Supported input range | Accepted default: 50–1000 K and 1 Pa–1 GPa, checked by the form, sweeps and case files (`adapters.py`). |
@@ -86,7 +87,6 @@ recomputed from the engine by the tests.
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
-| P12 (a): extra stability starts near the feed when both trials are trivial | `docs/ENGINE_CHANGE_PROPOSALS.md`, `tools/reproduce_near_critical_false_stable.py` | Changes results; (b), the diagnostic, was approved on 15 November |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -105,25 +105,35 @@ recomputed from the engine by the tests.
 
 1. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
    draft PR 47 (validation only); its description lists the owner's steps.
-2. Implement P12 (b), the diagnostic the owner approved on 15 November, with
-   the golden master byte-identical. P12 (a) waits for a golden-master study.
-3. P10: the owner asked for the wider survey of option (b) only, with no
+2. P10: the owner asked for the wider survey of option (b) only, with no
    engine change.
-4. From the desktop, download the ThermoML candidates in
+3. From the desktop, download the ThermoML candidates in
    `docs/SECOND_SOURCE_PLAN.md` and run `tools/compare_thermoml_vle.py` and
    `tools/compare_liquid_density.py`. This is the first test of the record
    against a second laboratory and the first mixture-density check of the
    volume translation.
-5. Rerun the mutation testing of `adapters.py` with the envelope-helper tests
+4. Rerun the mutation testing of `adapters.py` with the envelope-helper tests
    in the test command. The run of 15 November was time-boxed at 475 of 872
    mutants (`docs/investigations/health_check_2026_11.md`).
-6. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
+5. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
    verified.
 
 ## Session log
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (v1.8.0 merged; P12 (b) implemented, owner-approved):**
+  - Done: merged PR 66 (v1.8.0) with merge commit `5ed8aeb` for the desktop
+    to tag. P12 (b): a stable verdict that rests only on trivial trials now
+    carries `STABILITY_TRIVIAL_TRIALS_ONLY` in a new stability-result field,
+    `verdict_diagnostics`; the verdict is unchanged. The Overview shows a short
+    note, the Diagnostics page lists the code, and Labs 6 and 7 explain it.
+    Proofs on one machine: engine fingerprint 801 of 801 identical with the
+    new field left out; golden-master comparison report identical to
+    master's; Module 17 record byte-identical. P12 (a) is not approved.
+  - Open PRs: 47 (butanes draft) and this one.
+  - Next: P10 survey; second-source plan update; adapters mutation run.
 
 - **2026-11-15, desktop (v1.8.0 released, owner-approved):**
   - Done: the owner approved v1.8.0, P12 (b) only, and a P10 survey with no

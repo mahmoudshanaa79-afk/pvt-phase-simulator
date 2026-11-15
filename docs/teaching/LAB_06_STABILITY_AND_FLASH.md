@@ -89,8 +89,9 @@ The engine's verified constants (Yang & Richter, 2025):
 The certified critical point of this mixture is 321.58 K and 8.534 MPa. Run the
 flash at 8.534 MPa and 312 K, then at 316 K.
 
-1. Record the phase state, the stability status and whether both trials are
-   trivial.
+1. Record the phase state, the stability status, whether both trials are
+   trivial, and whether the Overview shows a note under the single-phase
+   message.
 2. On **Phase Envelope** (operating temperature 300 K, RUN PHASE ENVELOPE),
    read the extended bubble branch between about 311 K and 319 K. Is the state
    at 316 K and 8.534 MPa inside or outside the envelope?
@@ -144,10 +145,10 @@ number below.
 
 **Part D** (8.534 MPa).
 
-| T (K) | Phase state | Stability | Both trials trivial |
-|---:|---|---|---|
-| 312 | two phase | unstable | no |
-| 316 | single phase | stable | yes |
+| T (K) | Phase state | Stability | Both trials trivial | Note on Overview |
+|---:|---|---|---|---|
+| 312 | two phase | unstable | no | no |
+| 316 | single phase | stable | yes | yes |
 
 - The extended bubble branch passes 8.8092 MPa at 311.43 K and 8.6648 MPa at
   318.97 K. At 316 K the bubble pressure is therefore above 8.534 MPa, and
@@ -155,6 +156,11 @@ number below.
 - So the flash's "single phase, stable" at 316 K is wrong: both trials
   collapsed to the trivial solution, and the test found nothing rather than
   proving stability. Near a critical point the tangent plane is nearly flat,
-  and the bounded set of trial starts can miss the instability. Proposal P12
-  documents this and suggests more trial starts near the feed. Until then,
-  check near-critical verdicts against the envelope.
+  and the bounded set of trial starts can miss the instability.
+- The engine says so. When "stable" rests only on trivial trials, it adds the
+  diagnostic `STABILITY_TRIVIAL_TRIALS_ONLY`, and the Overview shows a short
+  note: stable here means no instability was found. The verdict itself does
+  not change (proposal P12, part (b), implemented in November 2026). The same
+  note appears at 20 MPa in Part A, where the feed really is single-phase, so
+  the note means "check", not "wrong". Near a critical point, check the
+  verdict against the envelope.

@@ -19,6 +19,7 @@ from pvt_phase_simulator.eos.phase_stability import (
 from pvt_phase_simulator.fluid_models import METHANE, PROPANE
 from pvt_phase_simulator_ui.adapters import (
     run_validated_flash,
+    stability_verdict_note,
     validate_scientific_inputs,
 )
 from pvt_phase_simulator_ui.envelope_extension import trace_extended_envelope
@@ -80,6 +81,8 @@ def test_part_a_verdicts_and_tangent_plane_distances() -> None:
     assert twenty.status.value == "stable"
     assert twenty.vapor_like_trial.trivial_solution
     assert twenty.liquid_like_trial.trivial_solution
+    assert stability_verdict_note(_flash(300.0, 20.0)) is not None
+    assert "The same note appears at 20 MPa in Part A" in KEY
 
 
 def test_part_b_rachford_rice_by_hand() -> None:
@@ -130,9 +133,10 @@ def test_part_d_near_critical_verdicts() -> None:
             stability.vapor_like_trial.trivial_solution
             and stability.liquid_like_trial.trivial_solution
         )
+        note = stability_verdict_note(result) is not None
         row = (
             f"| {temperature:g} | {_state(result)} | {stability.status.value} | "
-            f"{'yes' if trivial else 'no'} |"
+            f"{'yes' if trivial else 'no'} | {'yes' if note else 'no'} |"
         )
         assert row in KEY, row
 

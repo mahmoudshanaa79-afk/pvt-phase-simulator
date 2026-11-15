@@ -18,6 +18,7 @@ from pvt_phase_simulator.eos.flash import TwoPhaseFlashResult
 from pvt_phase_simulator_ui.adapters import (
     adapt_critical_result,
     run_validated_flash,
+    stability_verdict_note,
     validate_scientific_inputs,
 )
 from pvt_phase_simulator_ui.envelope_extension import (
@@ -175,9 +176,11 @@ def test_part_d_states_inside_the_envelope_reported_single_phase() -> None:
             stability.vapor_like_trial.trivial_solution
             and stability.liquid_like_trial.trivial_solution
         )
+        note = stability_verdict_note(result) is not None
         row = (
             f"| {pressure:.2f} | {result.phase_state.value.replace('_', ' ')} | "
-            f"{stability.status.value} | {'yes' if trivial else 'no'} |"
+            f"{stability.status.value} | {'yes' if trivial else 'no'} | "
+            f"{'yes' if note else 'no'} |"
         )
         assert row in KEY, row
     assert f"below the upper dew pressure ({upper / 1e6:.3f} MPa)" in KEY

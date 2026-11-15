@@ -78,8 +78,9 @@ Then run the flash at 327 K and these pressures (MPa): 7.70, 7.50, 7.25, 7.00,
 
 Still at 327 K, run the flash at 7.85, 7.80 and 7.75 MPa.
 
-1. Record the phase state, the stability status and whether both stability
-   trials are trivial (Diagnostics → Show advanced raw public objects).
+1. Record the phase state, the stability status, whether both stability
+   trials are trivial (Diagnostics → Show advanced raw public objects), and
+   whether the Overview shows a note under the single-phase message.
 2. Compare with the upper dew pressure from Part C. Are these states inside the
    envelope?
 3. What should a user do with a near-critical "single phase" result? (See Lab 6
@@ -144,11 +145,11 @@ number below.
 
 **Part D** (327 K).
 
-| P (MPa) | Phase state | Stability | Both trials trivial |
-|---:|---|---|---|
-| 7.85 | single phase | stable | yes |
-| 7.80 | single phase | stable | yes |
-| 7.75 | single phase | stable | yes |
+| P (MPa) | Phase state | Stability | Both trials trivial | Note on Overview |
+|---:|---|---|---|---|
+| 7.85 | single phase | stable | yes | yes |
+| 7.80 | single phase | stable | yes | yes |
+| 7.75 | single phase | stable | yes | yes |
 
 - All three pressures are below the upper dew pressure (7.904 MPa) and above
   the lower one, so these states are **inside** the envelope and should be
@@ -156,7 +157,9 @@ number below.
 - The flash calls them single phase because both stability trials returned the
   trivial solution: the test found no instability, it did not prove
   stability. This is the same near-critical limitation as Lab 6 Part D
-  (proposal P12).
+  (proposal P12). The Overview's note (diagnostic
+  `STABILITY_TRIVIAL_TRIALS_ONLY`) says exactly this; the verdict itself is
+  unchanged.
 - A user should treat a near-critical "single phase" result with caution,
   check it against the phase envelope, and note that the liquid fraction just
   inside the dew curve is small anyway (0.0818 at 7.70 MPa).
