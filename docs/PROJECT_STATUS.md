@@ -86,6 +86,7 @@ recomputed from the engine by the tests.
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
+| Release v1.8.0 | draft PR "Release v1.8.0 (awaiting owner approval)" and `docs/release_notes/v1.8.0.md` | Not merged, released or tagged until approved |
 | P12: near-critical false "stable" verdicts | `docs/ENGINE_CHANGE_PROPOSALS.md`, `tools/reproduce_near_critical_false_stable.py` | Extra stability starts near the feed when both trials are trivial, and a diagnostic when "stable" rests only on trivial trials |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
@@ -115,6 +116,15 @@ recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (release v1.8.0 prepared, draft, not merged):**
+  - Done: version 1.8.0 (`uv lock`), `docs/release_notes/v1.8.0.md` (merged
+    work only, honest known limits; numbers checked by
+    `tests/test_release_notes_v1_8.py`), CHANGELOG section. Draft PR
+    "Release v1.8.0 (awaiting owner approval)".
+  - Open PRs: this release draft; 47 (butanes draft, Table 5 values).
+  - Next: the owner approves v1.8.0; then merge, and the desktop tags it
+    (tags and `gh release` are blocked in the web sessions).
 
 - **2026-11-15, web (mutation testing and the tests it called for):**
   - Done: cosmic-ray on `units.py`, `case_files.py` and `adapters.py`.
