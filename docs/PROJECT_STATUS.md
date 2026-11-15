@@ -104,17 +104,49 @@ recomputed from the engine by the tests.
 ## Suggested next steps, in order
 
 1. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
-   draft PR (validation only).
-2. Decide on P10 (b).
-3. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
+   draft PR 47 (validation only); its description lists the owner's steps.
+2. Approve or reject the v1.8.0 release (draft PR "Release v1.8.0 (awaiting
+   owner approval)"). After approval: merge, then tag and publish from the
+   desktop (`docs/MAINTAINER_GUIDE.md`, "Releasing a version").
+3. Decide P12 (near-critical false "stable" verdicts; recommended: approve
+   (b), the diagnostic, now; and (a), extra starts, after a golden-master
+   check). Decide P10 (recommended: option (b), only after a wider survey
+   shows no lost points).
+4. From the desktop, download the ThermoML candidates in
+   `docs/SECOND_SOURCE_PLAN.md` and run `tools/compare_thermoml_vle.py` and
+   `tools/compare_liquid_density.py`. This is the first test of the record
+   against a second laboratory and the first mixture-density check of the
+   volume translation.
+5. Rerun the mutation testing of `adapters.py` with the envelope-helper tests
+   in the test command. The run of 15 November was time-boxed at 475 of 872
+   mutants (`docs/investigations/health_check_2026_11.md`).
+6. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
    verified.
-4. A second experimental source for methane + propane, to test kij beyond one
-   laboratory.
 
 ## Session log
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (final web session: handoff):**
+  - Done today, all merged:
+    - error hints (PR 55);
+    - handover documents (56);
+    - property tests (57);
+    - code glossary (58);
+    - health check and browser walk (59);
+    - engine invariants (60);
+    - P12 reproducer and proposal (61);
+    - Labs 6 and 7 (62);
+    - offline second-source tools (63);
+    - keyboard focus (64);
+    - mutation tests (65).
+    Full suite 2163 passed on the release branch; the browser walk had 31 of
+    31 checks pass.
+  - Open PRs: the v1.8.0 release draft (owner approval) and 47 (butanes
+    draft, Table 5 values).
+  - Next: the six "Suggested next steps" above, in order. This web account
+    ends today; the desktop session continues from this log.
 
 - **2026-11-15, web (mutation testing and the tests it called for):**
   - Done: cosmic-ray on `units.py`, `case_files.py` and `adapters.py`.
