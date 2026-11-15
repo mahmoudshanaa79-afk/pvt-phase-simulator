@@ -5,7 +5,17 @@ v1.0–v1.5, and `docs/release_notes/` from v1.6 on. Every version keeps the sam
 Peng–Robinson model (classical mixing, kij = 0 by default); engine changes are
 made only with the owner's approval and are named below.
 
-## 1.7.0 (9 November 2026)
+## Unreleased (on `master`, after v1.7.0)
+
+- **Lab 5: liquid density and volume translation**
+  (`docs/teaching/LAB_05_LIQUID_DENSITY.md`), linked from Learn mode; every
+  number is recomputed by its test.
+- **Handover documents.** `docs/MAINTAINER_GUIDE.md` (daily commands, CI,
+  tests, engine proposals, the release procedure, troubleshooting) and
+  `docs/STATE_OF_OPENPHASE.md` (a short summary for a faculty reader, with
+  every number checked by `tests/test_state_of_openphase.py`).
+
+## 1.7.0 (9 November 2026; tagged and published 15 November 2026)
 
 Full notes: [`docs/release_notes/v1.7.0.md`](docs/release_notes/v1.7.0.md).
 

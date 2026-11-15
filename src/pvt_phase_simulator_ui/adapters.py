@@ -269,7 +269,10 @@ def validate_scientific_inputs(
         raise InputValidationError("Each composition value must not exceed 100 mol %.")
     total = composition_total(values)
     if total <= 0.0:
-        raise InputValidationError("Composition total must be greater than zero.")
+        raise InputValidationError(
+            "Composition total must be greater than zero. Enter a positive mol % "
+            "for at least one component."
+        )
     if abs(total - COMPOSITION_TOTAL_MOL_PERCENT) > COMPOSITION_TOLERANCE_MOL_PERCENT:
         raise InputValidationError(
             "Composition must total 100 mol %. Values are not automatically normalized."

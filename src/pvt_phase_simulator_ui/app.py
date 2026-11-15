@@ -55,6 +55,11 @@ from pvt_phase_simulator_ui.volume_translation_view import (
 PAGES_DIRECTORY = Path(__file__).with_name("pages")
 LOGGER = logging.getLogger(__name__)
 
+#: Added to every refused case file: how to get a file that loads.
+CASE_LOAD_HINT = (
+    "Choose a .json file made with Save case in OpenPhase, or enter the inputs "
+    "in the form instead."
+)
 FLASH_ACTION_FAILURE = (
     "The flash calculation stopped unexpectedly and did not return a result. "
     "Any earlier flash result was removed so it cannot be mistaken for the "
@@ -130,7 +135,7 @@ def _case_controls() -> None:
             try:
                 _load_case_inputs(uploaded.getvalue(), session())
             except CaseFileError as error:
-                st.error(f"Case load unavailable: {error}")
+                st.error(f"Case load unavailable: {error} {CASE_LOAD_HINT}")
             except Exception:  # noqa: BLE001 - uploaded data must not expose internals
                 LOGGER.exception("Unexpected failure while loading a case file")
                 st.error(CASE_LOAD_FAILURE)
