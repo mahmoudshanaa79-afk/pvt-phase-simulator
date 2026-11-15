@@ -1,7 +1,8 @@
 # Project status
 
-Last updated: 9 November 2026 (v1.7.0 approved by the owner and released from
-this PR's merge commit, tag `v1.7.0`).
+Last updated: 15 November 2026. v1.7.0 is tagged and published (merge commit
+`923d492`). For a short overview see [STATE_OF_OPENPHASE.md](STATE_OF_OPENPHASE.md);
+for how to work on the project see [MAINTAINER_GUIDE.md](MAINTAINER_GUIDE.md).
 
 This page brings together what OpenPhase does today, what supports it, and what
 waits on a decision. Details live in the linked documents.
@@ -40,13 +41,14 @@ waits on a decision. Details live in the linked documents.
 - A supported input range of 50–1000 K and 1 Pa–1 GPa, checked before any
   engine call.
 
-**Teaching.** Four labs in [docs/teaching](teaching/) (methane–propane,
-methane–ethane, composition and the envelope, what kij does), each with an
-instructor key whose numbers are recomputed from the engine by the tests.
+**Teaching.** Five labs in [docs/teaching](teaching/) (methane–propane,
+methane–ethane, composition and the envelope, what kij does, liquid density
+and volume translation), each with an instructor key whose numbers are
+recomputed from the engine by the tests.
 
 ## Evidence
 
-- About 1,800 test cases. CI runs lint, types, the full suite in parallel, a
+- A large automated test suite. CI runs lint, types, the full suite in parallel, a
   real-browser test, a localhost health check and a run with only the deployed
   dependencies on every push.
 - Experimental bubble pressures (record regenerated after P7 and P8):
@@ -111,6 +113,17 @@ instructor key whose numbers are recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (handover documents):**
+  - Done: `docs/MAINTAINER_GUIDE.md` covers setup, daily commands, what CI
+    runs, adding a test, the frozen-engine rule and proposals, the release
+    procedure (tags and `gh release` from the desktop) and troubleshooting.
+    `docs/STATE_OF_OPENPHASE.md` is a short faculty-facing summary with
+    recommendations for each open decision; every number in it is checked by
+    `tests/test_state_of_openphase.py`. Also a CHANGELOG "Unreleased" section,
+    the docs index, and stale status lines (five labs; v1.7.0 published).
+  - Open PRs: 47 (butanes draft, Table 5 values).
+  - Next: the health-check report and the browser walk.
 
 - **2026-11-15, web (error messages say how to fix them):**
   - Recorded: the desktop tagged and published v1.7.0 on 15 Nov 2026 at
