@@ -90,7 +90,7 @@ recomputed from the engine by the tests.
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10 (b): turn off the app envelope's global fallback | `docs/ENGINE_CHANGE_PROPOSALS.md`, `docs/investigations/p10_survey.md` | Survey of 16 cases (15 Nov): identical envelope points and termination reasons on all 32 branches; the fallback never rescued a step; 20.7 % less envelope time. Recommended: approve as a one-line app setting change. |
-| Release v1.9.0 | Draft release PR 72 (its release notes are in that PR) | P12 (b) note, P10 survey, second-source attempt, adapters mutation testing; not tagged |
+| Release v1.9.0 | Draft release PR 72, `docs/release_notes/v1.9.0.md` | P12 (b) note, P10 survey, second-source attempt, adapters mutation testing; not tagged |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -128,6 +128,14 @@ recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (release v1.9.0 prepared, draft, not merged):**
+  - Done: version 1.9.0 with `uv lock`; `docs/release_notes/v1.9.0.md`
+    (merged work only, honest limits) with `tests/test_release_notes_v1_9.py`
+    recomputing every number; CHANGELOG 1.9.0 section.
+  - Open PRs: 47 (butanes draft) and this draft (awaiting the owner).
+  - Next: owner approves or declines v1.9.0; the desktop tags v1.8.0 at
+    `5ed8aeb` and, if approved, v1.9.0 at this PR's merge commit.
 
 - **2026-11-15, web (final handoff of the web session):**
   - Done: merged PR 66 (v1.8.0, merge commit `5ed8aeb`), PR 68 (P12 (b),

@@ -5,7 +5,9 @@ v1.0–v1.5, and `docs/release_notes/` from v1.6 on. Every version keeps the sam
 Peng–Robinson model (classical mixing, kij = 0 by default); engine changes are
 made only with the owner's approval and are named below.
 
-## Unreleased (on `master`, after v1.8.0)
+## 1.9.0 (prepared 15 November 2026; awaiting the owner's approval, not tagged)
+
+Full notes: [`docs/release_notes/v1.9.0.md`](docs/release_notes/v1.9.0.md).
 
 **Engine (owner-approved 15 November 2026: P12, part (b) only)**
 - **A stable verdict that rests only on trivial trials is labelled.** When the
@@ -21,6 +23,19 @@ made only with the owner's approval and are named below.
 - When the diagnostic is present, the Overview shows one short note under the
   single-phase message, and the Diagnostics page lists the code with its
   glossary meaning. Labs 6 and 7 say what the note means.
+
+**Investigations (no engine or app setting changed)**
+- **P10 survey** (`docs/investigations/p10_survey.md`): the app's envelope with
+  and without the global fallback on 16 cases gives identical points and
+  termination reasons on all 32 branches; the fallback never rescued a step;
+  20.7 % less time without it. Waiting for the owner's decision.
+- **Second-source plan:** the desktop's ThermoML attempt is recorded (search
+  service unavailable, no record for four candidate DOIs, the tool reproduces
+  the record on the real May (2015) file). Still no second source.
+- **Mutation testing of `adapters.py`** covers all 884 mutants: 75.9 % →
+  95.0 % killed, excluding annotation-only mutants. New tests cover the
+  envelope-location, error and kij helpers
+  (`docs/investigations/health_check_2026_11.md`).
 
 ## 1.8.0 (15 November 2026)
 
