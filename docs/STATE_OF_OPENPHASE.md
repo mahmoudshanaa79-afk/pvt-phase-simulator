@@ -15,7 +15,7 @@ Richter (2025). It calculates:
 - phase envelopes;
 - certified mixture critical points.
 
-A public Streamlit app exposes all of it, with Learn mode and five teaching
+A public Streamlit app exposes all of it, with Learn mode and seven teaching
 labs whose numbers are checked against the engine. Results always carry the
 solver's status and reason. An ambiguous or failed calculation is reported as
 such, never replaced by a guess.

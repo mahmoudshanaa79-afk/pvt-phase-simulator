@@ -28,6 +28,8 @@ run it.
 - [Lab 3: how composition moves the phase envelope](teaching/LAB_03_COMPOSITION_AND_THE_ENVELOPE.md)
 - [Lab 4: what kij does (methane + propane)](teaching/LAB_04_BINARY_INTERACTION.md)
 - [Lab 5: liquid density and volume translation](teaching/LAB_05_LIQUID_DENSITY.md)
+- [Lab 6: phase stability and the flash](teaching/LAB_06_STABILITY_AND_FLASH.md)
+- [Lab 7: the critical point, the envelope and retrograde condensation](teaching/LAB_07_CRITICAL_POINT_AND_RETROGRADE.md)
 
 ### Investigations (evidence behind decisions)
 

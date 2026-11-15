@@ -55,6 +55,15 @@ LABS: Final = (
         "Lab 5: Liquid density and volume translation (propane, methane + propane)",
         "LAB_05_LIQUID_DENSITY.md",
     ),
+    (
+        "Lab 6: Phase stability and the flash (methane + propane)",
+        "LAB_06_STABILITY_AND_FLASH.md",
+    ),
+    (
+        "Lab 7: The critical point, the envelope and retrograde condensation "
+        "(methane + propane)",
+        "LAB_07_CRITICAL_POINT_AND_RETROGRADE.md",
+    ),
 )
 
 
@@ -99,6 +108,11 @@ TOPICS: Final[dict[PageName, LearnTopic]] = {
             "Keep 300 K and lower the pressure to 2 MPa. The flash now reports a "
             "single phase: you are below the dew point (about 2.35 MPa at 300 K "
             "for this mixture).",
+            "Open *Advanced: volume translation (Péneloux)* and switch on the "
+            "densities for the default case. The liquid density falls from about "
+            "11625 to 11019 mol/m³ with the shift, while the vapour changes only "
+            "from about 2767 to 2734 mol/m³: a few cm³/mol matter more for a "
+            "small liquid volume (Lab 5).",
         ),
     ),
     "phase_envelope": LearnTopic(
@@ -155,6 +169,10 @@ TOPICS: Final[dict[PageName, LearnTopic]] = {
             "Compare that with the pure-component critical temperatures of "
             "methane (about 190.6 K) and propane (about 369.9 K). Is the mixture "
             "value a simple mole-fraction average?",
+            "The critical point is not the hottest point of the envelope. At "
+            "327 K, between the critical temperature and the cricondentherm "
+            "(about 329.1 K), lowering the pressure first condenses liquid: the "
+            "liquid fraction peaks near 0.10 at 7.25 MPa (Lab 7).",
         ),
     ),
     "engineering_sweeps": LearnTopic(
@@ -229,6 +247,10 @@ TOPICS: Final[dict[PageName, LearnTopic]] = {
             "15 iterations, and the maximum equilibrium residual of the latest "
             "iteration is below 1e-8. Equal fugacities in both phases are "
             "satisfied to that level.",
+            "With the default flash, switch on *Show advanced raw public objects*. "
+            "Under `phase_stability`, the liquid-like trial's tangent-plane "
+            "distance is about -0.132: negative, so the feed is unstable and "
+            "splits (Lab 6).",
         ),
     ),
 }
