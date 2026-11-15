@@ -1,7 +1,7 @@
 # Project status
 
-Last updated: 15 November 2026. v1.7.0 is tagged and published (merge commit
-`923d492`). For a short overview see [STATE_OF_OPENPHASE.md](STATE_OF_OPENPHASE.md);
+Last updated: 15 November 2026. v1.8.0 is approved by the owner and released
+from this PR's merge commit (tag `v1.8.0`); v1.7.0 is at `923d492`. For a short overview see [STATE_OF_OPENPHASE.md](STATE_OF_OPENPHASE.md);
 for how to work on the project see [MAINTAINER_GUIDE.md](MAINTAINER_GUIDE.md).
 
 This page brings together what OpenPhase does today, what supports it, and what
@@ -86,7 +86,7 @@ recomputed from the engine by the tests.
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
-| P12: near-critical false "stable" verdicts | `docs/ENGINE_CHANGE_PROPOSALS.md`, `tools/reproduce_near_critical_false_stable.py` | Extra stability starts near the feed when both trials are trivial, and a diagnostic when "stable" rests only on trivial trials |
+| P12 (a): extra stability starts near the feed when both trials are trivial | `docs/ENGINE_CHANGE_PROPOSALS.md`, `tools/reproduce_near_critical_false_stable.py` | Changes results; (b), the diagnostic, was approved on 15 November |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -105,13 +105,10 @@ recomputed from the engine by the tests.
 
 1. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
    draft PR 47 (validation only); its description lists the owner's steps.
-2. Approve or reject the v1.8.0 release (draft PR "Release v1.8.0 (awaiting
-   owner approval)"). After approval: merge, then tag and publish from the
-   desktop (`docs/MAINTAINER_GUIDE.md`, "Releasing a version").
-3. Decide P12 (near-critical false "stable" verdicts; recommended: approve
-   (b), the diagnostic, now; and (a), extra starts, after a golden-master
-   check). Decide P10 (recommended: option (b), only after a wider survey
-   shows no lost points).
+2. Implement P12 (b), the diagnostic the owner approved on 15 November, with
+   the golden master byte-identical. P12 (a) waits for a golden-master study.
+3. P10: the owner asked for the wider survey of option (b) only, with no
+   engine change.
 4. From the desktop, download the ThermoML candidates in
    `docs/SECOND_SOURCE_PLAN.md` and run `tools/compare_thermoml_vle.py` and
    `tools/compare_liquid_density.py`. This is the first test of the record
@@ -127,6 +124,22 @@ recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, desktop (v1.8.0 released, owner-approved):**
+  - Done: the owner approved v1.8.0, P12 (b) only, and a P10 survey with no
+    engine change. Merged master into the release PR, dropped the "awaiting
+    approval" wording, and released v1.8.0 from this PR's merge commit.
+  - Open PRs: 47 (butanes draft, Table 5 values).
+  - Next: P12 (b) diagnostic; P10 survey; second-source downloads (desktop).
+
+- **2026-11-15, web (release v1.8.0 prepared, draft, not merged):**
+  - Done: version 1.8.0 (`uv lock`), `docs/release_notes/v1.8.0.md` (merged
+    work only, honest known limits; numbers checked by
+    `tests/test_release_notes_v1_8.py`), CHANGELOG section. Draft PR
+    "Release v1.8.0 (awaiting owner approval)".
+  - Open PRs: this release draft; 47 (butanes draft, Table 5 values).
+  - Next: the owner approves v1.8.0; then merge, and the desktop tags it
+    (tags and `gh release` are blocked in the web sessions).
 
 - **2026-11-15, web (final web session: handoff):**
   - Done today, all merged:
