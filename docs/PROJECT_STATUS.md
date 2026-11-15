@@ -1,7 +1,9 @@
 # Project status
 
-Last updated: 15 November 2026. v1.8.0 is approved by the owner and released
-from this PR's merge commit (tag `v1.8.0`); v1.7.0 is at `923d492`. For a short overview see [STATE_OF_OPENPHASE.md](STATE_OF_OPENPHASE.md);
+Last updated: 15 November 2026. v1.8.0 is approved and merged at `5ed8aeb`;
+the desktop tags it there (no `v1.8.0` tag existed at the end of the web
+session). v1.9.0 is prepared as a draft release PR, awaiting the owner.
+v1.7.0 is at `923d492`. For a short overview see [STATE_OF_OPENPHASE.md](STATE_OF_OPENPHASE.md);
 for how to work on the project see [MAINTAINER_GUIDE.md](MAINTAINER_GUIDE.md).
 
 This page brings together what OpenPhase does today, what supports it, and what
@@ -13,7 +15,8 @@ waits on a decision. Details live in the linked documents.
 
 - Peng–Robinson EOS with classical mixing for verified methane, ethane and
   propane; kij = 0 by default, with optional user-supplied kij.
-- Tangent-plane-distance stability and two-phase flash.
+- Tangent-plane-distance stability and two-phase flash. A "stable" verdict
+  that rests only on trivial trials is labelled (P12 (b)).
 - Bubble and dew pressures with an optional Newton refinement, and honest
   reporting of hidden, multiple and unbracketed roots (P2, P7, P8).
 - P–T envelope tracing with natural and pseudo-arclength continuation.
@@ -87,6 +90,7 @@ recomputed from the engine by the tests.
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10 (b): turn off the app envelope's global fallback | `docs/ENGINE_CHANGE_PROPOSALS.md`, `docs/investigations/p10_survey.md` | Survey of 16 cases (15 Nov): identical envelope points and termination reasons on all 32 branches; the fallback never rescued a step; 20.7 % less envelope time. Recommended: approve as a one-line app setting change. |
+| Release v1.9.0 | Draft release PR 72 (its release notes are in that PR) | P12 (b) note, P10 survey, second-source attempt, adapters mutation testing; not tagged |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -103,22 +107,40 @@ recomputed from the engine by the tests.
 
 ## Suggested next steps, in order
 
-1. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
+1. **Desktop:** tag and publish v1.8.0 at `5ed8aeb`, PR 66's merge commit
+   (master CI passed there), as in `docs/MAINTAINER_GUIDE.md`.
+2. **Owner:** approve or decline v1.9.0 (draft PR 72). After approval: merge
+   it once CI is green, then the desktop tags v1.9.0 at its merge commit.
+3. **Owner:** decide P10 (b), using `docs/investigations/p10_survey.md`. The
+   survey supports it; adopting it is a one-line app setting change plus a
+   test.
+4. Supply the six Yang & Richter (2025) Table 5 values and finish the butanes
    draft PR 47 (validation only); its description lists the owner's steps.
-2. P10 (b): decide, using `docs/investigations/p10_survey.md`. The survey
-   supports it; adopting it is a one-line app setting change plus a test.
-3. From the desktop, download the ThermoML candidates in
-   `docs/SECOND_SOURCE_PLAN.md` and run `tools/compare_thermoml_vle.py` and
-   `tools/compare_liquid_density.py`. This is the first test of the record
-   against a second laboratory and the first mixture-density check of the
-   volume translation.
-4. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
+5. **Desktop:** follow the "Next attempt" checklist in
+   `docs/SECOND_SOURCE_PLAN.md` (ThermoML search API, the archive page, the
+   2026 Int. J. Thermophys. paper's supplementary data), then run
+   `tools/compare_thermoml_vle.py` and `tools/compare_liquid_density.py`. This
+   would be the first test of the record against a second laboratory.
+6. Follow `docs/CO2_N2_ADMISSION_PLAN.md` once its measured VLE datasets are
    verified.
 
 ## Session log
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (final handoff of the web session):**
+  - Done: merged PR 66 (v1.8.0, merge commit `5ed8aeb`), PR 68 (P12 (b),
+    byte-identical results), PR 69 (second-source desktop findings), PR 70
+    (P10 survey) and PR 71 (adapters mutation testing, 95.0 %). Opened draft
+    PR 72 (v1.9.0). Recheck of the final tree, run in the session: gates
+    clean; full suite 2221 passed; `tests/test_app_browser.py` and the
+    keyboard-focus tests passed; browser walk 32 of 32; deploy and smoke
+    checks passed with runtime-only dependencies.
+  - Open PRs: 47 (butanes draft, Table 5 values) and 72 (v1.9.0 draft,
+    awaiting the owner).
+  - Next: the desktop tags v1.8.0 at `5ed8aeb`; the owner decides v1.9.0
+    and P10 (b); then the butanes and the second-source checklist.
 
 - **2026-11-15, web (adapters.py mutation testing completed):**
   - Done: cosmic-ray ran all 884 mutants of `adapters.py`. Excluding the 165
