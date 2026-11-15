@@ -85,6 +85,7 @@ recomputed from the engine by the tests.
 |---|---|---|
 | Butane Table 5 values | `docs/BUTANES_ADMISSION_PLAN.md` and the draft butanes PR | Admits isobutane and n-butane (validation only) |
 | P10: faster envelope continuation that changes recorded results | `docs/ENGINE_CHANGE_PROPOSALS.md` | Option (b) about 25 % faster with identical envelope points on six states |
+| P12: near-critical false "stable" verdicts | `docs/ENGINE_CHANGE_PROPOSALS.md`, `tools/reproduce_near_critical_false_stable.py` | Extra stability starts near the feed when both trials are trivial, and a diagnostic when "stable" rests only on trivial trials |
 | Faculty review | review brief (private artifact) | Six scientific questions for a reviewer |
 
 ## Not implemented (by design, for now)
@@ -113,6 +114,18 @@ recomputed from the engine by the tests.
 
 Newest first. One short entry per task, written by whichever account did the
 work and added in that task's PR. Sessions read only the latest few entries.
+
+- **2026-11-15, web (engine finding: proposal P12):**
+  - Done: `tools/reproduce_near_critical_false_stable.py` and proposal P12 in
+    `docs/ENGINE_CHANGE_PROPOSALS.md`. For 50/50 C1/C3 at 8.534 MPa, the flash
+    reports "stable" from 314 K to 320 K (both stability trials trivial), yet
+    the extended envelope puts every state inside the two-phase region. At
+    314 K one extra start near the feed finds a negative tangent-plane
+    distance. Suggested: (a) extra starts near the feed when both trials are
+    trivial; (b) a diagnostic when "stable" rests only on trivial trials.
+    `tests/test_reproduce_near_critical_false_stable.py` pins the evidence.
+    The engine is unchanged.
+  - Next: owner decides P12; Labs 6-7.
 
 - **2026-11-15, web (engine invariants, read-only):**
   - Done: `tests/test_engine_invariants.py` (171 checks, about 5 s) recomputes
